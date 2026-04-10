@@ -1,4 +1,4 @@
-# Fabien Damboeck
+# Zillion
 
 Building **local-first developer tools** for AI assistants.
 
