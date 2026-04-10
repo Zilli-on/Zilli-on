@@ -21,6 +21,10 @@ Building **local-first developer tools** for AI assistants.
 
 Python 3.11+ · Model Context Protocol · stdlib · sqlite · ast
 
+## Also
+
+I also take on AI automation contracts (Telegram bots, content pipelines, workflow automation, self-healing agent systems). See **[jarvis-portfolio](https://github.com/Zilli-on/jarvis-portfolio)** for the services page, or open an issue on any of my repos.
+
 ## Contact
 
 Issues on any of my repos are the fastest way to reach me.
