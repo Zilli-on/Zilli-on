@@ -10,6 +10,10 @@ Building **local-first developer tools** for AI assistants.
 
 - **[jarvis-graph-lite](https://github.com/Zilli-on/jarvis-graph-lite)** — The stdlib-only Python code index that powers it. Zero pip dependencies, 277 passing tests, local sqlite index, dogfooded on itself.
 
+## Demo
+
+- **[Walkable 3D World](demo/index.html)** — a small first-person 3D world you can walk around, right in the browser. WebGL + Three.js, single file, no install, no build. Open `demo/index.html` (or serve it locally) and click **Welt betreten**. Controls: `WASD` move · mouse look · `Shift` sprint · `Space` jump · `Esc` pause.
+
 ## Philosophy
 
 - **Local-first**: your source never leaves your machine
