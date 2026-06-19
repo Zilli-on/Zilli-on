@@ -15,9 +15,10 @@
       position: fixed; inset: 0; z-index: 10;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       text-align: center; gap: 16px; padding: 24px;
-      background: linear-gradient(180deg, rgba(255,217,160,0.92), rgba(160,216,255,0.92));
-      transition: opacity .4s ease;
+      background: linear-gradient(180deg, rgba(255,217,160,0.55), rgba(160,216,255,0.62));
+      backdrop-filter: blur(2px); transition: opacity .4s ease;
     }
+    #overlay h1, #overlay p { text-shadow: 0 2px 10px rgba(255,255,255,0.6); }
     #overlay.hidden { opacity: 0; pointer-events: none; }
     #overlay h1 { font-size: clamp(30px, 7vw, 58px); font-weight: 800; letter-spacing: -0.02em; color: #1b2a3a; }
     #overlay h1 span { color: #0f766e; }
@@ -75,6 +76,10 @@
     #compass .arrow { font-size: 26px; color: #0f766e; filter: drop-shadow(0 2px 4px rgba(0,0,0,.25)); transition: transform .08s linear; }
     #compass .lbl { font-size: 11px; font-weight: 700; color: #1b3a36; background: rgba(255,255,255,0.6); padding: 1px 7px; border-radius: 7px; }
 
+    #radar { position: fixed; right: 12px; top: 82px; z-index: 6; width: 116px; height: 116px; display: none;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.18)); pointer-events: none; }
+    #radar.on { display: block; }
+
     #win {
       position: fixed; inset: 0; z-index: 11; display: none; flex-direction: column;
       align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px;
@@ -91,6 +96,7 @@
   <div id="hud">📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b>/<b id="tot">0</b> · ⏱ <b id="timer">0:00</b></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
   <div id="compass"><div class="arrow">⬆</div><div class="lbl">nächstes Paket</div></div>
+  <canvas id="radar" width="116" height="116"></canvas>
   <div id="toast"></div>
   <div id="win">
     <h2>Alle Pakete zugestellt! 🎉</h2>
@@ -142,7 +148,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v8 · fish + polish';
+    const BUILD = 'v9 · wind, fireflies, radar, menu';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -404,6 +410,21 @@
       fishes.push({ f, dir, t, phase: rnd() * 8, period: 4 + rnd() * 4 });
     }
 
+    // ---------- Fireflies (only glow at night) ----------
+    const FF = 130, ffGeo = new THREE.BufferGeometry(), ffPos = new Float32Array(FF * 3), ffData = [];
+    for (let i = 0; i < FF; i++) {
+      let dir = randDir(); let tr = 0; while (terrain(dir) < 0.4 && tr++ < 40) dir = randDir();
+      const p = dir.clone().multiplyScalar(walkRadius(dir) + 0.6 + rnd() * 2.4);
+      ffPos[i*3] = p.x; ffPos[i*3+1] = p.y; ffPos[i*3+2] = p.z;
+      ffData.push({ base: p.clone(), phase: rnd() * 6.28, amp: 0.3 + rnd() * 0.6 });
+    }
+    ffGeo.setAttribute('position', new THREE.BufferAttribute(ffPos, 3));
+    const ffTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+      const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,243,160,0.85)'); gr.addColorStop(1, 'rgba(255,243,160,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+    const ffMat = new THREE.PointsMaterial({ map: ffTex, color: 0xffffff, size: 0.62, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+    const fireflies = new THREE.Points(ffGeo, ffMat); scene.add(fireflies);
+
     // ---------- Decorations ----------
     function makeTree() {
       const g = new THREE.Group();
@@ -429,14 +450,17 @@
       return g;
     }
     const decoN = 110;
+    const windy = []; // trees that sway in the wind
     for (let i = 0; i < decoN; i++) {
       const dir = fibDir(i + 0.5, decoN + 1);
       if (terrain(dir) < 0.55) continue; // only inland, above the beaches
-      const roll = Math.random();
-      const deco = roll < 0.55 ? makeTree() : roll < 0.72 ? makeRock() : roll < 0.9 ? makeHouse() : makeMailbox();
-      deco.scale.setScalar(0.8 + Math.random() * 0.5);
+      const roll = rnd();
+      const isTree = roll < 0.55;
+      const deco = isTree ? makeTree() : roll < 0.72 ? makeRock() : roll < 0.9 ? makeHouse() : makeMailbox();
+      deco.scale.setScalar(0.8 + rnd() * 0.5);
       orientOnSphere(deco, dir, landRadius(dir));
       scene.add(deco);
+      if (isTree) windy.push({ obj: deco, base: deco.quaternion.clone(), phase: rnd() * 6.28 });
     }
 
     // ---------- Parcels (pickups) ----------
@@ -540,7 +564,7 @@
     for (let i = 0; i < 500; i++) { const cand = randDir(); const h = terrain(cand); if (h > 0.3 && h < 0.9) { spawnDir = cand; break; } } // a grassy, gentle spot
     let pos = spawnDir.clone().multiplyScalar(walkRadius(spawnDir));
     let forward = new THREE.Vector3(1, 0, 0);
-    let height = 0, vUp = 0, canJump = true;
+    let height = 0, vUp = 0, canJump = true, stepTimer = 0;
     const up = new THREE.Vector3();
     function refreshFrame() {
       up.copy(pos).normalize();
@@ -582,7 +606,7 @@
     const overlay = document.getElementById('overlay'), touchUI = document.getElementById('touchUI');
     const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     let started = false;
-    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); compassEl.classList.add('on'); if (isTouch) touchUI.classList.add('on'); initAudio(); });
+    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); compassEl.classList.add('on'); radarEl.classList.add('on'); if (isTouch) touchUI.classList.add('on'); initAudio(); });
     document.getElementById('winBtn').addEventListener('click', () => location.reload());
     if (isTouch) document.getElementById('keys').innerHTML =
       '<span class="key"><b>Joystick</b> Laufen/Drehen</span><span class="key"><b>Wischen</b> Kamera</span><span class="key"><b>RUN</b> Rennen</span><span class="key"><b>HOP</b> Hüpfen</span>';
@@ -616,6 +640,15 @@
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
     { const b = parseFloat(localStorage.getItem('tp_best') || '0'); if (b) document.getElementById('bestLine').textContent = '🏆 Deine Bestzeit: ' + fmt(b); }
 
+    // ---------- Footstep dust puffs ----------
+    const puffs = [], puffGeo = new THREE.SphereGeometry(0.2, 6, 5);
+    const puffMat = new THREE.MeshToonMaterial({ gradientMap: gradient, color: 0xece2cc, transparent: true, opacity: 0.5, depthWrite: false });
+    function puff(at, nrm) {
+      const m = new THREE.Mesh(puffGeo, puffMat); m.position.copy(at).addScaledVector(nrm, 0.1);
+      m.userData = { v: nrm.clone().multiplyScalar(0.5).add(new THREE.Vector3().randomDirection().multiplyScalar(0.3)), life: 0 };
+      m.scale.setScalar(0.35); scene.add(m); puffs.push(m);
+    }
+
     // ---------- Particle bursts (pickup / deliver juice) ----------
     const bursts = [], burstGeo = new THREE.TetrahedronGeometry(0.13);
     function burst(at, hex) {
@@ -623,6 +656,25 @@
       const parts = [];
       for (let i = 0; i < 12; i++) { const m = new THREE.Mesh(burstGeo, mat); const v = new THREE.Vector3().randomDirection().multiplyScalar(2 + Math.random() * 2.5); v.addScaledVector(at.clone().normalize(), 2); m.userData.v = v; g.add(m); parts.push(m); }
       scene.add(g); bursts.push({ g, parts, life: 0 });
+    }
+
+    // ---------- Mini radar ----------
+    const radarEl = document.getElementById('radar'), rctx = radarEl.getContext('2d');
+    const RC = 58, RR = 50, _rt = new THREE.Vector3(), _rel = new THREE.Vector3();
+    function drawRadar() {
+      rctx.clearRect(0, 0, 116, 116);
+      rctx.fillStyle = 'rgba(255,255,255,0.45)'; rctx.beginPath(); rctx.arc(RC, RC, RR, 0, 7); rctx.fill();
+      rctx.strokeStyle = 'rgba(15,118,110,0.35)'; rctx.lineWidth = 2; rctx.stroke();
+      _rt.crossVectors(up, forward).normalize();
+      const sc = RR / 34;
+      const plot = (wp, color, r) => {
+        _rel.copy(wp).sub(player.position); let x = _rel.dot(_rt) * sc, y = -_rel.dot(forward) * sc;
+        const d = Math.hypot(x, y); if (d > RR - 4) { x = x / d * (RR - 4); y = y / d * (RR - 4); }
+        rctx.fillStyle = color; rctx.beginPath(); rctx.arc(RC + x, RC + y, r, 0, 7); rctx.fill();
+      };
+      for (const p of parcels) if (!p.done) plot(p.worldPos, '#0f766e', 2.6);
+      for (const o of dropoffs) plot(o.worldPos, '#eab308', 3.4);
+      rctx.fillStyle = '#1b2a3a'; rctx.beginPath(); rctx.moveTo(RC, RC - 7); rctx.lineTo(RC - 5, RC + 6); rctx.lineTo(RC + 5, RC + 6); rctx.closePath(); rctx.fill();
     }
 
     // ---------- Procedural ambient audio (WebAudio, no files) ----------
@@ -655,6 +707,12 @@
         o.start(s); o.stop(s + 0.55);
       });
     }
+    function step() {
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.09);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.16, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+      o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.15);
+    }
     const muteBtn = document.getElementById('muteBtn');
     muteBtn.addEventListener('click', () => {
       muted = !muted; muteBtn.textContent = muted ? '🔇' : '🔊';
@@ -683,6 +741,7 @@
 
     // ---------- Loop ----------
     const G = 18, tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3(), clock = new THREE.Clock();
+    const _qA = new THREE.Quaternion(), _vx = new THREE.Vector3(1, 0, 0);
     placePlayer();
     camera.up.copy(up); camera.position.copy(player.position).addScaledVector(up, 2.6).addScaledVector(forward, -6.5);
 
@@ -737,6 +796,18 @@
         if (target) { tmp.copy(target).applyMatrix4(camera.matrixWorldInverse); arrowEl.style.transform = 'rotate(' + Math.atan2(tmp.x, tmp.y) + 'rad)'; }
       }
 
+      const windT = oceanUniforms.time.value;
+      // trees sway in the wind
+      for (const w of windy) { _qA.setFromAxisAngle(_vx, Math.sin(windT * 1.5 + w.phase) * 0.05); w.obj.quaternion.copy(w.base).multiply(_qA); }
+      // fireflies (fade in at night, gentle drift)
+      ffMat.opacity += (starMat.opacity - ffMat.opacity) * 0.05;
+      if (ffMat.opacity > 0.02) {
+        const arr = ffGeo.attributes.position.array;
+        for (let i = 0; i < FF; i++) { const d = ffData[i]; arr[i*3] = d.base.x + Math.sin(windT * 1.1 + d.phase) * d.amp; arr[i*3+1] = d.base.y + Math.sin(windT * 1.4 + d.phase * 1.3) * d.amp; arr[i*3+2] = d.base.z + Math.cos(windT * 1.2 + d.phase) * d.amp; }
+        ffGeo.attributes.position.needsUpdate = true;
+      }
+      // footstep dust
+      for (let i = puffs.length - 1; i >= 0; i--) { const m = puffs[i], u = m.userData; u.life += dt; m.position.addScaledVector(u.v, dt); u.v.multiplyScalar(0.9); m.scale.multiplyScalar(1.05); if (u.life > 0.5) { scene.remove(m); puffs.splice(i, 1); } }
       // drifting clouds
       for (const cl of clouds.children) {
         cl.position.applyAxisAngle(cl.userData.axis, cl.userData.speed * dt);
@@ -785,21 +856,33 @@
         if (mv !== 0) { pos.addScaledVector(forward, mv * speed * dt); pos.setLength(R); refreshFrame(); }
         if (height > 0 || vUp > 0) { vUp -= G * dt; height += vUp * dt; if (height <= 0) { height = 0; vUp = 0; canJump = true; } }
         if (modelReady && mixer) setAction(mv !== 0 ? ((keys.sprint || touchSprint) ? 'Running' : 'Walking') : 'Idle');
+        if (mv !== 0 && height === 0) { stepTimer -= dt; if (stepTimer <= 0) { stepTimer = (keys.sprint || touchSprint) ? 0.22 : 0.34; puff(player.position, up); step(); } } else stepTimer = 0;
       }
       if (mixer) mixer.update(dt);
       placePlayer();
 
-      // third-person follow camera (closer + kept above terrain so hills don't occlude the hero)
-      _r.crossVectors(up, forward).normalize();
-      const behind = tmp.copy(forward).multiplyScalar(-1).applyAxisAngle(_r, -camPitch);
-      const desired = new THREE.Vector3().copy(player.position).addScaledVector(behind, 6.5).addScaledVector(up, 2.6);
-      const cdir = tmp2.copy(desired).normalize();
-      const minR = walkRadius(cdir) + 2.4;
-      if (desired.length() < minR) desired.setLength(minR);
-      camera.position.lerp(desired, started ? 0.12 : 0.05);
-      camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.7));
+      if (!started) {
+        // cinematic slow orbit behind the start menu
+        const a = oceanUniforms.time.value * 0.16;
+        tmp.set(Math.cos(a) * (R + 14), 7, Math.sin(a) * (R + 14));
+        camera.position.lerp(tmp, 0.04); camera.up.set(0, 1, 0); camera.lookAt(0, 0, 0);
+      } else {
+        // third-person follow camera (closer + kept above terrain so hills don't occlude the hero)
+        _r.crossVectors(up, forward).normalize();
+        const behind = tmp.copy(forward).multiplyScalar(-1).applyAxisAngle(_r, -camPitch);
+        const desired = tmp3.copy(player.position).addScaledVector(behind, 6.5).addScaledVector(up, 2.6);
+        const cdir = tmp2.copy(desired).normalize();
+        const minR = walkRadius(cdir) + 2.4;
+        if (desired.length() < minR) desired.setLength(minR);
+        camera.position.lerp(desired, 0.12);
+        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.7));
+        // subtle FOV kick while sprinting
+        const wantFov = ((keys.sprint || touchSprint) && mv !== 0) ? 66 : 60;
+        camera.fov += (wantFov - camera.fov) * 0.1; camera.updateProjectionMatrix();
+      }
       if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(0,0,0); } // debug/QA overview hook
 
+      if (started && !finished) drawRadar();
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
       composer.render();
     }
