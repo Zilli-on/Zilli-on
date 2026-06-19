@@ -126,6 +126,25 @@
     #win p { font-size: 18px; font-weight: 600; }
     #win button { margin-top: 8px; cursor: pointer; border: 0; border-radius: 999px; padding: 14px 32px; font-size: 16px; font-weight: 800; color: #04302b; background: #fff; box-shadow: 0 12px 30px rgba(0,0,0,0.2); }
 
+    /* ---------- project panel (press E) ---------- */
+    #projHint { position: fixed; left: 50%; bottom: 120px; translate: -50% 0; z-index: 6; display: none; pointer-events: none;
+      font-size: 13px; font-weight: 700; color: var(--ink); background: var(--panel-2); border: 1px solid var(--stroke); padding: 6px 12px; border-radius: 10px; box-shadow: var(--shadow); }
+    #projHint.on { display: block; }
+    #projHint b { color: var(--teal); }
+    #proj { position: fixed; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center; padding: 22px;
+      background: radial-gradient(120% 90% at 50% 0%, rgba(8,30,38,0.6), rgba(4,14,20,0.82)); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+    #proj.on { display: flex; }
+    .proj-card { max-width: 520px; width: 100%; padding: 26px 28px; border-radius: 22px; background: rgba(255,255,255,0.7); border: 1px solid var(--stroke);
+      box-shadow: 0 30px 80px rgba(8,40,45,0.4), inset 0 1px 0 rgba(255,255,255,0.7); backdrop-filter: blur(16px) saturate(1.3); -webkit-backdrop-filter: blur(16px) saturate(1.3);
+      animation: cardIn .45s cubic-bezier(.2,.9,.3,1.3) both; }
+    .proj-card .pn { font-family: "Space Grotesk", sans-serif; font-size: 26px; font-weight: 700; color: var(--teal); display: flex; align-items: center; gap: 8px; }
+    .proj-card .pt { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--teal-d); background: rgba(45,212,191,0.18); padding: 3px 9px; border-radius: 999px; margin: 8px 0 2px; }
+    .proj-card .pb { margin-top: 12px; font-size: 14px; line-height: 1.55; color: var(--ink-soft); white-space: pre-wrap; max-height: 38vh; overflow: auto; }
+    .proj-card .prow { display: flex; gap: 10px; margin-top: 18px; }
+    .proj-card a.gh { cursor: pointer; border-radius: 999px; padding: 11px 22px; font-size: 14px; font-weight: 800; color: #04302b; text-decoration: none;
+      background: linear-gradient(135deg, #7df0dd, #2dd4bf); box-shadow: 0 10px 26px rgba(20,184,166,0.4); }
+    .proj-card button.cl { cursor: pointer; border: 1px solid var(--stroke); background: rgba(255,255,255,0.6); border-radius: 999px; padding: 11px 22px; font-size: 14px; font-weight: 800; color: var(--ink); }
+
     /* ---------- brain map ---------- */
     #mapView { position: fixed; inset: 0; z-index: 8; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
       background: radial-gradient(130% 100% at 50% 0%, rgba(8,30,38,0.82), rgba(4,14,20,0.92)); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
@@ -172,6 +191,13 @@
   <canvas id="radar" width="116" height="116"></canvas>
   <div id="chargeBar"><div id="chargeFill"></div></div>
   <div id="card"><div class="n" id="cardName"></div><div class="d" id="cardDesc"></div><a id="cardLink" target="_blank" rel="noopener"></a></div>
+  <div id="projHint">Drücke <b>E</b> · Projekt öffnen</div>
+  <div id="proj"><div class="proj-card">
+    <div class="pn" id="projName">🪐 Projekt</div>
+    <div class="pt" id="projTheme">theme</div>
+    <div class="pb" id="projBody">…</div>
+    <div class="prow"><a class="gh" id="projGh" target="_blank" rel="noopener">Auf GitHub öffnen ↗</a><button class="cl" id="projClose">Schließen (Esc)</button></div>
+  </div></div>
   <div id="toast"></div>
   <div id="win">
     <h2>Alle Pakete zugestellt! 🎉</h2>
@@ -199,6 +225,7 @@
         <span class="key"><b>Shift</b> Rennen</span>
         <span class="key"><b>Space halten</b> Planet-Sprung</span>
         <span class="key"><b>M</b> Karte</span>
+        <span class="key"><b>E</b> Projekt-Info</span>
       </div>
       <p id="bestLine"></p>
       <button id="playBtn" class="btn-primary" disabled>Lädt …</button>
@@ -224,7 +251,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v23 · music + biome sky';
+    const BUILD = 'v24 · project panels';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -908,6 +935,30 @@
     }
     mapCanvas.addEventListener('click', mapHit);
 
+    // ---------- Project panel (press E): live README from GitHub ----------
+    const projEl = document.getElementById('proj'), projName = document.getElementById('projName'), projTheme = document.getElementById('projTheme'),
+          projBody = document.getElementById('projBody'), projGh = document.getElementById('projGh'), projHint = document.getElementById('projHint');
+    let projOpen = false, projToken = 0;
+    const cleanMd = (t) => t.replace(/```[\s\S]*?```/g, '').replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/^#{1,6}\s*/gm, '').replace(/^\s*[-*]\s+/gm, '• ').replace(/[`*_>~|]/g, '').replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim();
+    function rawUrl(u) { const m = u.match(/github\.com\/([^/]+)\/([^/]+)/); return m ? `https://raw.githubusercontent.com/${m[1]}/${m[2]}/BRANCH/README.md` : null; }
+    async function loadReadme(p, token) {
+      const base = rawUrl(p.url); if (!base) return;
+      for (const br of ['main', 'master']) {
+        try { const r = await fetch(base.replace('BRANCH', br)); if (r.ok) { const t = await r.text(); if (projOpen && token === projToken) projBody.textContent = cleanMd(t).slice(0, 750) + ' …'; return; } } catch (e) {}
+      }
+    }
+    function openProj() {
+      if (!cur || mapOpen) return; const p = cur.project; projOpen = true; projToken++;
+      projName.textContent = '🪐 ' + p.name; projTheme.textContent = p.theme; projGh.href = p.url;
+      projBody.textContent = p.desc; projEl.classList.add('on'); loadReadme(p, projToken);
+    }
+    function closeProj() { projOpen = false; projEl.classList.remove('on'); }
+    document.getElementById('projClose').addEventListener('click', closeProj);
+    projEl.addEventListener('click', (e) => { if (e.target === projEl) closeProj(); });
+    document.getElementById('card').addEventListener('click', (e) => { if (e.target.id !== 'cardLink') openProj(); }); // tap card to open (mobile)
+    addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') { projOpen ? closeProj() : openProj(); } else if (e.code === 'Escape') { closeProj(); closeMap(); } });
+
     // ---------- Procedural ambient audio (WebAudio, no files) ----------
     let audio = null, muted = false;
     function initAudio() {
@@ -1196,6 +1247,7 @@
       if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(0,0,0); } // debug/QA overview hook
 
       if (started && !finished) drawRadar();
+      projHint.classList.toggle('on', started && mode === 'ground' && !projOpen && !mapOpen);
       if (mapOpen) drawMap();
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
       if (cardTimer > 0) { cardTimer -= dt; if (cardTimer <= 0) cardEl.classList.remove('on'); }
