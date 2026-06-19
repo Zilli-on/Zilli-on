@@ -214,7 +214,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v16 · space beauty';
+    const BUILD = 'v17 · juice';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -705,7 +705,7 @@
       else { // launch into space toward where we face
         mode = 'air'; airPos.copy(player.position); airArmed = false; launchPlanet = cur;
         vel.copy(up).multiplyScalar(7 + charge * 7).addScaledVector(forward, 9 + charge * 15);
-        canJump = false; height = 0; vUp = 0; whoosh();
+        canJump = false; height = 0; vUp = 0; whoosh(); shock(player.position, up, 0x8ff5e8);
         if (actions['Jump']) { const j = actions['Jump']; j.reset(); j.setLoop(THREE.LoopOnce); j.play(); }
       }
       charge = 0;
@@ -795,6 +795,13 @@
       for (let i = 0; i < 12; i++) { const m = new THREE.Mesh(burstGeo, mat); const v = new THREE.Vector3().randomDirection().multiplyScalar(2 + Math.random() * 2.5); v.addScaledVector(at.clone().normalize(), 2); m.userData.v = v; g.add(m); parts.push(m); }
       scene.add(g); bursts.push({ g, parts, life: 0 });
     }
+    // expanding shockwave ring (launch / land juice)
+    const shocks = [], shockGeo = new THREE.RingGeometry(0.4, 0.62, 28), _zAxis = new THREE.Vector3(0, 0, 1);
+    function shock(at, normal, hex) {
+      const m = new THREE.Mesh(shockGeo, new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.85, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+      m.position.copy(at).addScaledVector(normal, 0.15); m.quaternion.setFromUnitVectors(_zAxis, normal); m.scale.setScalar(0.6); scene.add(m); shocks.push({ m, life: 0 });
+    }
+    let shake = 0; // brief camera shake on landing
 
     // ---------- Mini radar ----------
     const radarEl = document.getElementById('radar'), rctx = radarEl.getContext('2d');
@@ -994,6 +1001,8 @@
           burst(o.worldPos, 0xffd166);
         }
       }
+      // shockwave rings
+      for (let i = shocks.length - 1; i >= 0; i--) { const s = shocks[i]; s.life += dt; s.m.scale.setScalar(0.6 + s.life * 22); s.m.material.opacity = Math.max(0, 0.85 - s.life * 1.7); if (s.life > 0.5) { scene.remove(s.m); s.m.material.dispose(); shocks.splice(i, 1); } }
       // particle bursts
       for (let i = bursts.length - 1; i >= 0; i--) {
         const b = bursts[i]; b.life += dt;
@@ -1093,7 +1102,7 @@
         if (airArmed && airPos.distanceTo(np.center) <= np.R + 2.5) { // entered a world's pull -> land
           cur = np; pos.copy(up).multiplyScalar(cur.R); refreshFrame();
           mode = 'ground'; height = 0; vUp = 0; vel.set(0, 0, 0); canJump = true;
-          burst(player.position, 0xffffff); toast(cur.rich ? 'Zuhause! 🏠' : 'Neuer Planet! 🪐', 1400);
+          burst(player.position, 0xffffff); shock(player.position, up, 0xffffff); shake = 0.32; toast(cur.rich ? 'Zuhause! 🏠' : 'Neuer Planet! 🪐', 1400);
           showCard(cur.project); landSound();
           maybeExpand();
         }
@@ -1119,6 +1128,7 @@
         const wantFov = (air || ((keys.sprint || touchSprint) && mv !== 0)) ? 68 : 60;
         camera.fov += (wantFov - camera.fov) * 0.1; camera.updateProjectionMatrix();
       }
+      if (shake > 0) { shake -= dt; const s = Math.max(0, shake) * 0.7; camera.position.x += (Math.random() - 0.5) * s; camera.position.y += (Math.random() - 0.5) * s; camera.position.z += (Math.random() - 0.5) * s; }
       if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(0,0,0); } // debug/QA overview hook
 
       if (started && !finished) drawRadar();
