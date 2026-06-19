@@ -251,7 +251,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v30 · flight trail';
+    const BUILD = 'v31 · top-down view';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -810,7 +810,7 @@
       case 'KeyA': case 'ArrowLeft': keys.l = false; break; case 'KeyD': case 'ArrowRight': keys.r = false; break;
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = false; break; case 'Space': releaseCharge(); break; } });
 
-    let camPitch = 1.2, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
+    let camPitch = 1.48, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
     const canvas = renderer.domElement;
     canvas.addEventListener('mousedown', (e) => { mouseDown = true; lastX = e.clientX; lastY = e.clientY; });
     addEventListener('mousemove', (e) => { if (!mouseDown) return; dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.55, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
@@ -1275,12 +1275,13 @@
         // third-person follow camera (higher; kept above the nearest planet so terrain doesn't occlude)
         _r.crossVectors(up, forward).normalize();
         const air = mode === 'air';
-        const behind = tmp.copy(forward).multiplyScalar(-1).applyAxisAngle(_r, -(air ? 0.5 : camPitch));
-        const desired = tmp3.copy(player.position).addScaledVector(behind, air ? 12 : 9.0).addScaledVector(up, air ? 4 : 5.5);
+        let desired;
+        if (air) { const behind = tmp.copy(forward).multiplyScalar(-1).applyAxisAngle(_r, -0.5); desired = tmp3.copy(player.position).addScaledVector(behind, 12).addScaledVector(up, 4); }
+        else { const RAD = 14; desired = tmp3.copy(player.position).addScaledVector(up, Math.sin(camPitch) * RAD + 1).addScaledVector(forward, -Math.cos(camPitch) * RAD); } // top-down overview
         const np = nearestPlanet(desired); const minR = np.R + 2.4;
         if (desired.distanceTo(np.center) < minR) desired.sub(np.center).setLength(minR).add(np.center);
         camera.position.lerp(desired, air ? 0.08 : 0.12);
-        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 0.9));
+        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 0.5));
         const wantFov = (air || ((keys.sprint || touchSprint) && mv !== 0)) ? 68 : 60;
         camera.fov += (wantFov - camera.fov) * 0.1; camera.updateProjectionMatrix();
       }
