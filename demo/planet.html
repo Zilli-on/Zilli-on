@@ -61,11 +61,42 @@
     #jumpBtn:active { background: rgba(94,234,212,0.55); }
     #sprintBtn { position: fixed; right: 132px; bottom: 56px; z-index: 6; width: 66px; height: 66px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.6); background: rgba(255,255,255,0.35); color: #1b3a36; font-size: 12px; font-weight: 800; touch-action: none; user-select: none; }
     #sprintBtn.active { background: rgba(94,234,212,0.6); color: #042f2a; }
+
+    #muteBtn {
+      position: fixed; right: 14px; top: 44px; z-index: 6; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.7); background: rgba(255,255,255,0.55);
+      border-radius: 10px; padding: 6px 10px; font-size: 15px; line-height: 1; color: #1b2a3a;
+    }
+    #compass {
+      position: fixed; left: 50%; top: 64px; translate: -50% 0; z-index: 6; pointer-events: none;
+      display: none; flex-direction: column; align-items: center; gap: 2px;
+    }
+    #compass.on { display: flex; }
+    #compass .arrow { font-size: 26px; color: #0f766e; filter: drop-shadow(0 2px 4px rgba(0,0,0,.25)); transition: transform .08s linear; }
+    #compass .lbl { font-size: 11px; font-weight: 700; color: #1b3a36; background: rgba(255,255,255,0.6); padding: 1px 7px; border-radius: 7px; }
+
+    #win {
+      position: fixed; inset: 0; z-index: 11; display: none; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px;
+      background: radial-gradient(circle at 50% 40%, rgba(94,234,212,0.96), rgba(15,118,110,0.96));
+      color: #042f2a;
+    }
+    #win.on { display: flex; }
+    #win h2 { font-size: clamp(28px, 7vw, 54px); font-weight: 800; }
+    #win p { font-size: 18px; font-weight: 600; }
+    #win button { margin-top: 8px; cursor: pointer; border: 0; border-radius: 999px; padding: 13px 30px; font-size: 16px; font-weight: 800; color: #042f2a; background: #fff; }
   </style>
 </head>
 <body>
-  <div id="hud">📦 Pakete <b id="cnt">0</b> / <b id="tot">0</b></div>
+  <div id="hud">📦 Pakete <b id="cnt">0</b> / <b id="tot">0</b> · ⏱ <b id="timer">0:00</b></div>
+  <button id="muteBtn" title="Ton an/aus">🔊</button>
+  <div id="compass"><div class="arrow">⬆</div><div class="lbl">nächstes Paket</div></div>
   <div id="toast"></div>
+  <div id="win">
+    <h2>Alle Pakete zugestellt! 🎉</h2>
+    <p id="winText">Zeit: 0:00</p>
+    <button id="winBtn">Nochmal spielen</button>
+  </div>
   <div class="badge">Zillion · <a href="https://github.com/Zilli-on" target="_blank" rel="noopener">github.com/Zilli-on</a></div>
 
   <div id="touchUI">
@@ -109,7 +140,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v4 · green isles + grass spawn';
+    const BUILD = 'v5 · birds, critters, audio, goal';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -200,13 +231,15 @@
       const pos = planetGeo.attributes.position;
       const col = new Float32Array(pos.count * 3);
       const d = new THREE.Vector3(), sand = new THREE.Color(0xe8d6a0), grass = new THREE.Color(0x6cc05f),
-            grass2 = new THREE.Color(0x47914a), rock = new THREE.Color(0x9aa0a6), snow = new THREE.Color(0xfdfdfd);
+            grass2 = new THREE.Color(0x47914a), rock = new THREE.Color(0x9aa0a6), snow = new THREE.Color(0xfdfdfd),
+            foamC = new THREE.Color(0xf2fbff), wet = new THREE.Color(0xcdb98a);
       const c = new THREE.Color();
       for (let i = 0; i < pos.count; i++) {
         d.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
         const h = Math.max(terrain(d), -0.7);
         d.multiplyScalar(R + h); pos.setXYZ(i, d.x, d.y, d.z);
-        if (h < 0.12) c.copy(sand);
+        if (h < 0) c.copy(wet);                               // submerged shelf
+        else if (h < 0.12) c.copy(sand).lerp(foamC, Math.max(0, 1 - h / 0.05) * 0.55); // bright foam at the waterline
         else if (h < 1.5) c.copy(grass).lerp(grass2, (h - 0.12) / 1.38 * 0.7);
         else if (h < 2.2) c.copy(grass2).lerp(rock, (h - 1.5) / 0.7);
         else c.copy(rock).lerp(snow, Math.min(1, (h - 2.2) / 0.4));
@@ -269,6 +302,57 @@
       _f.normalize().applyAxisAngle(_up, spin);
       _r.crossVectors(_up, _f).normalize();
       _m.makeBasis(_r, _up, _f); obj.quaternion.setFromRotationMatrix(_m);
+    }
+
+    // ---------- Drifting clouds ----------
+    const clouds = new THREE.Group(); scene.add(clouds);
+    const cloudMat = new THREE.MeshToonMaterial({ gradientMap: gradient, color: 0xffffff, transparent: true, opacity: 0.92 });
+    for (let i = 0; i < 10; i++) {
+      const cl = new THREE.Group();
+      const puffs = 3 + ((rnd() * 3) | 0);
+      for (let j = 0; j < puffs; j++) {
+        const s = 0.8 + rnd() * 1.1;
+        const p = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 1), cloudMat);
+        p.position.set((j - puffs / 2) * 1.1, rnd() * 0.4, rnd() * 0.6 - 0.3); p.scale.y = 0.6;
+        cl.add(p);
+      }
+      const spin = rnd() * 6.28; cl.userData = { axis: randDir(), speed: 0.02 + rnd() * 0.03, spin };
+      orientOnSphere(cl, randDir(), R + 5.5 + rnd() * 2.5, spin);
+      clouds.add(cl);
+    }
+
+    // ---------- Birds (orbiting flocks) ----------
+    const birds = [];
+    const birdGeo = new THREE.ConeGeometry(0.18, 0.7, 4); birdGeo.rotateX(Math.PI / 2);
+    const birdMat = toonMat({ color: 0x37404a });
+    for (let i = 0; i < 14; i++) {
+      const b = new THREE.Mesh(birdGeo, birdMat);
+      const axis = randDir(), ref = new THREE.Vector3(0, 1, 0);
+      if (Math.abs(axis.dot(ref)) > 0.9) ref.set(1, 0, 0);
+      const u = new THREE.Vector3().crossVectors(axis, ref).normalize();
+      const v = new THREE.Vector3().crossVectors(axis, u);
+      birds.push({ mesh: b, axis, u, v, rad: R + 3.5 + rnd() * 3, ang: rnd() * 6.28, speed: 0.4 + rnd() * 0.4, flap: rnd() * 6 });
+      scene.add(b);
+    }
+
+    // ---------- Wandering critters ----------
+    const critters = [];
+    function makeCritter() {
+      const g = new THREE.Group(); const cols = [0xf2d9c0, 0xe8b894, 0xd9a679, 0xf5e6d0];
+      const col = cols[(rnd() * cols.length) | 0];
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), toonMat({ color: col })); body.scale.set(1, 0.85, 1.2); body.position.y = 0.4; body.castShadow = true; g.add(body);
+      for (const sx of [-1, 1]) { const ear = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.34, 5), toonMat({ color: col })); ear.position.set(sx * 0.16, 0.75, 0.18); g.add(ear); }
+      const nose = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), toonMat({ color: 0x33312f })); nose.position.set(0, 0.42, 0.48); g.add(nose);
+      return g;
+    }
+    for (let i = 0; i < 8; i++) {
+      let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < 0.4; k++) dir = randDir();
+      if (terrain(dir) < 0.4) continue;
+      const cr = makeCritter(); cr.scale.setScalar(0.7 + rnd() * 0.5);
+      const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0);
+      fwd.normalize();
+      critters.push({ g: cr, dir, fwd, t: rnd() * 6, turn: 0, hop: rnd() * 3 });
+      orientOnSphere(cr, dir, walkRadius(dir)); scene.add(cr);
     }
 
     // ---------- Decorations ----------
@@ -410,7 +494,7 @@
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = false; break; } });
     function hop() { if (canJump) { vUp = 6.5; canJump = false; if (actions['Jump']) { const j = actions['Jump']; j.reset(); j.setLoop(THREE.LoopOnce); j.play(); } } }
 
-    let camPitch = 0.35, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
+    let camPitch = 0.48, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
     const canvas = renderer.domElement;
     canvas.addEventListener('mousedown', (e) => { mouseDown = true; lastX = e.clientX; lastY = e.clientY; });
     addEventListener('mousemove', (e) => { if (!mouseDown) return; dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.1, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
@@ -420,7 +504,8 @@
     const overlay = document.getElementById('overlay'), touchUI = document.getElementById('touchUI');
     const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     let started = false;
-    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); if (isTouch) touchUI.classList.add('on'); });
+    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); compassEl.classList.add('on'); if (isTouch) touchUI.classList.add('on'); initAudio(); });
+    document.getElementById('winBtn').addEventListener('click', () => location.reload());
     if (isTouch) document.getElementById('keys').innerHTML =
       '<span class="key"><b>Joystick</b> Laufen/Drehen</span><span class="key"><b>Wischen</b> Kamera</span><span class="key"><b>RUN</b> Rennen</span><span class="key"><b>HOP</b> Hüpfen</span>';
 
@@ -443,9 +528,48 @@
     document.getElementById('jumpBtn').addEventListener('touchstart', (e) => { e.preventDefault(); hop(); }, { passive: false });
 
     // ---------- HUD ----------
-    const cntEl = document.getElementById('cnt'), toastEl = document.getElementById('toast');
-    let collected = 0, toastTimer = 0;
+    const cntEl = document.getElementById('cnt'), toastEl = document.getElementById('toast'),
+          timerEl = document.getElementById('timer'), compassEl = document.getElementById('compass'),
+          arrowEl = compassEl.querySelector('.arrow'), winEl = document.getElementById('win'), winTextEl = document.getElementById('winText');
+    let collected = 0, toastTimer = 0, elapsed = 0, finished = false;
     function toast(m, ms = 1600) { toastEl.textContent = m; toastEl.classList.add('show'); toastTimer = ms / 1000; }
+    const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+
+    // ---------- Procedural ambient audio (WebAudio, no files) ----------
+    let audio = null, muted = false;
+    function initAudio() {
+      if (audio) return;
+      const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return;
+      const ctx = new Ctx(); const master = ctx.createGain(); master.gain.value = 0.0; master.connect(ctx.destination);
+      // soft evolving pad from a few detuned oscillators
+      const pad = ctx.createGain(); pad.gain.value = 0.12; pad.connect(master);
+      const freqs = [146.83, 220.0, 293.66, 369.99]; // D3 A3 D4 F#4
+      freqs.forEach((f, i) => {
+        const o = ctx.createOscillator(); o.type = i % 2 ? 'sine' : 'triangle'; o.frequency.value = f;
+        const g = ctx.createGain(); g.gain.value = 0.0; o.connect(g); g.connect(pad);
+        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.05 + i * 0.03; const lg = ctx.createGain(); lg.gain.value = 0.06;
+        lfo.connect(lg); lg.connect(g.gain); o.start(); lfo.start();
+        g.gain.setValueAtTime(0.0, ctx.currentTime); g.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 4 + i);
+      });
+      master.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 3);
+      audio = { ctx, master };
+    }
+    function chime(win) {
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const notes = win ? [523, 659, 784, 1047] : [659, 988];
+      notes.forEach((f, i) => {
+        const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
+        const g = ctx.createGain(); g.gain.value = 0; o.connect(g); g.connect(audio.master);
+        const s = t + i * (win ? 0.12 : 0.07);
+        g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.5, s + 0.02); g.gain.exponentialRampToValueAtTime(0.001, s + 0.5);
+        o.start(s); o.stop(s + 0.55);
+      });
+    }
+    const muteBtn = document.getElementById('muteBtn');
+    muteBtn.addEventListener('click', () => {
+      muted = !muted; muteBtn.textContent = muted ? '🔇' : '🔊';
+      if (audio) audio.master.gain.linearRampToValueAtTime(muted ? 0 : 0.5, audio.ctx.currentTime + 0.3);
+    });
 
     // ---------- Post-processing ----------
     const composer = new EffectComposer(renderer);
@@ -462,22 +586,60 @@
     composer.addPass(new OutputPass());
 
     // ---------- Loop ----------
-    const G = 18, tmp = new THREE.Vector3(), clock = new THREE.Clock();
+    const G = 18, tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3(), clock = new THREE.Clock();
     placePlayer();
-    camera.up.copy(up); camera.position.copy(player.position).addScaledVector(up, 2.6).addScaledVector(forward, -9);
+    camera.up.copy(up); camera.position.copy(player.position).addScaledVector(up, 2.6).addScaledVector(forward, -6.5);
 
     function animate() {
       requestAnimationFrame(animate);
       const dt = Math.min(clock.getDelta(), 0.05);
       oceanUniforms.time.value += dt;
 
+      let nearest = null, nearD = Infinity;
       for (const p of parcels) {
         if (p.done) continue;
         p.t += dt; p.box.rotation.y += dt * 1.6; p.box.position.y = 0.95 + Math.sin(p.t * 2) * 0.12;
-        if (p.worldPos.distanceTo(player.position) < 1.5) {
+        const d2 = p.worldPos.distanceTo(player.position);
+        if (d2 < nearD) { nearD = d2; nearest = p; }
+        if (d2 < 1.5) {
           p.done = true; p.box.parent.visible = false; collected++; cntEl.textContent = String(collected);
-          toast(collected >= parcels.length ? 'Alle Pakete zugestellt! 🎉' : 'Paket! 📦', collected >= parcels.length ? 4000 : 1500);
+          const done = collected >= parcels.length;
+          toast(done ? 'Alle Pakete zugestellt! 🎉' : 'Paket! 📦', done ? 2500 : 1500);
+          chime(done);
+          if (done && !finished) { finished = true; winTextEl.textContent = 'Zeit: ' + fmt(elapsed) + '  ·  Pakete: ' + collected; winEl.classList.add('on'); compassEl.classList.remove('on'); }
         }
+      }
+      // timer
+      if (started && !finished) { elapsed += dt; timerEl.textContent = fmt(elapsed); }
+      // compass arrow toward nearest remaining parcel
+      if (nearest && !finished) {
+        tmp.copy(nearest.worldPos).applyMatrix4(camera.matrixWorldInverse);
+        arrowEl.style.transform = 'rotate(' + Math.atan2(tmp.x, tmp.y) + 'rad)';
+      }
+
+      // drifting clouds
+      for (const cl of clouds.children) {
+        cl.position.applyAxisAngle(cl.userData.axis, cl.userData.speed * dt);
+        orientOnSphere(cl, tmp.copy(cl.position).normalize(), cl.position.length(), cl.userData.spin);
+      }
+      // orbiting birds
+      for (const b of birds) {
+        b.ang += b.speed * dt; b.flap += dt * 12;
+        tmp.copy(b.u).multiplyScalar(Math.cos(b.ang)).addScaledVector(b.v, Math.sin(b.ang)).multiplyScalar(b.rad);
+        tmp2.copy(b.u).multiplyScalar(-Math.sin(b.ang)).addScaledVector(b.v, Math.cos(b.ang)); // velocity dir
+        b.mesh.position.copy(tmp); b.mesh.lookAt(tmp3.copy(tmp).add(tmp2));
+        b.mesh.scale.set(1 + Math.sin(b.flap) * 0.35, 1, 1);
+      }
+      // wandering critters (stay on land, avoid water)
+      for (const cr of critters) {
+        cr.t += dt;
+        cr.fwd.applyAxisAngle(cr.dir, Math.sin(cr.t * 0.6) * 0.9 * dt);
+        cr.dir.addScaledVector(cr.fwd, 0.9 * dt).normalize();
+        cr.fwd.addScaledVector(cr.dir, -cr.fwd.dot(cr.dir)).normalize();
+        if (terrain(cr.dir) < 0.25) { cr.fwd.applyAxisAngle(cr.dir, Math.PI * 0.75); cr.dir.addScaledVector(cr.fwd, 1.4 * dt).normalize(); cr.fwd.addScaledVector(cr.dir, -cr.fwd.dot(cr.dir)).normalize(); }
+        const hopH = Math.max(0, Math.sin(cr.t * 6)) * 0.12;
+        cr.g.position.copy(cr.dir).multiplyScalar(walkRadius(cr.dir) + hopH);
+        _up.copy(cr.dir); _r.crossVectors(_up, cr.fwd).normalize(); _m.makeBasis(_r, _up, cr.fwd); cr.g.quaternion.setFromRotationMatrix(_m);
       }
 
       let mv = 0;
@@ -494,12 +656,15 @@
       if (mixer) mixer.update(dt);
       placePlayer();
 
-      // third-person follow camera
+      // third-person follow camera (closer + kept above terrain so hills don't occlude the hero)
       _r.crossVectors(up, forward).normalize();
       const behind = tmp.copy(forward).multiplyScalar(-1).applyAxisAngle(_r, -camPitch);
-      const desired = new THREE.Vector3().copy(player.position).addScaledVector(behind, 9).addScaledVector(up, 2.6);
+      const desired = new THREE.Vector3().copy(player.position).addScaledVector(behind, 6.5).addScaledVector(up, 2.6);
+      const cdir = tmp2.copy(desired).normalize();
+      const minR = walkRadius(cdir) + 2.4;
+      if (desired.length() < minR) desired.setLength(minR);
       camera.position.lerp(desired, started ? 0.12 : 0.05);
-      camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.9));
+      camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.7));
       if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(0,0,0); } // debug/QA overview hook
 
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
