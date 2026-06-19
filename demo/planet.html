@@ -214,7 +214,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v18 · shooting stars';
+    const BUILD = 'v19 · mobile perf';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -231,9 +231,10 @@
     })();
 
     // ---------- Renderer ----------
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const lowPerf = innerWidth < 760 || /Mobi|Android/i.test(navigator.userAgent); // phones: lighter everything
+    const renderer = new THREE.WebGLRenderer({ antialias: !lowPerf });
     renderer.setSize(innerWidth, innerHeight);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, innerWidth < 700 ? 1.5 : 2)); // cap DPR on phones
+    renderer.setPixelRatio(Math.min(devicePixelRatio, lowPerf ? 1.5 : 2)); // cap DPR on phones
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -272,7 +273,7 @@
     const hemi = new THREE.HemisphereLight(0xfff0d8, 0x6a8f6a, 0.6); scene.add(hemi);
     const sun = new THREE.DirectionalLight(0xfff2d0, 1.7);
     sun.position.set(45, 60, 25); sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(lowPerf ? 1024 : 2048, lowPerf ? 1024 : 2048);
     sun.shadow.camera.near = 1; sun.shadow.camera.far = 200;
     sun.shadow.camera.left = -30; sun.shadow.camera.right = 30; sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30;
     sun.shadow.bias = -0.0005;
@@ -433,7 +434,7 @@
       const landR = (d) => PR + Math.max(terrain(d), -PR * 0.05);
       const walkR = (d) => PR + Math.max(terrain(d), 0);
       const group = new THREE.Group(); group.position.copy(center); scene.add(group);
-      const detail = Math.max(8, Math.min(22, Math.round(PR * 1.4)));
+      const detail = Math.max(8, Math.min(22, Math.round(PR * (lowPerf ? 1.0 : 1.4))));
       const geo = new THREE.IcosahedronGeometry(PR, detail);
       { const p = geo.attributes.position, col = new Float32Array(p.count * 3), d = new THREE.Vector3();
         for (let i = 0; i < p.count; i++) {
@@ -944,7 +945,6 @@
     // ---------- Post-processing ----------
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    const lowPerf = innerWidth < 700; // phones: cheaper bloom
     const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight).multiplyScalar(lowPerf ? 0.5 : 1), lowPerf ? 0.24 : 0.35, 0.4, 0.9);
     composer.addPass(bloom);
     composer.addPass(new ShaderPass({
