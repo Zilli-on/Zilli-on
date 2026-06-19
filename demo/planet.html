@@ -178,7 +178,7 @@
   </style>
 </head>
 <body>
-  <div id="hud">📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b>/<b id="tot">0</b> · ⏱ <b id="timer">0:00</b></div>
+  <div id="hud">📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
   <button id="mapBtn">🧠 Karte</button>
   <div id="mapView">
@@ -251,7 +251,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v31 · top-down view';
+    const BUILD = 'v32 · per-world goal';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -402,6 +402,12 @@
       trunk.position.y = 0.45; trunk.castShadow = true; g.add(trunk);
       const lm = toonMat({ color: leafCol || 0x2f9e54 });
       for (let i = 0; i < 3; i++) { const cone = new THREE.Mesh(new THREE.ConeGeometry(0.85 - i*0.18, 0.9, 7), lm); cone.position.y = 1.0 + i*0.55; cone.castShadow = true; g.add(cone); }
+      return g;
+    }
+    function makeFlag() {
+      const g = new THREE.Group();
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.7, 6), toonMat({ color: 0xe8eef0 })); pole.position.y = 0.85; pole.castShadow = true; g.add(pole);
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.48), toonMat({ color: 0x2dd4bf, side: THREE.DoubleSide })); flag.position.set(0.42, 1.42, 0); g.add(flag);
       return g;
     }
     function makeCactus() {
@@ -847,7 +853,7 @@
 
     // ---------- HUD ----------
     const cntEl = document.getElementById('cnt'), carryEl = document.getElementById('carry'), toastEl = document.getElementById('toast'),
-          timerEl = document.getElementById('timer'), compassEl = document.getElementById('compass'),
+          timerEl = document.getElementById('timer'), worldEl = document.getElementById('world'), compassEl = document.getElementById('compass'),
           arrowEl = compassEl.querySelector('.arrow'), lblEl = compassEl.querySelector('.lbl'),
           winEl = document.getElementById('win'), winTextEl = document.getElementById('winText');
     let carrying = 0, delivered = 0, toastTimer = 0, elapsed = 0, finished = false;
@@ -863,7 +869,6 @@
       steps.forEach((s, i) => setTimeout(() => { if (started) toast(s, 3600); }, 1200 + i * 4000));
     }
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
-    document.getElementById('tot').textContent = '∞';
     { const b = parseInt(localStorage.getItem('tp_score') || '0', 10); if (b) document.getElementById('bestLine').textContent = '🏆 Rekord: ' + b + ' Pakete geliefert'; }
 
     // ---------- Footstep dust puffs ----------
@@ -1164,6 +1169,15 @@
       // carried stack
       carryStack.rotation.y += dt * 1.2;
       for (let i = 0; i < carryBoxes.length; i++) carryBoxes[i].visible = i < carrying;
+      // per-world objective: parcels collected on the current world
+      if (started) {
+        let rem = 0, tot = 0; for (const p of parcels) { if (p.pl === cur) { tot++; if (!p.done) rem++; } }
+        worldEl.textContent = (tot - rem) + '/' + tot;
+        if (tot > 0 && rem === 0 && !cur.cleared) {
+          cur.cleared = true; const fl = makeFlag(); const fd = landingDir(cur); orientOnSphere(fl, fd, cur.walkR(fd)); cur.group.add(fl);
+          toast('🏁 Welt komplett eingesammelt!', 2200); chime(true); burst(player.position, 0x2dd4bf);
+        }
+      }
       // timer
       if (started && !finished) { elapsed += dt; timerEl.textContent = fmt(elapsed); }
       // compass: point to nearest drop-off while carrying, else to nearest parcel
