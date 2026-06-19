@@ -224,7 +224,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v20 · polish';
+    const BUILD = 'v21 · endless frontier';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -548,11 +548,20 @@
       const idx = planets.indexOf(p); if (idx >= 0) planets.splice(idx, 1);
     }
     function nearestPlanet(point) { let best = planets[0], bd = Infinity; for (const p of planets) { const d = point.distanceTo(p.center) - p.R; if (d < bd) { bd = d; best = p; } } return best; }
+    const MAXP = 16;
+    function cullFar() { while (planets.length > MAXP) { let far = -1, fd = -1; for (let i = 0; i < planets.length; i++) { if (planets[i] === cur) continue; const d = planets[i].center.distanceTo(player.position); if (d > fd) { fd = d; far = i; } } if (far < 0) break; removePlanet(planets[far]); } }
     function maybeExpand() {
       let near = 0; for (const p of planets) if (p !== cur && p.center.distanceTo(cur.center) < 75) near++;
-      while (near < 3 && planets.length < 12) { if (spawnNeighbor(cur.center)) near++; else break; }
-      while (planets.length > 12) { let far = -1, fd = -1; for (let i = 0; i < planets.length; i++) { if (planets[i] === cur) continue; const d = planets[i].center.distanceTo(player.position); if (d > fd) { fd = d; far = i; } } if (far < 0) break; removePlanet(planets[far]); }
-      rebuildLinks();
+      while (near < 3 && planets.length < MAXP) { if (spawnNeighbor(cur.center)) near++; else break; }
+      cullFar(); rebuildLinks();
+    }
+    // jumping toward empty space discovers a brand-new world ahead (true exploration)
+    function ensureFrontier(dir) {
+      const ahead = cur.center.clone().addScaledVector(dir, 46).addScaledVector(up, 8);
+      if (planets.every((p) => ahead.distanceTo(p.center) > p.R + 16)) {
+        const PR = 7 + rnd() * 4;
+        if (planets.every((p) => ahead.distanceTo(p.center) > p.R + PR + 10)) { makePlanet(ahead, PR, false); cullFar(); rebuildLinks(); }
+      }
     }
     // glowing "synapse" links + travelling data-pulses between neighbouring worlds (the data-brain look)
     const linkMat = new THREE.LineBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -714,6 +723,7 @@
       if (!charging) return; charging = false;
       if (charge < 0.16) { if (canJump) { vUp = 6.5; canJump = false; if (actions['Jump']) { const j = actions['Jump']; j.reset(); j.setLoop(THREE.LoopOnce); j.play(); } } }
       else { // launch into space toward where we face
+        ensureFrontier(forward); // discover a new world if jumping into the void
         mode = 'air'; airPos.copy(player.position); airArmed = false; launchPlanet = cur;
         vel.copy(up).multiplyScalar(7 + charge * 7).addScaledVector(forward, 9 + charge * 15);
         canJump = false; height = 0; vUp = 0; whoosh(); shock(player.position, up, 0x8ff5e8);
