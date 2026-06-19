@@ -251,7 +251,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v27 · onboarding';
+    const BUILD = 'v28 · depth fog';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -279,6 +279,7 @@
     document.body.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0xbfe3ff, 70, 290); // distance fog -> far worlds fade into the sky (depth)
     const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
 
     // ---------- Toon gradient (cel bands) ----------
@@ -344,6 +345,7 @@
       skyMat.uniforms.top.value.copy(_cA.setHex(a.top)).lerp(_cB.setHex(b.top), f);
       skyMat.uniforms.mid.value.copy(_cA.setHex(a.mid)).lerp(_cB.setHex(b.mid), f);
       skyMat.uniforms.bottom.value.copy(_cA.setHex(a.bottom)).lerp(_cB.setHex(b.bottom), f);
+      scene.fog.color.copy(skyMat.uniforms.bottom.value);
       sun.color.copy(_cA.setHex(a.sun)).lerp(_cB.setHex(b.sun), f);
       sun.intensity = lerpKey(a, b, f, 'si');
       hemi.intensity = lerpKey(a, b, f, 'hi');
