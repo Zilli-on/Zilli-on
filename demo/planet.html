@@ -86,6 +86,11 @@
     }
     #muteBtn { right: 14px; top: 56px; padding: 7px 11px; font-size: 16px; line-height: 1; display: none; }
     #muteBtn.on { display: block; }
+    #cineBtn { right: 56px; top: 56px; padding: 7px 11px; font-size: 16px; line-height: 1; display: none; }
+    #cineBtn.on { display: block; }
+    body.cine #hud, body.cine #mapBtn, body.cine #muteBtn, body.cine #compass, body.cine #radar, body.cine #card,
+    body.cine #projHint, body.cine #chargeBar, body.cine #touchUI, body.cine .badge, body.cine #toast { display: none !important; }
+    body.cine #cineBtn { display: block; opacity: 0.5; }
     #mapBtn { left: 14px; top: 62px; padding: 8px 14px; font-size: 13px; display: none; }
     #mapBtn.on { display: block; }
     #muteBtn:hover, #mapBtn:hover { transform: translateY(-2px); filter: brightness(1.05); }
@@ -181,6 +186,7 @@
   <div id="hud">📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
   <button id="mapBtn">🧠 Karte</button>
+  <button id="cineBtn" title="Foto-Modus (C)">📷</button>
   <div id="mapView">
     <h3>🧠 Projekt-Galaxie</h3>
     <p>Tippe eine Welt an, um direkt dorthin zu springen</p>
@@ -251,7 +257,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v32 · per-world goal';
+    const BUILD = 'v33 · photo mode';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -817,6 +823,7 @@
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = false; break; case 'Space': releaseCharge(); break; } });
 
     let camPitch = 1.48, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
+    let cinematic = false, cineA = 0;
     const canvas = renderer.domElement;
     canvas.addEventListener('mousedown', (e) => { mouseDown = true; lastX = e.clientX; lastY = e.clientY; });
     addEventListener('mousemove', (e) => { if (!mouseDown) return; dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.55, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
@@ -826,7 +833,7 @@
     const overlay = document.getElementById('overlay'), touchUI = document.getElementById('touchUI');
     const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     let started = false;
-    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); if (isTouch) touchUI.classList.add('on'); initAudio(); showCard(cur.project); if (!localStorage.getItem('tp_seen')) { coachSeq(); localStorage.setItem('tp_seen', '1'); } });
+    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); cineBtn.classList.add('on'); if (isTouch) touchUI.classList.add('on'); initAudio(); showCard(cur.project); if (!localStorage.getItem('tp_seen')) { coachSeq(); localStorage.setItem('tp_seen', '1'); } });
     document.getElementById('winBtn').addEventListener('click', () => location.reload());
     if (isTouch) document.getElementById('keys').innerHTML =
       '<span class="key"><b>Joystick</b> Laufen/Drehen</span><span class="key"><b>Wischen</b> Kamera</span><span class="key"><b>RUN</b> Rennen</span><span class="key"><b>HOP</b> Hüpfen</span>';
@@ -1000,7 +1007,10 @@
     document.getElementById('projClose').addEventListener('click', closeProj);
     projEl.addEventListener('click', (e) => { if (e.target === projEl) closeProj(); });
     document.getElementById('card').addEventListener('click', (e) => { if (e.target.id !== 'cardLink') openProj(); }); // tap card to open (mobile)
-    addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') { projOpen ? closeProj() : openProj(); } else if (e.code === 'Escape') { closeProj(); closeMap(); } });
+    addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') { projOpen ? closeProj() : openProj(); } else if (e.code === 'KeyC') { toggleCine(); } else if (e.code === 'Escape') { closeProj(); closeMap(); if (cinematic) toggleCine(); } });
+    const cineBtn = document.getElementById('cineBtn');
+    function toggleCine() { if (!started) return; cinematic = !cinematic; document.body.classList.toggle('cine', cinematic); }
+    cineBtn.addEventListener('click', toggleCine);
 
     // ---------- Procedural ambient audio (WebAudio, no files) ----------
     let audio = null, muted = false;
@@ -1242,7 +1252,7 @@
       let mv = 0;
       if (charging) { charge = Math.min(1, charge + dt * 1.1); chargeFill.style.width = (charge * 100) + '%'; chargeBar.classList.add('on'); }
       else chargeBar.classList.remove('on');
-      if (started && mode === 'ground') {
+      if (started && mode === 'ground' && !cinematic) {
         const speed = (keys.sprint || touchSprint ? 6.8 : 3.7), turnSpeed = 2.3;
         let turn = (Number(keys.l) - Number(keys.r)) * turnSpeed * dt - touchMove.x * turnSpeed * dt - dragTurn;
         dragTurn = 0;
@@ -1252,7 +1262,7 @@
         if (height > 0 || vUp > 0) { vUp -= G * dt; height += vUp * dt; if (height <= 0) { height = 0; vUp = 0; canJump = true; } }
         if (modelReady && mixer) setAction(mv !== 0 ? ((keys.sprint || touchSprint) ? 'Running' : 'Walking') : 'Idle');
         if (mv !== 0 && height === 0) { stepTimer -= dt; if (stepTimer <= 0) { stepTimer = (keys.sprint || touchSprint) ? 0.22 : 0.34; puff(player.position, up); step(); } } else stepTimer = 0;
-      } else if (started && mode === 'air') {
+      } else if (started && mode === 'air' && !cinematic) {
         // steer slightly while flying
         const turn = (Number(keys.l) - Number(keys.r)) * 1.6 * dt - touchMove.x * 1.6 * dt - dragTurn; dragTurn = 0;
         airTime += dt;
@@ -1285,6 +1295,11 @@
         const a = oceanUniforms.time.value * 0.16;
         tmp.set(Math.cos(a) * (R + 14), 7, Math.sin(a) * (R + 14));
         camera.position.lerp(tmp, 0.04); camera.up.set(0, 1, 0); camera.lookAt(0, 0, 0);
+      } else if (cinematic) {
+        // photo/cinematic mode: slow tilted orbit around the current world
+        cineA += dt * 0.22; const rad = cur.R * 2.5;
+        tmp.set(cur.center.x + Math.cos(cineA) * rad, cur.center.y + cur.R * 1.15, cur.center.z + Math.sin(cineA) * rad);
+        camera.position.lerp(tmp, 0.06); camera.up.set(0, 1, 0); camera.lookAt(cur.center);
       } else {
         // third-person follow camera (higher; kept above the nearest planet so terrain doesn't occlude)
         _r.crossVectors(up, forward).normalize();
