@@ -12,10 +12,12 @@ Building **local-first developer tools** for AI assistants.
 
 ## Demo
 
-- **[Tiny Planet](demo/planet.html)** — a little delivery game on a round planet: pick up the glowing parcels and bring them to the ringed houses as fast as you can. Third-person, toon-shaded, runs entirely in the browser (WebGL + Three.js, single file). Inspired by `messenger.abeto.co`.
-  - Procedural island planet (oceans, beaches, snowy peaks), animated toon-water, drifting clouds, orbiting birds and wandering critters
-  - Rigged glTF character with idle/walk/run animations, day/night cycle, bloom + post-processing, procedural ambient audio, compass + timer + best time
-  - Works on desktop **and** phone (on-screen joystick). Controls: `W/S` walk · `A/D` turn · mouse/swipe camera · `Shift` run · `Space` hop
+- **[Tiny Planet](demo/planet.html)** — an endless **galaxy of project worlds** you explore Super-Mario-Galaxy style. Each planet is a project node; hold the jump key to leap through space and get pulled onto the next world. Single self-contained HTML file (WebGL + Three.js). Inspired by `messenger.abeto.co`.
+  - 🪐 **Galaxy mode**: gravity flight between procedurally generated planets, an "infinite" cluster that grows as you explore (Minecraft-style distance culling)
+  - 🧠 **Data-brain**: worlds are linked like synapses with travelling data-pulses; a **brain map** (M) lets you tap any project world to travel there
+  - 🎨 Per-theme worlds (grass / desert / snow / volcano / tech) with their own ambient FX, atmosphere halos and rings; toon shading, bloom, day/night cycle, shooting stars
+  - 🤖 Rigged glTF hero with idle/walk/run; pick-up & delivery loop, compass, radar, timer, best score; procedural ambient audio + SFX
+  - 💎 Glassmorphic UI (Outfit / Space Grotesk); works on desktop **and** phone. Controls: `W/S` walk · `A/D` turn · `Shift` run · **hold `Space`** planet-jump · `M` map
 - **[Walkable 3D World](demo/index.html)** — a first-person tech-city you can walk around. `WASD` move · mouse look · `Shift` sprint · `Space` jump, plus touch controls on mobile.
 
 Both are single self-contained HTML files (Three.js via CDN) — open them locally, or use a render link since GitHub shows `.html` as source rather than running it.
