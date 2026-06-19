@@ -251,7 +251,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v26 · lava + holograms';
+    const BUILD = 'v27 · onboarding';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -818,7 +818,7 @@
     const overlay = document.getElementById('overlay'), touchUI = document.getElementById('touchUI');
     const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     let started = false;
-    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); if (isTouch) touchUI.classList.add('on'); initAudio(); showCard(cur.project); });
+    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); if (isTouch) touchUI.classList.add('on'); initAudio(); showCard(cur.project); if (!localStorage.getItem('tp_seen')) { coachSeq(); localStorage.setItem('tp_seen', '1'); } });
     document.getElementById('winBtn').addEventListener('click', () => location.reload());
     if (isTouch) document.getElementById('keys').innerHTML =
       '<span class="key"><b>Joystick</b> Laufen/Drehen</span><span class="key"><b>Wischen</b> Kamera</span><span class="key"><b>RUN</b> Rennen</span><span class="key"><b>HOP</b> Hüpfen</span>';
@@ -851,6 +851,15 @@
     let carrying = 0, delivered = 0, toastTimer = 0, elapsed = 0, finished = false;
     const TOTAL = parcels.length;
     function toast(m, ms = 1600) { toastEl.textContent = m; toastEl.classList.add('show'); toastTimer = ms / 1000; }
+    function coachSeq() {
+      const steps = [
+        '🎮 WASD / Pfeile: laufen · Maus oder Wischen: Kamera',
+        '📦 Sammle Pakete und liefere sie an die Häuser mit Ring ✅',
+        '🪐 Halte SPACE, ziele auf einen anderen Planeten → abheben!',
+        '🧠 M: Galaxie-Karte · E: Projekt-Info',
+      ];
+      steps.forEach((s, i) => setTimeout(() => { if (started) toast(s, 3600); }, 1200 + i * 4000));
+    }
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
     document.getElementById('tot').textContent = '∞';
     { const b = parseInt(localStorage.getItem('tp_score') || '0', 10); if (b) document.getElementById('bestLine').textContent = '🏆 Rekord: ' + b + ' Pakete geliefert'; }
