@@ -119,6 +119,7 @@
       <span class="key"><b>Shift</b> Rennen</span>
       <span class="key"><b>Space</b> Hüpfen</span>
     </div>
+    <p id="bestLine" style="font-weight:700;color:#0f766e;min-height:1em"></p>
     <button id="playBtn" disabled>Lädt …</button>
   </div>
 
@@ -141,7 +142,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v6 · pickup + deliver';
+    const BUILD = 'v7 · day/night + juice';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -179,25 +180,24 @@
     })();
     function toonMat(opts) { return new THREE.MeshToonMaterial(Object.assign({ gradientMap: gradient }, opts)); }
 
-    // ---------- Sky dome ----------
-    scene.add(new THREE.Mesh(
-      new THREE.SphereGeometry(400, 32, 16),
-      new THREE.ShaderMaterial({
-        side: THREE.BackSide,
-        uniforms: { top: { value: new THREE.Color(0xffc98a) }, mid: { value: new THREE.Color(0xffe9d2) }, bottom: { value: new THREE.Color(0x8fd0ff) } },
-        vertexShader: `varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-        fragmentShader: `varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 bottom;
-          void main(){ float h = normalize(vP).y*0.5+0.5; vec3 c = h<0.5 ? mix(bottom,mid,h*2.0) : mix(mid,top,(h-0.5)*2.0); gl_FragColor = vec4(c,1.0);} `
-      })
-    ));
+    // ---------- Sky dome (animated by the day/night cycle) ----------
+    const skyMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      uniforms: { top: { value: new THREE.Color(0xffc98a) }, mid: { value: new THREE.Color(0xffe9d2) }, bottom: { value: new THREE.Color(0x8fd0ff) } },
+      vertexShader: `varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+      fragmentShader: `varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 bottom;
+        void main(){ float h = normalize(vP).y*0.5+0.5; vec3 c = h<0.5 ? mix(bottom,mid,h*2.0) : mix(mid,top,(h-0.5)*2.0); gl_FragColor = vec4(c,1.0);} `
+    });
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), skyMat));
     const starGeo = new THREE.BufferGeometry();
-    const starPos = new Float32Array(400 * 3);
-    for (let i = 0; i < 400; i++) { const v = new THREE.Vector3().randomDirection().multiplyScalar(320); starPos[i*3]=v.x; starPos[i*3+1]=Math.abs(v.y)*0.7+60; starPos[i*3+2]=v.z; }
+    const starPos = new Float32Array(500 * 3);
+    for (let i = 0; i < 500; i++) { const v = new THREE.Vector3().randomDirection().multiplyScalar(320); starPos[i*3]=v.x; starPos[i*3+1]=v.y; starPos[i*3+2]=v.z; }
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-    scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0.5 })));
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.4, transparent: true, opacity: 0.0 });
+    scene.add(new THREE.Points(starGeo, starMat));
 
     // ---------- Lighting ----------
-    scene.add(new THREE.HemisphereLight(0xfff0d8, 0x6a8f6a, 0.6));
+    const hemi = new THREE.HemisphereLight(0xfff0d8, 0x6a8f6a, 0.6); scene.add(hemi);
     const sun = new THREE.DirectionalLight(0xfff2d0, 1.7);
     sun.position.set(45, 60, 25); sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -207,6 +207,39 @@
     scene.add(sun);
     const sunDir = sun.position.clone().normalize();
     const rim = new THREE.DirectionalLight(0xbfe9ff, 0.9); rim.position.set(-40, 15, -35); scene.add(rim); // fake rim light
+
+    // ---------- Day/night cycle ----------
+    // keyframes around the clock: [0..1) -> sky top/mid/bottom, sun colour+intensity, hemi intensity, exposure, star opacity
+    const dayKeys = [
+      { t: 0.00, top: 0x21304f, mid: 0x3a4a6b, bottom: 0x5b6b8c, sun: 0x6f7bd0, si: 0.25, hi: 0.32, exp: 0.85, star: 0.9 }, // night
+      { t: 0.18, top: 0xf0a878, mid: 0xffd9b0, bottom: 0xa9c8e8, sun: 0xffb27a, si: 1.2,  hi: 0.55, exp: 1.0,  star: 0.15 }, // sunrise
+      { t: 0.35, top: 0x7ec0ff, mid: 0xeaf4ff, bottom: 0xbfe4ff, sun: 0xfff4d6, si: 1.85, hi: 0.7,  exp: 1.0,  star: 0.0 }, // day
+      { t: 0.62, top: 0x7ec0ff, mid: 0xeaf4ff, bottom: 0xbfe4ff, sun: 0xfff4d6, si: 1.85, hi: 0.7,  exp: 1.0,  star: 0.0 }, // day
+      { t: 0.78, top: 0xff9e5a, mid: 0xffd0a0, bottom: 0x9fb6d6, sun: 0xff8a4a, si: 1.1,  hi: 0.5,  exp: 1.02, star: 0.2 }, // sunset
+      { t: 0.90, top: 0x2c3a5c, mid: 0x46557a, bottom: 0x5b6b8c, sun: 0x8a8fe0, si: 0.45, hi: 0.38, exp: 0.9,  star: 0.6 }, // dusk
+    ];
+    const _cA = new THREE.Color(), _cB = new THREE.Color();
+    let dayT = 0.32; // start mid-morning
+    function lerpKey(a, b, f, key) { return a[key] + (b[key] - a[key]) * f; }
+    function updateDayNight() {
+      let i = 0; for (let k = 0; k < dayKeys.length; k++) if (dayT >= dayKeys[k].t) i = k;
+      const a = dayKeys[i], b = dayKeys[(i + 1) % dayKeys.length];
+      let span = (b.t - a.t + 1) % 1; if (span === 0) span = 1;
+      const f = Math.min(1, ((dayT - a.t + 1) % 1) / span);
+      skyMat.uniforms.top.value.copy(_cA.setHex(a.top)).lerp(_cB.setHex(b.top), f);
+      skyMat.uniforms.mid.value.copy(_cA.setHex(a.mid)).lerp(_cB.setHex(b.mid), f);
+      skyMat.uniforms.bottom.value.copy(_cA.setHex(a.bottom)).lerp(_cB.setHex(b.bottom), f);
+      sun.color.copy(_cA.setHex(a.sun)).lerp(_cB.setHex(b.sun), f);
+      sun.intensity = lerpKey(a, b, f, 'si');
+      hemi.intensity = lerpKey(a, b, f, 'hi');
+      renderer.toneMappingExposure = lerpKey(a, b, f, 'exp');
+      starMat.opacity = lerpKey(a, b, f, 'star');
+      // orbit the sun across the sky according to time of day
+      const ang = (dayT - 0.25) * Math.PI * 2;
+      sun.position.set(Math.cos(ang) * 60, Math.sin(ang) * 60 + 8, 25);
+      sunDir.copy(sun.position).normalize();
+    }
+    updateDayNight();
 
     // ---------- Terrain height field (islands in an ocean) ----------
     const R = 13;
@@ -510,6 +543,7 @@
     // QA hooks for the headless screenshot harness
     window.__dbg.tp = (v) => { pos.copy(v).setLength(R); refreshFrame(); placePlayer(); };
     window.__dbg.parcels = parcels; window.__dbg.dropoffs = dropoffs;
+    window.__dbg.setDay = (t) => { dayT = t; updateDayNight(); };
 
     // ---------- Input ----------
     const keys = { f: false, b: false, l: false, r: false, sprint: false };
@@ -565,6 +599,16 @@
     const TOTAL = parcels.length;
     function toast(m, ms = 1600) { toastEl.textContent = m; toastEl.classList.add('show'); toastTimer = ms / 1000; }
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+    { const b = parseFloat(localStorage.getItem('tp_best') || '0'); if (b) document.getElementById('bestLine').textContent = '🏆 Deine Bestzeit: ' + fmt(b); }
+
+    // ---------- Particle bursts (pickup / deliver juice) ----------
+    const bursts = [], burstGeo = new THREE.TetrahedronGeometry(0.13);
+    function burst(at, hex) {
+      const mat = new THREE.MeshBasicMaterial({ color: hex }); const g = new THREE.Group(); g.position.copy(at);
+      const parts = [];
+      for (let i = 0; i < 12; i++) { const m = new THREE.Mesh(burstGeo, mat); const v = new THREE.Vector3().randomDirection().multiplyScalar(2 + Math.random() * 2.5); v.addScaledVector(at.clone().normalize(), 2); m.userData.v = v; g.add(m); parts.push(m); }
+      scene.add(g); bursts.push({ g, parts, life: 0 });
+    }
 
     // ---------- Procedural ambient audio (WebAudio, no files) ----------
     let audio = null, muted = false;
@@ -625,6 +669,7 @@
       requestAnimationFrame(animate);
       const dt = Math.min(clock.getDelta(), 0.05);
       oceanUniforms.time.value += dt;
+      dayT = (dayT + dt / 150) % 1; updateDayNight(); // ~2.5 min full day
 
       // pick up parcels (when not yet carrying the max few)
       for (const p of parcels) {
@@ -632,7 +677,7 @@
         p.t += dt; p.box.rotation.y += dt * 1.6; p.box.position.y = 0.95 + Math.sin(p.t * 2) * 0.12;
         if (carrying < 5 && p.worldPos.distanceTo(player.position) < 1.5) {
           p.done = true; p.box.parent.visible = false; carrying++; carryEl.textContent = String(carrying);
-          chime(false); toast('Aufgehoben! 📦');
+          chime(false); toast('Aufgehoben! 📦'); burst(p.worldPos, 0x5eead4);
         }
       }
       // deliver to glowing houses
@@ -641,7 +686,7 @@
         o.beam.material.opacity = 0.35 + Math.sin(o.t * 3) * 0.2;
         if (carrying > 0 && o.worldPos.distanceTo(player.position) < 2.4) {
           delivered += carrying; carrying = 0; carryEl.textContent = '0'; cntEl.textContent = String(delivered);
-          chime(delivered >= TOTAL); toast(delivered >= TOTAL ? 'Alles geliefert! 🎉' : 'Geliefert! ✅', 1500);
+          chime(delivered >= TOTAL); toast(delivered >= TOTAL ? 'Alles geliefert! 🎉' : 'Geliefert! ✅', 1500); burst(o.worldPos, 0xffd166);
           if (delivered >= TOTAL && !finished) {
             finished = true;
             const best = parseFloat(localStorage.getItem('tp_best') || '0');
@@ -651,6 +696,12 @@
             winTextEl.textContent = msg; winEl.classList.add('on'); compassEl.classList.remove('on');
           }
         }
+      }
+      // particle bursts
+      for (let i = bursts.length - 1; i >= 0; i--) {
+        const b = bursts[i]; b.life += dt;
+        for (const m of b.parts) { m.position.addScaledVector(m.userData.v, dt); m.userData.v.multiplyScalar(0.9); m.scale.multiplyScalar(0.93); m.rotation.x += dt * 6; m.rotation.y += dt * 4; }
+        if (b.life > 1.0) { b.g.traverse(o => o.material && o.material.dispose && o.material.dispose()); scene.remove(b.g); bursts.splice(i, 1); }
       }
       // carried stack
       carryStack.rotation.y += dt * 1.2;
