@@ -214,7 +214,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v15 · UI overhaul';
+    const BUILD = 'v16 · space beauty';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -450,6 +450,15 @@
       }
       const mesh = new THREE.Mesh(geo, toonMat({ vertexColors: true })); mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
       if (T.water) { const oseg = PR > 9 ? 96 : 48; group.add(new THREE.Mesh(new THREE.SphereGeometry(PR - 0.12, oseg, Math.round(oseg * 0.6)), oceanMaterial)); }
+      // soft themed atmosphere halo
+      const atmCol = { home: 0x9fd8ff, grass: 0x9fd8ff, desert: 0xffe0a8, snow: 0xcfe8ff, volcano: 0xff8a5a, tech: 0x86fff0 }[project.theme] || 0x9fd8ff;
+      group.add(new THREE.Mesh(new THREE.SphereGeometry(PR * 1.16, 28, 18),
+        new THREE.MeshBasicMaterial({ color: atmCol, transparent: true, opacity: 0.16, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false })));
+      // occasional planetary ring
+      if (rnd() < 0.32) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(PR * 1.7, PR * 0.13, 2, 56), toonMat({ color: atmCol, transparent: true, opacity: 0.8 }));
+        ring.rotation.x = Math.PI / 2 + (rnd() - 0.5) * 0.7; ring.rotation.y = (rnd() - 0.5) * 0.5; group.add(ring);
+      }
       const label = makeLabel(project.name); label.position.set(0, PR + 4.5, 0); label.scale.set(PR * 0.85, PR * 0.21, 1); group.add(label);
       const pl = { center: center.clone(), R: PR, terrain, landR, walkR, group, rich, project, label };
       // decorations
