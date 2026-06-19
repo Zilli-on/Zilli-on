@@ -251,7 +251,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v24 · project panels';
+    const BUILD = 'v25 · biome props';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -394,12 +394,24 @@
           gl_FragColor = vec4(col, 0.9); } ` });
 
     // ---------- mesh builders ----------
-    function makeTree() {
+    function makeTree(leafCol) {
       const g = new THREE.Group();
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.9, 6), toonMat({ color: 0x8a5a2b }));
       trunk.position.y = 0.45; trunk.castShadow = true; g.add(trunk);
-      const lm = toonMat({ color: 0x2f9e54 });
+      const lm = toonMat({ color: leafCol || 0x2f9e54 });
       for (let i = 0; i < 3; i++) { const cone = new THREE.Mesh(new THREE.ConeGeometry(0.85 - i*0.18, 0.9, 7), lm); cone.position.y = 1.0 + i*0.55; cone.castShadow = true; g.add(cone); }
+      return g;
+    }
+    function makeCactus() {
+      const g = new THREE.Group(); const m = toonMat({ color: 0x4e9a5a });
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 1.1, 4, 8), m); body.position.y = 0.8; body.castShadow = true; g.add(body);
+      for (const sx of [-1, 1]) { if (rnd() < 0.5) continue; const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.5, 4, 6), m); arm.position.set(sx * 0.32, 0.9 + rnd() * 0.3, 0); arm.rotation.z = -sx * 0.9; arm.castShadow = true; g.add(arm); }
+      return g;
+    }
+    function makeDeadTree() {
+      const g = new THREE.Group(); const m = toonMat({ color: 0x2a211d });
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 1.4, 6), m); trunk.position.y = 0.7; trunk.castShadow = true; g.add(trunk);
+      for (let i = 0; i < 3; i++) { const br = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.09, 0.6, 5), m); br.position.y = 0.9 + i * 0.25; br.rotation.z = (i % 2 ? 1 : -1) * (0.7 + rnd() * 0.3); g.add(br); }
       return g;
     }
     function makeHouse() {
@@ -509,8 +521,10 @@
       const dN = Math.round(PR * 6);
       for (let i = 0; i < dN; i++) {
         const dir = fibDir(i + 0.5, dN + 1); if (terrain(dir) < PR * 0.04) continue;
-        const roll = rnd(), isTree = roll < 0.55;
-        const deco = isTree ? makeTree() : roll < 0.74 ? makeRock() : makeHouse();
+        const roll = rnd(), isTree = roll < 0.55, th = project.theme;
+        const deco = isTree
+          ? (th === 'desert' ? makeCactus() : th === 'volcano' ? makeDeadTree() : th === 'snow' ? makeTree(0xdfeefc) : makeTree())
+          : roll < 0.74 ? makeRock() : makeHouse();
         deco.scale.setScalar(0.8 + rnd() * 0.5); orientOnSphere(deco, dir, landR(dir)); group.add(deco);
         if (isTree) windy.push({ obj: deco, base: deco.quaternion.clone(), phase: rnd() * 6.28, pl });
       }
