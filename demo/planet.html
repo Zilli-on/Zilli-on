@@ -251,7 +251,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v28 · depth fog';
+    const BUILD = 'v29 · birds-eye cam';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -810,10 +810,10 @@
       case 'KeyA': case 'ArrowLeft': keys.l = false; break; case 'KeyD': case 'ArrowRight': keys.r = false; break;
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = false; break; case 'Space': releaseCharge(); break; } });
 
-    let camPitch = 1.0, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
+    let camPitch = 1.2, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
     const canvas = renderer.domElement;
     canvas.addEventListener('mousedown', (e) => { mouseDown = true; lastX = e.clientX; lastY = e.clientY; });
-    addEventListener('mousemove', (e) => { if (!mouseDown) return; dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.4, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
+    addEventListener('mousemove', (e) => { if (!mouseDown) return; dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.55, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
     addEventListener('mouseup', () => { mouseDown = false; });
 
     // ---------- Touch ----------
@@ -835,7 +835,7 @@
 
     let lookId = null;
     canvas.addEventListener('touchstart', (e) => { if (!started) return; const t = e.changedTouches[0]; if (lookId === null) { lookId = t.identifier; lastX = t.clientX; lastY = t.clientY; } }, { passive: false });
-    canvas.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) { dragTurn += (t.clientX - lastX) * 0.006; camPitch = Math.max(-0.1, Math.min(1.4, camPitch + (t.clientY - lastY) * 0.005)); lastX = t.clientX; lastY = t.clientY; e.preventDefault(); } }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) { dragTurn += (t.clientX - lastX) * 0.006; camPitch = Math.max(-0.1, Math.min(1.55, camPitch + (t.clientY - lastY) * 0.005)); lastX = t.clientX; lastY = t.clientY; e.preventDefault(); } }, { passive: false });
     const lookEnd = (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) lookId = null; };
     canvas.addEventListener('touchend', lookEnd); canvas.addEventListener('touchcancel', lookEnd);
 
@@ -1269,11 +1269,11 @@
         _r.crossVectors(up, forward).normalize();
         const air = mode === 'air';
         const behind = tmp.copy(forward).multiplyScalar(-1).applyAxisAngle(_r, -(air ? 0.5 : camPitch));
-        const desired = tmp3.copy(player.position).addScaledVector(behind, air ? 12 : 9.0).addScaledVector(up, air ? 4 : 2.4);
+        const desired = tmp3.copy(player.position).addScaledVector(behind, air ? 12 : 9.0).addScaledVector(up, air ? 4 : 5.5);
         const np = nearestPlanet(desired); const minR = np.R + 2.4;
         if (desired.distanceTo(np.center) < minR) desired.sub(np.center).setLength(minR).add(np.center);
         camera.position.lerp(desired, air ? 0.08 : 0.12);
-        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 0.8));
+        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 0.9));
         const wantFov = (air || ((keys.sprint || touchSprint) && mv !== 0)) ? 68 : 60;
         camera.fov += (wantFov - camera.fov) * 0.1; camera.updateProjectionMatrix();
       }
