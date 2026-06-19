@@ -109,7 +109,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v3 · bigger hero + gentler isles';
+    const BUILD = 'v4 · green isles + grass spawn';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -132,7 +132,7 @@
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 0.98;
     document.body.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -165,8 +165,8 @@
     scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0.5 })));
 
     // ---------- Lighting ----------
-    scene.add(new THREE.HemisphereLight(0xfff0d8, 0x6a8f6a, 0.85));
-    const sun = new THREE.DirectionalLight(0xfff2d0, 2.2);
+    scene.add(new THREE.HemisphereLight(0xfff0d8, 0x6a8f6a, 0.6));
+    const sun = new THREE.DirectionalLight(0xfff2d0, 1.7);
     sun.position.set(45, 60, 25); sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.near = 1; sun.shadow.camera.far = 200;
@@ -178,15 +178,18 @@
 
     // ---------- Terrain height field (islands in an ocean) ----------
     const R = 13;
+    let seed = 20260619; // fixed seed -> the same planet every load (also makes visual testing reproducible)
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    const randDir = () => { const t = 2 * Math.PI * rnd(), z = 2 * rnd() - 1, r = Math.sqrt(1 - z * z); return new THREE.Vector3(r * Math.cos(t), r * Math.sin(t), z); };
     const islands = [];
-    for (let i = 0; i < 8; i++) {
-      islands.push({ c: new THREE.Vector3().randomDirection(), amp: 1.0 + Math.random() * 1.3, w: 0.30 + Math.random() * 0.28 });
+    for (let i = 0; i < 7; i++) {
+      islands.push({ c: randDir(), amp: 1.7 + rnd() * 1.2, w: 0.16 + rnd() * 0.12 });
     }
-    function terrain(d) { // d: unit vector -> height (can be negative = ocean), gentle rolling islands
-      let h = -0.8;
+    function terrain(d) { // d: unit vector -> height; deep ocean base with distinct rounded islands
+      let h = -1.1;
       for (const is of islands) { const x = 1 - d.dot(is.c); h += is.amp * Math.exp(-(x * x) / (2 * is.w * is.w)); }
-      h += 0.06 * Math.sin(d.x * 5 + 1.0) * Math.cos(d.z * 5 - 0.5); // subtle low-frequency roll
-      return Math.min(h, 2.4);
+      h += 0.10 * Math.sin(d.x * 4 + 1.0) * Math.cos(d.z * 4 - 0.5); // gentle low-frequency roll
+      return Math.min(h, 2.6);
     }
     const landRadius = (d) => R + Math.max(terrain(d), -0.7);
     const walkRadius = (d) => R + Math.max(terrain(d), 0); // walk on land or glide on the sea surface
@@ -203,10 +206,10 @@
         d.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
         const h = Math.max(terrain(d), -0.7);
         d.multiplyScalar(R + h); pos.setXYZ(i, d.x, d.y, d.z);
-        if (h < 0.08) c.copy(sand);
-        else if (h < 0.9) c.copy(grass).lerp(grass2, (h - 0.08) / 0.82 * 0.6);
-        else if (h < 1.9) c.copy(grass2).lerp(rock, (h - 0.9) / 1.0);
-        else c.copy(rock).lerp(snow, Math.min(1, (h - 1.9) / 0.8));
+        if (h < 0.12) c.copy(sand);
+        else if (h < 1.5) c.copy(grass).lerp(grass2, (h - 0.12) / 1.38 * 0.7);
+        else if (h < 2.2) c.copy(grass2).lerp(rock, (h - 1.5) / 0.7);
+        else c.copy(rock).lerp(snow, Math.min(1, (h - 2.2) / 0.4));
         col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b;
       }
       planetGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -326,6 +329,7 @@
     const player = new THREE.Group();
     const avatar = new THREE.Group(); player.add(avatar);
     scene.add(player);
+    window.__dbg = { THREE, player, avatar, scene, camera }; // debug/QA hook (used by headless screenshot harness)
     const placeholder = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.7, 6, 12), toonMat({ color: 0x3b82c4 }));
     placeholder.position.y = 1.55; placeholder.castShadow = true; avatar.add(placeholder);
 
@@ -334,6 +338,13 @@
       const next = actions[name]; if (!next || next === activeAction) return;
       if (activeAction) activeAction.fadeOut(0.2);
       next.reset().fadeIn(0.2).play(); activeAction = next;
+    }
+    // Accurate bounds from visible mesh geometry only — Box3.setFromObject inflates wildly on rigged models.
+    function meshBox(root) {
+      root.updateWorldMatrix(true, true);
+      const box = new THREE.Box3(), tmpB = new THREE.Box3();
+      root.traverse((o) => { if (o.isMesh && o.geometry) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); tmpB.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); box.union(tmpB); } });
+      return box;
     }
     // Play is available immediately; the rigged character streams in afterwards (capsule until then).
     const playBtn = document.getElementById('playBtn');
@@ -350,9 +361,9 @@
               emissive: src.emissive ? src.emissive.clone() : new THREE.Color(0), vertexColors: src.vertexColors || false });
           }
         });
-        const box = new THREE.Box3().setFromObject(model); const size = new THREE.Vector3(); box.getSize(size);
-        const s = 3.6 / size.y; model.scale.setScalar(s); // big relative to the tiny planet
-        const box2 = new THREE.Box3().setFromObject(model); model.position.y = -box2.min.y; // feet on the ground
+        const size = meshBox(model).getSize(new THREE.Vector3());
+        const s = 3.4 / size.y; model.scale.setScalar(s); // big relative to the tiny planet
+        model.position.y -= meshBox(model).min.y; // feet on the ground (y=0)
         avatar.remove(placeholder);
         avatar.add(model);
         mixer = new THREE.AnimationMixer(model);
@@ -367,7 +378,9 @@
     );
 
     // ---------- Player state on the sphere ----------
-    let pos = islands[0].c.clone().multiplyScalar(walkRadius(islands[0].c));
+    let spawnDir = islands[0].c.clone();
+    for (let i = 0; i < 500; i++) { const cand = randDir(); const h = terrain(cand); if (h > 0.3 && h < 0.9) { spawnDir = cand; break; } } // a grassy, gentle spot
+    let pos = spawnDir.clone().multiplyScalar(walkRadius(spawnDir));
     let forward = new THREE.Vector3(1, 0, 0);
     let height = 0, vUp = 0, canJump = true;
     const up = new THREE.Vector3();
@@ -437,7 +450,7 @@
     // ---------- Post-processing ----------
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.55, 0.5, 0.85);
+    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.35, 0.4, 0.9);
     composer.addPass(bloom);
     composer.addPass(new ShaderPass({
       uniforms: { tDiffuse: { value: null }, sat: { value: 1.14 }, darkness: { value: 1.15 } },
@@ -487,6 +500,7 @@
       const desired = new THREE.Vector3().copy(player.position).addScaledVector(behind, 9).addScaledVector(up, 2.6);
       camera.position.lerp(desired, started ? 0.12 : 0.05);
       camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.9));
+      if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(0,0,0); } // debug/QA overview hook
 
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
       composer.render();
