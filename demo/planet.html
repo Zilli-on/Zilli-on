@@ -153,7 +153,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v11 · galaxy hop';
+    const BUILD = 'v12 · synapses + culling';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -411,13 +411,34 @@
       let near = 0; for (const p of planets) if (p !== cur && p.center.distanceTo(cur.center) < 75) near++;
       while (near < 3 && planets.length < 12) { if (spawnNeighbor(cur.center)) near++; else break; }
       while (planets.length > 12) { let far = -1, fd = -1; for (let i = 0; i < planets.length; i++) { if (planets[i] === cur) continue; const d = planets[i].center.distanceTo(player.position); if (d > fd) { fd = d; far = i; } } if (far < 0) break; removePlanet(planets[far]); }
+      rebuildLinks();
+    }
+    // glowing "synapse" links + travelling data-pulses between neighbouring worlds (the data-brain look)
+    const linkMat = new THREE.LineBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false });
+    const pulseGeo = new THREE.SphereGeometry(0.45, 8, 8);
+    const pulseMat = new THREE.MeshBasicMaterial({ color: 0xb6ffe9, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+    let linkSeg = null, pulses = [];
+    function rebuildLinks() {
+      if (linkSeg) { scene.remove(linkSeg); linkSeg.geometry.dispose(); }
+      for (const pu of pulses) scene.remove(pu.mesh); pulses = [];
+      const pts = [], seen = new Set();
+      for (const p of planets) {
+        const others = planets.filter((q) => q !== p).sort((a, b) => p.center.distanceTo(a.center) - p.center.distanceTo(b.center)).slice(0, 2);
+        for (const q of others) {
+          pts.push(p.center.x, p.center.y, p.center.z, q.center.x, q.center.y, q.center.z);
+          const key = [planets.indexOf(p), planets.indexOf(q)].sort((a, b) => a - b).join('-');
+          if (!seen.has(key)) { seen.add(key); const m = new THREE.Mesh(pulseGeo, pulseMat); m.frustumCulled = false; scene.add(m); pulses.push({ a: p.center, b: q.center, mesh: m, off: rnd() }); }
+        }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      linkSeg = new THREE.LineSegments(g, linkMat); linkSeg.frustumCulled = false; scene.add(linkSeg);
     }
 
     // build the home planet + a starting cluster
     const HOME = makePlanet(new THREE.Vector3(0, 0, 0), R, true);
     const terrain = HOME.terrain, landRadius = HOME.landR, walkRadius = HOME.walkR; // home aliases (spawn helpers)
-    const islands = [{ c: new THREE.Vector3(0, 1, 0) }]; // placeholder for legacy spawn fallback
     for (let i = 0; i < 4; i++) spawnNeighbor(HOME.center);
+    rebuildLinks();
 
     // ---------- Home-only ambient (clouds, birds, fish, fireflies) ----------
     const clouds = new THREE.Group(); scene.add(clouds);
@@ -737,10 +758,14 @@
       const dt = Math.min(clock.getDelta(), 0.05);
       oceanUniforms.time.value += dt;
       dayT = (dayT + dt / 150) % 1; updateDayNight(); // ~2.5 min full day
+      // Minecraft-style culling: only keep nearby worlds drawn & updated
+      for (const p of planets) { const vis = player.position.distanceTo(p.center) < 150; if (p.group.visible !== vis) p.group.visible = vis; }
+      linkMat.opacity = 0.22 + 0.13 * Math.sin(oceanUniforms.time.value * 1.5); // synapse glow
+      for (const pu of pulses) { const fr = (oceanUniforms.time.value * 0.18 + pu.off) % 1; pu.mesh.position.lerpVectors(pu.a, pu.b, fr); }
 
       // pick up parcels (when not yet carrying the max few)
       for (const p of parcels) {
-        if (p.done) continue;
+        if (p.done || !p.pl.group.visible) continue;
         p.t += dt; p.box.rotation.y += dt * 1.6; p.box.position.y = 0.95 + Math.sin(p.t * 2) * 0.12;
         if (carrying < 5 && p.worldPos.distanceTo(player.position) < 1.5) {
           p.done = true; p.box.parent.visible = false; carrying++; carryEl.textContent = String(carrying);
@@ -749,6 +774,7 @@
       }
       // deliver to glowing houses
       for (const o of dropoffs) {
+        if (!o.pl.group.visible) continue;
         o.t += dt; o.ring.rotation.z += dt * 1.5; o.ring.position.y = 2.5 + Math.sin(o.t * 2) * 0.15;
         o.beam.material.opacity = 0.35 + Math.sin(o.t * 3) * 0.2;
         if (carrying > 0 && o.worldPos.distanceTo(player.position) < 2.4) {
@@ -779,8 +805,8 @@
       }
 
       const windT = oceanUniforms.time.value;
-      // trees sway in the wind
-      for (const w of windy) { _qA.setFromAxisAngle(_vx, Math.sin(windT * 1.5 + w.phase) * 0.05); w.obj.quaternion.copy(w.base).multiply(_qA); }
+      // trees sway in the wind (skip culled worlds)
+      for (const w of windy) { if (!w.pl.group.visible) continue; _qA.setFromAxisAngle(_vx, Math.sin(windT * 1.5 + w.phase) * 0.05); w.obj.quaternion.copy(w.base).multiply(_qA); }
       // fireflies (fade in at night, gentle drift)
       ffMat.opacity += (starMat.opacity - ffMat.opacity) * 0.05;
       if (ffMat.opacity > 0.02) {
@@ -818,6 +844,7 @@
       }
       // wandering critters (stay on land, avoid water)
       for (const cr of critters) {
+        if (!cr.pl.group.visible) continue;
         cr.t += dt;
         cr.fwd.applyAxisAngle(cr.dir, Math.sin(cr.t * 0.6) * 0.9 * dt);
         cr.dir.addScaledVector(cr.fwd, 0.9 * dt).normalize();
