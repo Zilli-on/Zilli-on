@@ -251,7 +251,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v25 · biome props';
+    const BUILD = 'v26 · lava + holograms';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -562,6 +562,10 @@
         const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
         const m = new THREE.PointsMaterial({ map: sparkTex, color: 0xff7a2a, size: 0.7, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
         const pts = new THREE.Points(g, m); pts.frustumCulled = false; group.add(pts);
+        // glowing lava pools in low ground
+        for (let i = 0; i < 4; i++) { let dir = randDir(); for (let k = 0; k < 40 && terrain(dir) > PR * 0.02; k++) dir = randDir();
+          const pool = new THREE.Mesh(new THREE.CylinderGeometry(0.7 + rnd() * 0.6, 0.7, 0.08, 12), new THREE.MeshBasicMaterial({ color: 0xff5a2a }));
+          orientOnSphere(pool, dir, walkR(dir) + 0.04); group.add(pool); }
         pl.fx = { kind: 'embers', attr: g.attributes.position, data, walkR };
       } else if (project.theme === 'snow') {
         const N = 130, arr = new Float32Array(N * 3), data = [];
@@ -572,7 +576,12 @@
         pl.fx = { kind: 'snow', attr: g.attributes.position, data, PR };
       } else if (project.theme === 'tech') {
         const grid = new THREE.Mesh(new THREE.IcosahedronGeometry(PR + 0.6, 2), new THREE.MeshBasicMaterial({ color: 0x5eead4, wireframe: true, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }));
-        group.add(grid); pl.fx = { kind: 'tech', grid };
+        group.add(grid);
+        const holos = [];
+        for (let i = 0; i < 5; i++) { let dir = randDir(); for (let k = 0; k < 40 && terrain(dir) < PR * 0.04; k++) dir = randDir();
+          const holo = new THREE.Mesh(new THREE.OctahedronGeometry(0.4, 0), new THREE.MeshBasicMaterial({ color: 0x7ffcee, wireframe: true, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
+          orientOnSphere(holo, dir, walkR(dir) + 1.4); group.add(holo); holos.push(holo); }
+        pl.fx = { kind: 'tech', grid, holos };
       }
       planets.push(pl); return pl;
     }
@@ -1102,7 +1111,7 @@
         if (!p.group.visible || !p.fx) continue; const fx = p.fx;
         if (fx.kind === 'embers') { const a = fx.attr.array; for (let i = 0; i < fx.data.length; i++) { const d = fx.data[i]; d.h += d.sp * dt; if (d.h > 4.5) d.h = 0; const rr = fx.walkR(d.dir) + d.h; a[i*3] = d.dir.x*rr; a[i*3+1] = d.dir.y*rr; a[i*3+2] = d.dir.z*rr; } fx.attr.needsUpdate = true; }
         else if (fx.kind === 'snow') { const a = fx.attr.array; for (let i = 0; i < fx.data.length; i++) { const d = fx.data[i]; d.r -= d.sp * dt; if (d.r < fx.PR) { d.r = fx.PR + 6; d.dir.copy(randDir()); } a[i*3] = d.dir.x*d.r; a[i*3+1] = d.dir.y*d.r; a[i*3+2] = d.dir.z*d.r; } fx.attr.needsUpdate = true; }
-        else if (fx.kind === 'tech') { fx.grid.material.opacity = 0.12 + 0.1 * Math.sin(oceanUniforms.time.value * 2 + p.center.x); fx.grid.rotation.y += dt * 0.2; }
+        else if (fx.kind === 'tech') { fx.grid.material.opacity = 0.12 + 0.1 * Math.sin(oceanUniforms.time.value * 2 + p.center.x); fx.grid.rotation.y += dt * 0.2; if (fx.holos) for (const h of fx.holos) { h.rotation.y += dt * 1.5; h.rotation.x += dt * 0.8; } }
       }
 
       // pick up parcels (when not yet carrying the max few)
