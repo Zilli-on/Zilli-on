@@ -214,7 +214,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v17 · juice';
+    const BUILD = 'v18 · shooting stars';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -959,6 +959,18 @@
     // ---------- Loop ----------
     const G = 18, tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3(), clock = new THREE.Clock();
     const _qA = new THREE.Quaternion(), _vx = new THREE.Vector3(1, 0, 0);
+    // shooting stars (night only)
+    const shootSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: sparkTex, color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    shootSprite.scale.set(0, 0, 1); scene.add(shootSprite);
+    const shoot = { active: false, t: 0, dur: 0.8, from: new THREE.Vector3(), to: new THREE.Vector3() };
+    let shootCd = 4;
+    function updateShoot(dt) {
+      if (shoot.active) { shoot.t += dt; const f = shoot.t / shoot.dur; if (f >= 1) { shoot.active = false; shootSprite.material.opacity = 0; }
+        else { shootSprite.position.lerpVectors(shoot.from, shoot.to, f); const a = Math.sin(f * Math.PI); shootSprite.material.opacity = a * 0.95; shootSprite.scale.set(7 * a + 1, 1.2 * a + 0.3, 1); } return; }
+      if (starMat.opacity > 0.45) { shootCd -= dt; if (shootCd <= 0) { shootCd = 5 + rnd() * 9;
+        const d = randDir(); d.y = Math.abs(d.y) * 0.6 + 0.4; shoot.from.copy(camera.position).addScaledVector(d, 240);
+        shoot.to.copy(shoot.from).addScaledVector(randDir(), 90).addScaledVector(_vx, 60); shoot.t = 0; shoot.active = true; } }
+    }
     placePlayer();
     camera.up.copy(up); camera.position.copy(player.position).addScaledVector(up, 2.6).addScaledVector(forward, -6.5);
 
@@ -967,6 +979,7 @@
       const dt = Math.min(clock.getDelta(), 0.05);
       oceanUniforms.time.value += dt;
       dayT = (dayT + dt / 150) % 1; updateDayNight(); // ~2.5 min full day
+      updateShoot(dt);
       // Minecraft-style culling: only keep nearby worlds drawn & updated
       for (const p of planets) { const vis = player.position.distanceTo(p.center) < 150; if (p.group.visible !== vis) p.group.visible = vis; }
       linkMat.opacity = 0.22 + 0.13 * Math.sin(oceanUniforms.time.value * 1.5); // synapse glow
