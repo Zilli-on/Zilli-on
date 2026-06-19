@@ -88,7 +88,7 @@
   </style>
 </head>
 <body>
-  <div id="hud">📦 Pakete <b id="cnt">0</b> / <b id="tot">0</b> · ⏱ <b id="timer">0:00</b></div>
+  <div id="hud">📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b>/<b id="tot">0</b> · ⏱ <b id="timer">0:00</b></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
   <div id="compass"><div class="arrow">⬆</div><div class="lbl">nächstes Paket</div></div>
   <div id="toast"></div>
@@ -107,9 +107,10 @@
 
   <div id="overlay">
     <h1>Tiny <span>Planet</span></h1>
-    <p>Lauf über einen winzigen Insel-Planeten und sammle alle Pakete ein.
-       Komplett im Browser — kein Download, kein Install. WebGL &amp; Three.js mit
-       Toon-Shading, Bloom, Ozean-Shader und animiertem Charakter.
+    <p>Sammle die leuchtenden Pakete 📦 ein und bring sie zu den Häusern mit dem
+       türkisen Ring ✅ — so schnell du kannst! Der Pfeil oben zeigt dir den Weg.
+       Komplett im Browser, kein Download. WebGL &amp; Three.js mit Toon-Shading,
+       Bloom, Ozean-Shader, animiertem Charakter &amp; Tierwelt.
        Inspiriert vom Insta-Reel (<i>messenger.abeto.co</i>).</p>
     <div class="keys" id="keys">
       <span class="key"><b>W / S</b> Laufen</span>
@@ -140,7 +141,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v5 · birds, critters, audio, goal';
+    const BUILD = 'v6 · pickup + deliver';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -390,13 +391,13 @@
       scene.add(deco);
     }
 
-    // ---------- Parcels ----------
+    // ---------- Parcels (pickups) ----------
     const parcels = []; const PARCELS = 12;
     const parcelMat = toonMat({ color: 0xd9a066, emissive: 0x5eead4, emissiveIntensity: 0.45 });
     let placed = 0, attempt = 0;
-    while (placed < PARCELS && attempt < 400) {
+    while (placed < PARCELS && attempt < 600) {
       attempt++;
-      const dir = new THREE.Vector3().randomDirection();
+      const dir = randDir();
       if (terrain(dir) < 0.35) continue;
       const holder = new THREE.Group();
       const box = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.45), parcelMat); box.castShadow = true;
@@ -404,10 +405,27 @@
       box.position.y = 0.95; holder.add(box);
       orientOnSphere(holder, dir, landRadius(dir));
       scene.add(holder);
-      parcels.push({ box, worldPos: dir.clone().multiplyScalar(landRadius(dir) + 0.95), done: false, t: Math.random() * 6 });
+      parcels.push({ box, worldPos: dir.clone().multiplyScalar(landRadius(dir) + 0.95), done: false, t: rnd() * 6 });
       placed++;
     }
     document.getElementById('tot').textContent = String(parcels.length);
+
+    // ---------- Delivery houses (drop-offs, glowing) ----------
+    const dropoffs = [];
+    { let n = 0, att = 0;
+      while (n < 5 && att < 800) {
+        att++; const dir = randDir();
+        if (terrain(dir) < 0.5) continue;
+        if (dropoffs.some((o) => o.dir.distanceTo(dir) < 0.7)) continue;
+        const h = makeHouse(); h.scale.setScalar(1.15); orientOnSphere(h, dir, landRadius(dir)); scene.add(h);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.08, 8, 20), new THREE.MeshBasicMaterial({ color: 0x5eead4 }));
+        ring.rotation.x = Math.PI / 2; ring.position.y = 2.5; h.add(ring);
+        const beam = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.4, 4), new THREE.MeshBasicMaterial({ color: 0x5eead4, transparent: true, opacity: 0.55 }));
+        beam.position.y = 3.3; h.add(beam);
+        dropoffs.push({ dir, worldPos: dir.clone().multiplyScalar(landRadius(dir) + 0.6), ring, beam, t: rnd() * 6 });
+        n++;
+      }
+    }
 
     // ---------- Player + animated character ----------
     const player = new THREE.Group();
@@ -416,6 +434,14 @@
     window.__dbg = { THREE, player, avatar, scene, camera }; // debug/QA hook (used by headless screenshot harness)
     const placeholder = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.7, 6, 12), toonMat({ color: 0x3b82c4 }));
     placeholder.position.y = 1.55; placeholder.castShadow = true; avatar.add(placeholder);
+
+    // carried-parcel stack floating above the hero
+    const carryStack = new THREE.Group(); carryStack.position.y = 3.9; avatar.add(carryStack);
+    const carryBoxes = [];
+    for (let i = 0; i < 5; i++) {
+      const cb = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.36, 0.36), parcelMat);
+      cb.position.y = i * 0.4; cb.castShadow = true; cb.visible = false; carryStack.add(cb); carryBoxes.push(cb);
+    }
 
     let mixer = null, actions = {}, activeAction = null, modelReady = false;
     function setAction(name) {
@@ -481,6 +507,9 @@
       _r.crossVectors(up, forward).normalize(); _m.makeBasis(_r, up, forward);
       player.quaternion.setFromRotationMatrix(_m);
     }
+    // QA hooks for the headless screenshot harness
+    window.__dbg.tp = (v) => { pos.copy(v).setLength(R); refreshFrame(); placePlayer(); };
+    window.__dbg.parcels = parcels; window.__dbg.dropoffs = dropoffs;
 
     // ---------- Input ----------
     const keys = { f: false, b: false, l: false, r: false, sprint: false };
@@ -528,10 +557,12 @@
     document.getElementById('jumpBtn').addEventListener('touchstart', (e) => { e.preventDefault(); hop(); }, { passive: false });
 
     // ---------- HUD ----------
-    const cntEl = document.getElementById('cnt'), toastEl = document.getElementById('toast'),
+    const cntEl = document.getElementById('cnt'), carryEl = document.getElementById('carry'), toastEl = document.getElementById('toast'),
           timerEl = document.getElementById('timer'), compassEl = document.getElementById('compass'),
-          arrowEl = compassEl.querySelector('.arrow'), winEl = document.getElementById('win'), winTextEl = document.getElementById('winText');
-    let collected = 0, toastTimer = 0, elapsed = 0, finished = false;
+          arrowEl = compassEl.querySelector('.arrow'), lblEl = compassEl.querySelector('.lbl'),
+          winEl = document.getElementById('win'), winTextEl = document.getElementById('winText');
+    let carrying = 0, delivered = 0, toastTimer = 0, elapsed = 0, finished = false;
+    const TOTAL = parcels.length;
     function toast(m, ms = 1600) { toastEl.textContent = m; toastEl.classList.add('show'); toastTimer = ms / 1000; }
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 
@@ -595,26 +626,43 @@
       const dt = Math.min(clock.getDelta(), 0.05);
       oceanUniforms.time.value += dt;
 
-      let nearest = null, nearD = Infinity;
+      // pick up parcels (when not yet carrying the max few)
       for (const p of parcels) {
         if (p.done) continue;
         p.t += dt; p.box.rotation.y += dt * 1.6; p.box.position.y = 0.95 + Math.sin(p.t * 2) * 0.12;
-        const d2 = p.worldPos.distanceTo(player.position);
-        if (d2 < nearD) { nearD = d2; nearest = p; }
-        if (d2 < 1.5) {
-          p.done = true; p.box.parent.visible = false; collected++; cntEl.textContent = String(collected);
-          const done = collected >= parcels.length;
-          toast(done ? 'Alle Pakete zugestellt! 🎉' : 'Paket! 📦', done ? 2500 : 1500);
-          chime(done);
-          if (done && !finished) { finished = true; winTextEl.textContent = 'Zeit: ' + fmt(elapsed) + '  ·  Pakete: ' + collected; winEl.classList.add('on'); compassEl.classList.remove('on'); }
+        if (carrying < 5 && p.worldPos.distanceTo(player.position) < 1.5) {
+          p.done = true; p.box.parent.visible = false; carrying++; carryEl.textContent = String(carrying);
+          chime(false); toast('Aufgehoben! 📦');
         }
       }
+      // deliver to glowing houses
+      for (const o of dropoffs) {
+        o.t += dt; o.ring.rotation.z += dt * 1.5; o.ring.position.y = 2.5 + Math.sin(o.t * 2) * 0.15;
+        o.beam.material.opacity = 0.35 + Math.sin(o.t * 3) * 0.2;
+        if (carrying > 0 && o.worldPos.distanceTo(player.position) < 2.4) {
+          delivered += carrying; carrying = 0; carryEl.textContent = '0'; cntEl.textContent = String(delivered);
+          chime(delivered >= TOTAL); toast(delivered >= TOTAL ? 'Alles geliefert! 🎉' : 'Geliefert! ✅', 1500);
+          if (delivered >= TOTAL && !finished) {
+            finished = true;
+            const best = parseFloat(localStorage.getItem('tp_best') || '0');
+            let msg = 'Zeit: ' + fmt(elapsed);
+            if (!best || elapsed < best) { localStorage.setItem('tp_best', elapsed.toFixed(2)); msg += '  ·  🏆 Neue Bestzeit!'; }
+            else msg += '  ·  Best: ' + fmt(best);
+            winTextEl.textContent = msg; winEl.classList.add('on'); compassEl.classList.remove('on');
+          }
+        }
+      }
+      // carried stack
+      carryStack.rotation.y += dt * 1.2;
+      for (let i = 0; i < carryBoxes.length; i++) carryBoxes[i].visible = i < carrying;
       // timer
       if (started && !finished) { elapsed += dt; timerEl.textContent = fmt(elapsed); }
-      // compass arrow toward nearest remaining parcel
-      if (nearest && !finished) {
-        tmp.copy(nearest.worldPos).applyMatrix4(camera.matrixWorldInverse);
-        arrowEl.style.transform = 'rotate(' + Math.atan2(tmp.x, tmp.y) + 'rad)';
+      // compass: point to nearest drop-off while carrying, else to nearest parcel
+      if (!finished) {
+        let target = null, td = Infinity;
+        if (carrying > 0) { for (const o of dropoffs) { const d = o.worldPos.distanceTo(player.position); if (d < td) { td = d; target = o.worldPos; } } lblEl.textContent = 'zum Haus liefern'; }
+        else { for (const p of parcels) { if (p.done) continue; const d = p.worldPos.distanceTo(player.position); if (d < td) { td = d; target = p.worldPos; } } lblEl.textContent = 'Paket holen'; }
+        if (target) { tmp.copy(target).applyMatrix4(camera.matrixWorldInverse); arrowEl.style.transform = 'rotate(' + Math.atan2(tmp.x, tmp.y) + 'rad)'; }
       }
 
       // drifting clouds
