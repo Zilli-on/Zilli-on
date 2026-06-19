@@ -108,6 +108,23 @@
     import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
+    // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
+    const BUILD = 'v2 · toon+ocean+bloom+glTF';
+    (function () {
+      const tag = document.createElement('div');
+      tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
+      tag.textContent = 'build ' + BUILD; document.body.appendChild(tag);
+      function show(msg) {
+        let e = document.getElementById('errbox');
+        if (!e) { e = document.createElement('pre'); e.id = 'errbox';
+          e.style.cssText = 'position:fixed;left:10px;right:10px;bottom:44px;z-index:9;max-height:40vh;overflow:auto;margin:0;padding:10px 12px;background:rgba(180,30,30,.92);color:#fff;font:12px ui-monospace,monospace;border-radius:10px;white-space:pre-wrap';
+          document.body.appendChild(e); }
+        e.textContent += msg + '\n';
+      }
+      addEventListener('error', (ev) => show('⚠️ ' + (ev.message || ev.error) + (ev.filename ? '\n   @ ' + ev.filename + ':' + ev.lineno : '')));
+      addEventListener('unhandledrejection', (ev) => show('⚠️ promise: ' + (ev.reason && ev.reason.message ? ev.reason.message : ev.reason)));
+    })();
+
     // ---------- Renderer ----------
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(innerWidth, innerHeight);
@@ -318,7 +335,9 @@
       if (activeAction) activeAction.fadeOut(0.2);
       next.reset().fadeIn(0.2).play(); activeAction = next;
     }
+    // Play is available immediately; the rigged character streams in afterwards (capsule until then).
     const playBtn = document.getElementById('playBtn');
+    playBtn.disabled = false; playBtn.textContent = '▶ Planet betreten';
     new GLTFLoader().load(
       'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
       (gltf) => {
@@ -340,11 +359,10 @@
         for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);
         setAction('Idle');
         modelReady = true;
-        playBtn.disabled = false; playBtn.textContent = '▶ Planet betreten';
       },
       undefined,
-      () => { // on error, fall back to the placeholder so the demo still runs
-        modelReady = true; playBtn.disabled = false; playBtn.textContent = '▶ Planet betreten';
+      (err) => { // keep the capsule placeholder if the model fails; demo still runs
+        console.warn('character model failed to load', err);
       }
     );
 
