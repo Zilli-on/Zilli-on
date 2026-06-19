@@ -103,11 +103,29 @@
     #win h2 { font-size: clamp(28px, 7vw, 54px); font-weight: 800; }
     #win p { font-size: 18px; font-weight: 600; }
     #win button { margin-top: 8px; cursor: pointer; border: 0; border-radius: 999px; padding: 13px 30px; font-size: 16px; font-weight: 800; color: #042f2a; background: #fff; }
+
+    #mapBtn { position: fixed; left: 14px; top: 58px; z-index: 6; cursor: pointer; border: 1px solid rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.55); border-radius: 10px; padding: 6px 12px; font-size: 13px; font-weight: 800; color: #0f766e; display: none; }
+    #mapBtn.on { display: block; }
+    #mapView { position: fixed; inset: 0; z-index: 8; display: none; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; background: rgba(6,18,26,0.88); backdrop-filter: blur(3px); }
+    #mapView.on { display: flex; }
+    #mapView h3 { color: #eafffb; font-size: 20px; font-weight: 800; }
+    #mapView p { color: #9fd9d0; font-size: 13px; margin-top: -6px; }
+    #mapCanvas { background: rgba(10,26,34,0.6); border: 1px solid rgba(94,234,212,0.3); border-radius: 16px; touch-action: none; max-width: 92vw; max-height: 70vh; }
+    #mapClose { cursor: pointer; border: 0; border-radius: 999px; padding: 10px 24px; font-size: 15px; font-weight: 800; color: #042f2a; background: #5eead4; }
   </style>
 </head>
 <body>
   <div id="hud">📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b>/<b id="tot">0</b> · ⏱ <b id="timer">0:00</b></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
+  <button id="mapBtn">🧠 Karte</button>
+  <div id="mapView">
+    <h3>🧠 Projekt-Galaxie</h3>
+    <p>Tippe eine Welt an, um direkt dorthin zu springen</p>
+    <canvas id="mapCanvas" width="520" height="520"></canvas>
+    <button id="mapClose">Schließen</button>
+  </div>
   <div id="compass"><div class="arrow">⬆</div><div class="lbl">nächstes Paket</div></div>
   <canvas id="radar" width="116" height="116"></canvas>
   <div id="chargeBar"><div id="chargeFill"></div></div>
@@ -162,7 +180,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v13 · project worlds';
+    const BUILD = 'v14 · brain map + theme FX';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -357,6 +375,9 @@
       const th = IDEA_THEMES[(rnd() * IDEA_THEMES.length) | 0];
       return { name: IDEA_NAMES[(rnd() * IDEA_NAMES.length) | 0] + '-' + ((rnd() * 90 + 10) | 0), desc: 'A procedurally-grown idea world', url: 'https://github.com/Zilli-on', theme: th };
     }
+    const sparkTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d');
+      const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); })();
     // billboard text label that floats over a world
     function makeLabel(text) {
       const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
@@ -432,6 +453,25 @@
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.08, 8, 20), ringMat); ring.rotation.x = Math.PI / 2; ring.position.y = 2.5; h.add(ring);
         const beam = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.4, 4), beamMat.clone()); beam.position.y = 3.3; h.add(beam);
         dropoffs.push({ worldPos: center.clone().addScaledVector(dir, landR(dir) + 0.6), ring, beam, t: rnd() * 6, pl }); n++;
+      }
+      // theme ambient FX (lava embers / snowfall / tech grid)
+      if (project.theme === 'volcano') {
+        const N = 46, arr = new Float32Array(N * 3), data = [];
+        for (let i = 0; i < N; i++) { let dir = randDir(); for (let k = 0; k < 30 && terrain(dir) < PR * 0.12; k++) dir = randDir(); const h = rnd() * 4; data.push({ dir, h, sp: 1.2 + rnd() * 1.8 }); const p = dir.clone().multiplyScalar(walkR(dir) + h); arr[i*3]=p.x; arr[i*3+1]=p.y; arr[i*3+2]=p.z; }
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+        const m = new THREE.PointsMaterial({ map: sparkTex, color: 0xff7a2a, size: 0.7, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+        const pts = new THREE.Points(g, m); pts.frustumCulled = false; group.add(pts);
+        pl.fx = { kind: 'embers', attr: g.attributes.position, data, walkR };
+      } else if (project.theme === 'snow') {
+        const N = 130, arr = new Float32Array(N * 3), data = [];
+        for (let i = 0; i < N; i++) { const dir = randDir(), r = PR + rnd() * 6; data.push({ dir, r, sp: 1.5 + rnd() * 2 }); const p = dir.clone().multiplyScalar(r); arr[i*3]=p.x; arr[i*3+1]=p.y; arr[i*3+2]=p.z; }
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+        const m = new THREE.PointsMaterial({ map: sparkTex, color: 0xffffff, size: 0.45, transparent: true, opacity: 0.9, depthWrite: false });
+        const pts = new THREE.Points(g, m); pts.frustumCulled = false; group.add(pts);
+        pl.fx = { kind: 'snow', attr: g.attributes.position, data, PR };
+      } else if (project.theme === 'tech') {
+        const grid = new THREE.Mesh(new THREE.IcosahedronGeometry(PR + 0.6, 2), new THREE.MeshBasicMaterial({ color: 0x5eead4, wireframe: true, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }));
+        group.add(grid); pl.fx = { kind: 'tech', grid };
       }
       planets.push(pl); return pl;
     }
@@ -633,6 +673,7 @@
     window.__dbg.parcels = parcels; window.__dbg.dropoffs = dropoffs; window.__dbg.fishes = fishes; window.__dbg.planets = planets;
     window.__dbg.launch = (p) => { startCharge(); charge = p; releaseCharge(); };
     window.__dbg.state = () => ({ mode, curIdx: planets.indexOf(cur), planets: planets.length });
+    window.__dbg.travel = (i) => travelTo(planets[i]);
     window.__dbg.aimAt = (v) => { forward.copy(v).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); };
     window.__dbg.setDay = (t) => { dayT = t; updateDayNight(); };
 
@@ -657,7 +698,7 @@
     const overlay = document.getElementById('overlay'), touchUI = document.getElementById('touchUI');
     const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     let started = false;
-    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); compassEl.classList.add('on'); radarEl.classList.add('on'); if (isTouch) touchUI.classList.add('on'); initAudio(); showCard(cur.project); });
+    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); if (isTouch) touchUI.classList.add('on'); initAudio(); showCard(cur.project); });
     document.getElementById('winBtn').addEventListener('click', () => location.reload());
     if (isTouch) document.getElementById('keys').innerHTML =
       '<span class="key"><b>Joystick</b> Laufen/Drehen</span><span class="key"><b>Wischen</b> Kamera</span><span class="key"><b>RUN</b> Rennen</span><span class="key"><b>HOP</b> Hüpfen</span>';
@@ -734,6 +775,61 @@
       for (const o of dropoffs) plot(o.worldPos, '#eab308', 3.4);
       rctx.fillStyle = '#1b2a3a'; rctx.beginPath(); rctx.moveTo(RC, RC - 7); rctx.lineTo(RC - 5, RC + 6); rctx.lineTo(RC + 5, RC + 6); rctx.closePath(); rctx.fill();
     }
+
+    // ---------- Brain map (2D network of project worlds; tap to travel) ----------
+    const themeColors = { home: '#6cc05f', grass: '#6cc05f', desert: '#e1bd72', snow: '#dbe9f3', volcano: '#ff6a3a', tech: '#5eead4' };
+    const mapBtn = document.getElementById('mapBtn'), mapView = document.getElementById('mapView'),
+          mapCanvas = document.getElementById('mapCanvas'), mctx = mapCanvas.getContext('2d');
+    let mapOpen = false, mapNodes = [];
+    function openMap() { mapOpen = true; mapView.classList.add('on'); drawMap(); }
+    function closeMap() { mapOpen = false; mapView.classList.remove('on'); }
+    mapBtn.addEventListener('click', openMap);
+    document.getElementById('mapClose').addEventListener('click', closeMap);
+    addEventListener('keydown', (e) => { if (e.code === 'KeyM' && started) { mapOpen ? closeMap() : openMap(); } });
+    function landingDir(p) { let dir = new THREE.Vector3(0, 1, 0); for (let i = 0; i < 240; i++) { const c = randDir(); const h = p.terrain(c); if (h > p.R * 0.02 && h < p.R * 0.12) { dir = c; break; } } return dir; }
+    function travelTo(p) {
+      cur = p; mode = 'ground'; vel.set(0, 0, 0); height = 0; vUp = 0;
+      pos.copy(landingDir(p)).multiplyScalar(p.R); refreshFrame(); placePlayer();
+      burst(player.position, 0xffffff); showCard(p.project); landSound(); maybeExpand(); closeMap();
+    }
+    function drawMap() {
+      const S = mapCanvas.width; mctx.clearRect(0, 0, S, S);
+      // project planet centres top-down (x,z), fit to canvas around the player
+      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      const pts = planets.map((p) => ({ p, x: p.center.x, z: p.center.z }));
+      pts.push({ x: player.position.x, z: player.position.z });
+      for (const q of pts) { minX = Math.min(minX, q.x); maxX = Math.max(maxX, q.x); minZ = Math.min(minZ, q.z); maxZ = Math.max(maxZ, q.z); }
+      const pad = 60, span = Math.max(maxX - minX, maxZ - minZ, 20);
+      const sc = (S - pad * 2) / span, cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+      const toS = (x, z) => [S / 2 + (x - cx) * sc, S / 2 + (z - cz) * sc];
+      // links
+      mctx.strokeStyle = 'rgba(143,245,232,0.35)'; mctx.lineWidth = 2;
+      for (const p of planets) { const others = planets.filter((q) => q !== p).sort((a, b) => p.center.distanceTo(a.center) - p.center.distanceTo(b.center)).slice(0, 2);
+        const [ax, ay] = toS(p.center.x, p.center.z);
+        for (const q of others) { const [bx, by] = toS(q.center.x, q.center.z); mctx.beginPath(); mctx.moveTo(ax, ay); mctx.lineTo(bx, by); mctx.stroke(); } }
+      // nodes
+      mapNodes = [];
+      for (const p of planets) {
+        const [x, y] = toS(p.center.x, p.center.z); const r = Math.max(7, p.R * sc * 0.5);
+        mapNodes.push({ p, x, y, r });
+        mctx.fillStyle = themeColors[p.project.theme] || '#6cc05f';
+        mctx.beginPath(); mctx.arc(x, y, r, 0, 7); mctx.fill();
+        if (p === cur) { mctx.strokeStyle = '#ffffff'; mctx.lineWidth = 3; mctx.stroke(); }
+        mctx.fillStyle = '#eafffb'; mctx.font = 'bold 13px ui-sans-serif, system-ui, sans-serif'; mctx.textAlign = 'center';
+        mctx.fillText(p.project.name, x, y - r - 6);
+      }
+      // player marker
+      const [px, py] = toS(player.position.x, player.position.z);
+      mctx.fillStyle = '#ffd166'; mctx.beginPath(); mctx.arc(px, py, 4, 0, 7); mctx.fill();
+    }
+    function mapHit(ev) {
+      const rect = mapCanvas.getBoundingClientRect();
+      const cxp = (ev.clientX - rect.left) * (mapCanvas.width / rect.width);
+      const cyp = (ev.clientY - rect.top) * (mapCanvas.height / rect.height);
+      let best = null, bd = 1e9; for (const n of mapNodes) { const d = Math.hypot(n.x - cxp, n.y - cyp); if (d < n.r + 14 && d < bd) { bd = d; best = n; } }
+      if (best && best.p !== cur) travelTo(best.p);
+    }
+    mapCanvas.addEventListener('click', mapHit);
 
     // ---------- Procedural ambient audio (WebAudio, no files) ----------
     let audio = null, muted = false;
@@ -825,6 +921,13 @@
       for (const p of planets) { const vis = player.position.distanceTo(p.center) < 150; if (p.group.visible !== vis) p.group.visible = vis; }
       linkMat.opacity = 0.22 + 0.13 * Math.sin(oceanUniforms.time.value * 1.5); // synapse glow
       for (const pu of pulses) { const fr = (oceanUniforms.time.value * 0.18 + pu.off) % 1; pu.mesh.position.lerpVectors(pu.a, pu.b, fr); }
+      // per-theme ambient FX (only for nearby worlds)
+      for (const p of planets) {
+        if (!p.group.visible || !p.fx) continue; const fx = p.fx;
+        if (fx.kind === 'embers') { const a = fx.attr.array; for (let i = 0; i < fx.data.length; i++) { const d = fx.data[i]; d.h += d.sp * dt; if (d.h > 4.5) d.h = 0; const rr = fx.walkR(d.dir) + d.h; a[i*3] = d.dir.x*rr; a[i*3+1] = d.dir.y*rr; a[i*3+2] = d.dir.z*rr; } fx.attr.needsUpdate = true; }
+        else if (fx.kind === 'snow') { const a = fx.attr.array; for (let i = 0; i < fx.data.length; i++) { const d = fx.data[i]; d.r -= d.sp * dt; if (d.r < fx.PR) { d.r = fx.PR + 6; d.dir.copy(randDir()); } a[i*3] = d.dir.x*d.r; a[i*3+1] = d.dir.y*d.r; a[i*3+2] = d.dir.z*d.r; } fx.attr.needsUpdate = true; }
+        else if (fx.kind === 'tech') { fx.grid.material.opacity = 0.12 + 0.1 * Math.sin(oceanUniforms.time.value * 2 + p.center.x); fx.grid.rotation.y += dt * 0.2; }
+      }
 
       // pick up parcels (when not yet carrying the max few)
       for (const p of parcels) {
@@ -976,6 +1079,7 @@
       if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(0,0,0); } // debug/QA overview hook
 
       if (started && !finished) drawRadar();
+      if (mapOpen) drawMap();
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
       if (cardTimer > 0) { cardTimer -= dt; if (cardTimer <= 0) cardEl.classList.remove('on'); }
       composer.render();
