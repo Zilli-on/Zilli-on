@@ -224,7 +224,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v22 · no-orbit safety';
+    const BUILD = 'v23 · music + biome sky';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -303,6 +303,11 @@
     ];
     const _cA = new THREE.Color(), _cB = new THREE.Color();
     let dayT = 0.32; // start mid-morning
+    const _skyTint = new THREE.Color(0xffffff); let skyTintAmt = 0; // subtle biome tint of the sky
+    function setSky(theme) {
+      const m = { home: null, grass: null, desert: 0xffcf9e, snow: 0xdfeeff, volcano: 0xff7a4a, tech: 0x7ffcee }[theme];
+      if (m == null) { skyTintAmt = 0; } else { _skyTint.setHex(m); skyTintAmt = 0.22; }
+    }
     function lerpKey(a, b, f, key) { return a[key] + (b[key] - a[key]) * f; }
     function updateDayNight() {
       let i = 0; for (let k = 0; k < dayKeys.length; k++) if (dayT >= dayKeys[k].t) i = k;
@@ -317,6 +322,7 @@
       hemi.intensity = lerpKey(a, b, f, 'hi');
       renderer.toneMappingExposure = lerpKey(a, b, f, 'exp');
       starMat.opacity = lerpKey(a, b, f, 'star');
+      if (skyTintAmt > 0) { skyMat.uniforms.top.value.lerp(_skyTint, skyTintAmt); skyMat.uniforms.mid.value.lerp(_skyTint, skyTintAmt * 0.55); skyMat.uniforms.bottom.value.lerp(_skyTint, skyTintAmt * 0.8); }
       // orbit the sun across the sky according to time of day
       const ang = (dayT - 0.25) * Math.PI * 2;
       sun.position.set(Math.cos(ang) * 60, Math.sin(ang) * 60 + 8, 25);
@@ -861,7 +867,7 @@
     function travelTo(p) {
       cur = p; mode = 'ground'; vel.set(0, 0, 0); height = 0; vUp = 0;
       pos.copy(landingDir(p)).multiplyScalar(p.R); refreshFrame(); placePlayer();
-      burst(player.position, 0xffffff); showCard(p.project); landSound(); maybeExpand(); closeMap();
+      burst(player.position, 0xffffff); showCard(p.project); landSound(); setSky(p.project.theme); maybeExpand(); closeMap();
     }
     function drawMap() {
       const S = mapCanvas.width; mctx.clearRect(0, 0, S, S);
@@ -920,6 +926,28 @@
       });
       master.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 3);
       audio = { ctx, master };
+      startMusic();
+    }
+    // generative ambient music: slow evolving chord progression + gentle arpeggio
+    function startMusic() {
+      const { ctx, master } = audio;
+      const mg = ctx.createGain(); mg.gain.value = 0.0; mg.connect(master); mg.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 6);
+      audio.music = mg;
+      const chords = [[146.83, 185.00, 220.00], [196.00, 246.94, 293.66], [220.00, 277.18, 329.63], [164.81, 220.00, 246.94]];
+      const BAR = 4.2; let bar = 0;
+      const pad = (fs, t) => fs.forEach((f) => { const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
+        const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.10, t + 1.2); g.gain.linearRampToValueAtTime(0.08, t + BAR - 1); g.gain.linearRampToValueAtTime(0, t + BAR);
+        o.connect(g); g.connect(mg); o.start(t); o.stop(t + BAR + 0.1); });
+      const pluck = (f, t) => { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+        const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.09, t + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+        o.connect(g); g.connect(mg); o.start(t); o.stop(t + 0.65); };
+      function schedule() {
+        if (!audio) return; const t0 = ctx.currentTime + 0.08; const ch = chords[bar % chords.length];
+        pad(ch, t0);
+        const arpN = 6; for (let i = 0; i < arpN; i++) pluck(ch[i % 3] * (i >= 3 ? 3 : 2), t0 + i * (BAR / arpN) + (bar % 2 ? 0.0 : 0.0));
+        bar++;
+      }
+      schedule(); audio.musicTimer = setInterval(schedule, BAR * 1000);
     }
     function chime(win) {
       if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
@@ -1139,7 +1167,7 @@
           cur = np; pos.copy(up).multiplyScalar(cur.R); refreshFrame();
           mode = 'ground'; height = 0; vUp = 0; vel.set(0, 0, 0); canJump = true;
           burst(player.position, 0xffffff); shock(player.position, up, 0xffffff); shake = 0.32; toast(cur.rich ? 'Zuhause! 🏠' : 'Neuer Planet! 🪐', 1400);
-          showCard(cur.project); landSound();
+          showCard(cur.project); landSound(); setSky(cur.project.theme);
           maybeExpand();
         }
       }
