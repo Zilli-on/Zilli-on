@@ -109,7 +109,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v2 · toon+ocean+bloom+glTF';
+    const BUILD = 'v3 · bigger hero + gentler isles';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -179,14 +179,14 @@
     // ---------- Terrain height field (islands in an ocean) ----------
     const R = 13;
     const islands = [];
-    for (let i = 0; i < 9; i++) {
-      islands.push({ c: new THREE.Vector3().randomDirection(), amp: 1.7 + Math.random() * 2.3, w: 0.16 + Math.random() * 0.22 });
+    for (let i = 0; i < 8; i++) {
+      islands.push({ c: new THREE.Vector3().randomDirection(), amp: 1.0 + Math.random() * 1.3, w: 0.30 + Math.random() * 0.28 });
     }
-    function terrain(d) { // d: unit vector -> height (can be negative = ocean)
-      let h = -0.9;
+    function terrain(d) { // d: unit vector -> height (can be negative = ocean), gentle rolling islands
+      let h = -0.8;
       for (const is of islands) { const x = 1 - d.dot(is.c); h += is.amp * Math.exp(-(x * x) / (2 * is.w * is.w)); }
-      h += 0.13 * Math.sin(d.x * 9) * Math.sin(d.y * 9) * Math.sin(d.z * 9);
-      return h;
+      h += 0.06 * Math.sin(d.x * 5 + 1.0) * Math.cos(d.z * 5 - 0.5); // subtle low-frequency roll
+      return Math.min(h, 2.4);
     }
     const landRadius = (d) => R + Math.max(terrain(d), -0.7);
     const walkRadius = (d) => R + Math.max(terrain(d), 0); // walk on land or glide on the sea surface
@@ -220,14 +220,14 @@
     const oceanUniforms = { time: { value: 0 }, sunDir: { value: sunDir },
       deep: { value: new THREE.Color(0x1f7ab0) }, shallow: { value: new THREE.Color(0x57c6e6) }, foam: { value: new THREE.Color(0xeafdff) } };
     const ocean = new THREE.Mesh(
-      new THREE.SphereGeometry(R - 0.05, 160, 96),
+      new THREE.SphereGeometry(R - 0.12, 160, 96),
       new THREE.ShaderMaterial({
         transparent: true, uniforms: oceanUniforms,
         vertexShader: `
           uniform float time; varying vec3 vN; varying vec3 vView; varying float vWave;
           void main(){
             vec3 n = normalize(position);
-            float w = sin(position.x*2.2 + time*1.3) * 0.05 + sin(position.z*2.7 - time*1.1) * 0.05 + sin(position.y*3.1 + time*0.7)*0.03;
+            float w = sin(position.x*2.2 + time*1.3) * 0.03 + sin(position.z*2.7 - time*1.1) * 0.03 + sin(position.y*3.1 + time*0.7)*0.02;
             vWave = w;
             vec3 p = position + n * w;
             vec4 mv = modelViewMatrix * vec4(p, 1.0);
@@ -326,8 +326,8 @@
     const player = new THREE.Group();
     const avatar = new THREE.Group(); player.add(avatar);
     scene.add(player);
-    const placeholder = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.6, 4, 8), toonMat({ color: 0x3b82c4 }));
-    placeholder.position.y = 0.6; placeholder.castShadow = true; avatar.add(placeholder);
+    const placeholder = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.7, 6, 12), toonMat({ color: 0x3b82c4 }));
+    placeholder.position.y = 1.55; placeholder.castShadow = true; avatar.add(placeholder);
 
     let mixer = null, actions = {}, activeAction = null, modelReady = false;
     function setAction(name) {
@@ -351,7 +351,7 @@
           }
         });
         const box = new THREE.Box3().setFromObject(model); const size = new THREE.Vector3(); box.getSize(size);
-        const s = 1.7 / size.y; model.scale.setScalar(s);
+        const s = 3.6 / size.y; model.scale.setScalar(s); // big relative to the tiny planet
         const box2 = new THREE.Box3().setFromObject(model); model.position.y = -box2.min.y; // feet on the ground
         avatar.remove(placeholder);
         avatar.add(model);
@@ -451,7 +451,7 @@
     // ---------- Loop ----------
     const G = 18, tmp = new THREE.Vector3(), clock = new THREE.Clock();
     placePlayer();
-    camera.up.copy(up); camera.position.copy(player.position).addScaledVector(up, 3).addScaledVector(forward, -8);
+    camera.up.copy(up); camera.position.copy(player.position).addScaledVector(up, 2.6).addScaledVector(forward, -9);
 
     function animate() {
       requestAnimationFrame(animate);
@@ -484,9 +484,9 @@
       // third-person follow camera
       _r.crossVectors(up, forward).normalize();
       const behind = tmp.copy(forward).multiplyScalar(-1).applyAxisAngle(_r, -camPitch);
-      const desired = new THREE.Vector3().copy(player.position).addScaledVector(behind, 8).addScaledVector(up, 1.4);
+      const desired = new THREE.Vector3().copy(player.position).addScaledVector(behind, 9).addScaledVector(up, 2.6);
       camera.position.lerp(desired, started ? 0.12 : 0.05);
-      camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.1));
+      camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.9));
 
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
       composer.render();
