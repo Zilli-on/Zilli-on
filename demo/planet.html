@@ -85,6 +85,14 @@
     #chargeBar.on { display: block; }
     #chargeFill { height: 100%; width: 0%; background: linear-gradient(90deg, #5eead4, #0f766e); }
 
+    #card { position: fixed; left: 50%; bottom: 44px; translate: -50% 0; z-index: 6; max-width: 320px; text-align: center;
+      background: rgba(255,255,255,0.82); border: 1px solid rgba(15,118,110,0.3); border-radius: 14px; padding: 10px 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15); opacity: 0; transition: opacity .3s ease; }
+    #card.on { opacity: 1; }
+    #card .n { font-size: 17px; font-weight: 800; color: #0f766e; }
+    #card .d { font-size: 13px; color: #2b3a4a; margin: 2px 0 4px; }
+    #card a { font-size: 12px; font-weight: 700; color: #0d9488; text-decoration: none; pointer-events: auto; }
+
     #win {
       position: fixed; inset: 0; z-index: 11; display: none; flex-direction: column;
       align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px;
@@ -103,6 +111,7 @@
   <div id="compass"><div class="arrow">⬆</div><div class="lbl">nächstes Paket</div></div>
   <canvas id="radar" width="116" height="116"></canvas>
   <div id="chargeBar"><div id="chargeFill"></div></div>
+  <div id="card"><div class="n" id="cardName"></div><div class="d" id="cardDesc"></div><a id="cardLink" target="_blank" rel="noopener"></a></div>
   <div id="toast"></div>
   <div id="win">
     <h2>Alle Pakete zugestellt! 🎉</h2>
@@ -153,7 +162,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v12 · synapses + culling';
+    const BUILD = 'v13 · project worlds';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -319,11 +328,49 @@
     const parcelMat = toonMat({ color: 0xd9a066, emissive: 0x5eead4, emissiveIntensity: 0.45 });
     const ringMat = new THREE.MeshBasicMaterial({ color: 0x5eead4 });
     const beamMat = new THREE.MeshBasicMaterial({ color: 0x5eead4, transparent: true, opacity: 0.55 });
-    const PAL = { sand: 0xe8d6a0, grass: 0x6cc05f, grass2: 0x47914a, rock: 0x9aa0a6, snow: 0xfdfdfd, foam: 0xf2fbff, wet: 0xcdb98a };
     const _cc = new THREE.Color(), _ct = new THREE.Color();
     const planets = [], parcels = [], dropoffs = [], windy = [], critters = [];
 
-    function makePlanet(center, PR, rich) {
+    // theme palettes per world type
+    const THEMES = {
+      home:    { sand: 0xe8d6a0, grass: 0x6cc05f, grass2: 0x47914a, rock: 0x9aa0a6, snow: 0xfdfdfd, foam: 0xf2fbff, wet: 0xcdb98a, water: true },
+      grass:   { sand: 0xe8d6a0, grass: 0x6cc05f, grass2: 0x3f9e57, rock: 0x9aa0a6, snow: 0xffffff, foam: 0xf2fbff, wet: 0xcdb98a, water: true },
+      desert:  { sand: 0xe9cf94, grass: 0xd9b46a, grass2: 0xc69552, rock: 0xb6814f, snow: 0xeadbb0, foam: 0xf4e9c8, wet: 0xc7a86a, water: false },
+      snow:    { sand: 0xdce8f1, grass: 0xeaf3fb, grass2: 0xcfe0ee, rock: 0xa9b8c6, snow: 0xffffff, foam: 0xffffff, wet: 0xb9cad8, water: true },
+      volcano: { sand: 0x5a4136, grass: 0x6e4a3a, grass2: 0x4a2f26, rock: 0x352824, snow: 0xff5a2a, foam: 0xffb27a, wet: 0x40302a, water: false },
+      tech:    { sand: 0x3a4a63, grass: 0x2f6f72, grass2: 0x21565a, rock: 0x4a5568, snow: 0x7fe9dd, foam: 0xbff7ef, wet: 0x2a3550, water: true },
+    };
+    const PAL = THEMES.home; // default
+    // the project worlds this galaxy represents (home + real Zillion repos, then procedural ideas)
+    const PROJECTS = [
+      { name: 'Zillion', desc: 'Local-first dev tools for AI assistants', url: 'https://github.com/Zilli-on', theme: 'home' },
+      { name: 'jarvis-graph-mcp', desc: '18 code-analysis tools via MCP', url: 'https://github.com/Zilli-on/jarvis-graph-mcp', theme: 'tech' },
+      { name: 'jarvis-graph-lite', desc: 'stdlib-only Python code index', url: 'https://github.com/Zilli-on/jarvis-graph-lite', theme: 'grass' },
+      { name: 'jarvis-portfolio', desc: 'AI automation services', url: 'https://github.com/Zilli-on/jarvis-portfolio', theme: 'desert' },
+      { name: 'tiny-planet', desc: 'This browser galaxy demo', url: 'https://github.com/Zilli-on', theme: 'snow' },
+    ];
+    const IDEA_NAMES = ['idea-lab', 'prototype', 'sandbox', 'experiment', 'side-quest', 'workshop', 'moonshot', 'draft'];
+    const IDEA_THEMES = ['grass', 'desert', 'snow', 'volcano', 'tech'];
+    let projCursor = 1; // 0 = home, used first
+    function nextProject() {
+      if (projCursor < PROJECTS.length) return PROJECTS[projCursor++];
+      const th = IDEA_THEMES[(rnd() * IDEA_THEMES.length) | 0];
+      return { name: IDEA_NAMES[(rnd() * IDEA_NAMES.length) | 0] + '-' + ((rnd() * 90 + 10) | 0), desc: 'A procedurally-grown idea world', url: 'https://github.com/Zilli-on', theme: th };
+    }
+    // billboard text label that floats over a world
+    function makeLabel(text) {
+      const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
+      g.font = 'bold 60px ui-sans-serif, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 8; g.strokeStyle = 'rgba(8,40,38,0.85)'; g.strokeText(text, 256, 64);
+      g.fillStyle = '#eafffb'; g.fillText(text, 256, 64);
+      const tex = new THREE.CanvasTexture(c); tex.anisotropy = 4;
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+      sp.scale.set(8, 2, 1); return sp;
+    }
+
+    function makePlanet(center, PR, rich, project) {
+      project = project || (rich ? PROJECTS[0] : nextProject());
+      const T = THEMES[project.theme] || THEMES.grass;
       const islands = []; const ni = 4 + ((rnd() * 4) | 0);
       for (let i = 0; i < ni; i++) islands.push({ c: randDir(), amp: PR * (0.10 + rnd() * 0.11), w: 0.16 + rnd() * 0.14 });
       const base = -PR * 0.085, cap = PR * 0.2;
@@ -337,19 +384,19 @@
         for (let i = 0; i < p.count; i++) {
           d.set(p.getX(i), p.getY(i), p.getZ(i)).normalize();
           const h = Math.max(terrain(d), -PR * 0.05); d.multiplyScalar(PR + h); p.setXYZ(i, d.x, d.y, d.z);
-          if (h < 0) _cc.setHex(PAL.wet);
-          else if (h < PR * 0.012) _cc.setHex(PAL.sand).lerp(_ct.setHex(PAL.foam), Math.max(0, 1 - h / (PR * 0.006)) * 0.5);
-          else if (h < PR * 0.11) _cc.setHex(PAL.grass).lerp(_ct.setHex(PAL.grass2), h / (PR * 0.11) * 0.7);
-          else if (h < PR * 0.17) _cc.setHex(PAL.grass2).lerp(_ct.setHex(PAL.rock), (h - PR * 0.11) / (PR * 0.06));
-          else _cc.setHex(PAL.rock).lerp(_ct.setHex(PAL.snow), Math.min(1, (h - PR * 0.17) / (PR * 0.05)));
+          if (h < 0) _cc.setHex(T.wet);
+          else if (h < PR * 0.012) _cc.setHex(T.sand).lerp(_ct.setHex(T.foam), Math.max(0, 1 - h / (PR * 0.006)) * 0.5);
+          else if (h < PR * 0.11) _cc.setHex(T.grass).lerp(_ct.setHex(T.grass2), h / (PR * 0.11) * 0.7);
+          else if (h < PR * 0.17) _cc.setHex(T.grass2).lerp(_ct.setHex(T.rock), (h - PR * 0.11) / (PR * 0.06));
+          else _cc.setHex(T.rock).lerp(_ct.setHex(T.snow), Math.min(1, (h - PR * 0.17) / (PR * 0.05)));
           col[i*3] = _cc.r; col[i*3+1] = _cc.g; col[i*3+2] = _cc.b;
         }
         geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals();
       }
       const mesh = new THREE.Mesh(geo, toonMat({ vertexColors: true })); mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
-      const oseg = PR > 9 ? 96 : 48;
-      group.add(new THREE.Mesh(new THREE.SphereGeometry(PR - 0.12, oseg, Math.round(oseg * 0.6)), oceanMaterial));
-      const pl = { center: center.clone(), R: PR, terrain, landR, walkR, group, rich };
+      if (T.water) { const oseg = PR > 9 ? 96 : 48; group.add(new THREE.Mesh(new THREE.SphereGeometry(PR - 0.12, oseg, Math.round(oseg * 0.6)), oceanMaterial)); }
+      const label = makeLabel(project.name); label.position.set(0, PR + 4.5, 0); label.scale.set(PR * 0.85, PR * 0.21, 1); group.add(label);
+      const pl = { center: center.clone(), R: PR, terrain, landR, walkR, group, rich, project, label };
       // decorations
       const dN = Math.round(PR * 6);
       for (let i = 0; i < dN; i++) {
@@ -575,7 +622,7 @@
       else { // launch into space toward where we face
         mode = 'air'; airPos.copy(player.position); airArmed = false; launchPlanet = cur;
         vel.copy(up).multiplyScalar(7 + charge * 7).addScaledVector(forward, 9 + charge * 15);
-        canJump = false; height = 0; vUp = 0;
+        canJump = false; height = 0; vUp = 0; whoosh();
         if (actions['Jump']) { const j = actions['Jump']; j.reset(); j.setLoop(THREE.LoopOnce); j.play(); }
       }
       charge = 0;
@@ -610,7 +657,7 @@
     const overlay = document.getElementById('overlay'), touchUI = document.getElementById('touchUI');
     const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     let started = false;
-    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); compassEl.classList.add('on'); radarEl.classList.add('on'); if (isTouch) touchUI.classList.add('on'); initAudio(); });
+    playBtn.addEventListener('click', () => { if (playBtn.disabled) return; started = true; overlay.classList.add('hidden'); compassEl.classList.add('on'); radarEl.classList.add('on'); if (isTouch) touchUI.classList.add('on'); initAudio(); showCard(cur.project); });
     document.getElementById('winBtn').addEventListener('click', () => location.reload());
     if (isTouch) document.getElementById('keys').innerHTML =
       '<span class="key"><b>Joystick</b> Laufen/Drehen</span><span class="key"><b>Wischen</b> Kamera</span><span class="key"><b>RUN</b> Rennen</span><span class="key"><b>HOP</b> Hüpfen</span>';
@@ -668,6 +715,9 @@
     // ---------- Mini radar ----------
     const radarEl = document.getElementById('radar'), rctx = radarEl.getContext('2d');
     const chargeBar = document.getElementById('chargeBar'), chargeFill = document.getElementById('chargeFill');
+    const cardEl = document.getElementById('card'), cardName = document.getElementById('cardName'), cardDesc = document.getElementById('cardDesc'), cardLink = document.getElementById('cardLink');
+    let cardTimer = 0;
+    function showCard(pr) { cardName.textContent = '🪐 ' + pr.name; cardDesc.textContent = pr.desc; cardLink.href = pr.url; cardLink.textContent = pr.url.replace('https://', ''); cardEl.classList.add('on'); cardTimer = 7; }
     const RC = 58, RR = 50, _rt = new THREE.Vector3(), _rel = new THREE.Vector3();
     function drawRadar() {
       rctx.clearRect(0, 0, 116, 116);
@@ -721,6 +771,18 @@
       const g = ctx.createGain(); g.gain.setValueAtTime(0.16, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
       o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.15);
     }
+    function whoosh() { // launch into space
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(900, t + 0.4);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0, t); g.gain.linearRampToValueAtTime(0.18, t + 0.05); g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.55);
+    }
+    function landSound() {
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(420, t); o.frequency.exponentialRampToValueAtTime(180, t + 0.18);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.22, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.28);
+    }
     const muteBtn = document.getElementById('muteBtn');
     muteBtn.addEventListener('click', () => {
       muted = !muted; muteBtn.textContent = muted ? '🔇' : '🔊';
@@ -736,7 +798,8 @@
     // ---------- Post-processing ----------
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.35, 0.4, 0.9);
+    const lowPerf = innerWidth < 700; // phones: cheaper bloom
+    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight).multiplyScalar(lowPerf ? 0.5 : 1), lowPerf ? 0.24 : 0.35, 0.4, 0.9);
     composer.addPass(bloom);
     composer.addPass(new ShaderPass({
       uniforms: { tDiffuse: { value: null }, sat: { value: 1.14 }, darkness: { value: 1.15 } },
@@ -885,6 +948,7 @@
           cur = np; pos.copy(up).multiplyScalar(cur.R); refreshFrame();
           mode = 'ground'; height = 0; vUp = 0; vel.set(0, 0, 0); canJump = true;
           burst(player.position, 0xffffff); toast(cur.rich ? 'Zuhause! 🏠' : 'Neuer Planet! 🪐', 1400);
+          showCard(cur.project); landSound();
           maybeExpand();
         }
       }
@@ -913,6 +977,7 @@
 
       if (started && !finished) drawRadar();
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
+      if (cardTimer > 0) { cardTimer -= dt; if (cardTimer <= 0) cardEl.classList.remove('on'); }
       composer.render();
     }
     animate();
