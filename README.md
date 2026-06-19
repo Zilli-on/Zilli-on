@@ -12,7 +12,10 @@ Building **local-first developer tools** for AI assistants.
 
 ## Demo
 
-- **[Tiny Planet](demo/planet.html)** — walk a cute mail carrier across a tiny round planet and collect all the parcels. Third-person, low-poly cartoon style, runs entirely in the browser (WebGL + Three.js, single file). Inspired by `messenger.abeto.co`. Works on desktop **and** phone (on-screen joystick). Controls: `W/S` walk · `A/D` turn · mouse/swipe camera · `Shift` run · `Space` hop.
+- **[Tiny Planet](demo/planet.html)** — a little delivery game on a round planet: pick up the glowing parcels and bring them to the ringed houses as fast as you can. Third-person, toon-shaded, runs entirely in the browser (WebGL + Three.js, single file). Inspired by `messenger.abeto.co`.
+  - Procedural island planet (oceans, beaches, snowy peaks), animated toon-water, drifting clouds, orbiting birds and wandering critters
+  - Rigged glTF character with idle/walk/run animations, day/night cycle, bloom + post-processing, procedural ambient audio, compass + timer + best time
+  - Works on desktop **and** phone (on-screen joystick). Controls: `W/S` walk · `A/D` turn · mouse/swipe camera · `Shift` run · `Space` hop
 - **[Walkable 3D World](demo/index.html)** — a first-person tech-city you can walk around. `WASD` move · mouse look · `Shift` sprint · `Space` jump, plus touch controls on mobile.
 
 Both are single self-contained HTML files (Three.js via CDN) — open them locally, or use a render link since GitHub shows `.html` as source rather than running it.
