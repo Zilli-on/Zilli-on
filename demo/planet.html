@@ -148,7 +148,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v9 · wind, fireflies, radar, menu';
+    const BUILD = 'v10 · higher cam';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -596,10 +596,10 @@
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = false; break; } });
     function hop() { if (canJump) { vUp = 6.5; canJump = false; if (actions['Jump']) { const j = actions['Jump']; j.reset(); j.setLoop(THREE.LoopOnce); j.play(); } } }
 
-    let camPitch = 0.48, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
+    let camPitch = 1.0, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
     const canvas = renderer.domElement;
     canvas.addEventListener('mousedown', (e) => { mouseDown = true; lastX = e.clientX; lastY = e.clientY; });
-    addEventListener('mousemove', (e) => { if (!mouseDown) return; dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.1, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
+    addEventListener('mousemove', (e) => { if (!mouseDown) return; dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.4, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
     addEventListener('mouseup', () => { mouseDown = false; });
 
     // ---------- Touch ----------
@@ -621,7 +621,7 @@
 
     let lookId = null;
     canvas.addEventListener('touchstart', (e) => { if (!started) return; const t = e.changedTouches[0]; if (lookId === null) { lookId = t.identifier; lastX = t.clientX; lastY = t.clientY; } }, { passive: false });
-    canvas.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) { dragTurn += (t.clientX - lastX) * 0.006; camPitch = Math.max(-0.1, Math.min(1.1, camPitch + (t.clientY - lastY) * 0.005)); lastX = t.clientX; lastY = t.clientY; e.preventDefault(); } }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) { dragTurn += (t.clientX - lastX) * 0.006; camPitch = Math.max(-0.1, Math.min(1.4, camPitch + (t.clientY - lastY) * 0.005)); lastX = t.clientX; lastY = t.clientY; e.preventDefault(); } }, { passive: false });
     const lookEnd = (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) lookId = null; };
     canvas.addEventListener('touchend', lookEnd); canvas.addEventListener('touchcancel', lookEnd);
 
@@ -870,12 +870,12 @@
         // third-person follow camera (closer + kept above terrain so hills don't occlude the hero)
         _r.crossVectors(up, forward).normalize();
         const behind = tmp.copy(forward).multiplyScalar(-1).applyAxisAngle(_r, -camPitch);
-        const desired = tmp3.copy(player.position).addScaledVector(behind, 6.5).addScaledVector(up, 2.6);
+        const desired = tmp3.copy(player.position).addScaledVector(behind, 9.0).addScaledVector(up, 2.4);
         const cdir = tmp2.copy(desired).normalize();
         const minR = walkRadius(cdir) + 2.4;
         if (desired.length() < minR) desired.setLength(minR);
         camera.position.lerp(desired, 0.12);
-        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.7));
+        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 0.8));
         // subtle FOV kick while sprinting
         const wantFov = ((keys.sprint || touchSprint) && mv !== 0) ? 66 : 60;
         camera.fov += (wantFov - camera.fov) * 0.1; camera.updateProjectionMatrix();
