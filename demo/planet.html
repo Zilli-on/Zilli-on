@@ -270,7 +270,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v38 · wildlife everywhere';
+    const BUILD = 'v40 · records';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -872,7 +872,7 @@
       started = true; overlay.classList.add('hidden');
       compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); cineBtn.classList.add('on');
       if (isTouch) touchUI.classList.add('on');
-      initAudio(); showCard(cur.project);
+      initAudio(); showCard(cur.project); visitWorld(cur);
       if (showreel) { auto = true; autoT = 4; autoStart = performance.now(); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); }
       else if (!localStorage.getItem('tp_seen')) { coachSeq(); localStorage.setItem('tp_seen', '1'); }
     }
@@ -923,7 +923,10 @@
       steps.forEach((s, i) => setTimeout(() => { if (started) toast(s, 3600); }, 1200 + i * 4000));
     }
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
-    { const b = parseInt(localStorage.getItem('tp_score') || '0', 10); if (b) document.getElementById('bestLine').textContent = '🏆 Rekord: ' + b + ' Pakete geliefert'; }
+    { const sc = parseInt(localStorage.getItem('tp_score') || '0', 10), cb = parseInt(localStorage.getItem('tp_combo') || '0', 10), wo = parseInt(localStorage.getItem('tp_worlds') || '0', 10);
+      if (sc || cb || wo) document.getElementById('bestLine').textContent = '🏆 Rekorde: ' + sc + ' Pakete · Combo x' + cb + ' · ' + wo + ' Welten'; }
+    const worldsRun = new Set();
+    function visitWorld(p) { worldsRun.add(p.project.name); const mx = Math.max(worldsRun.size, parseInt(localStorage.getItem('tp_worlds') || '0', 10)); localStorage.setItem('tp_worlds', String(mx)); }
 
     // ---------- Footstep dust puffs ----------
     const puffs = [], puffGeo = new THREE.SphereGeometry(0.2, 6, 5);
@@ -996,7 +999,7 @@
     function travelTo(p) {
       cur = p; mode = 'ground'; vel.set(0, 0, 0); height = 0; vUp = 0;
       pos.copy(landingDir(p)).multiplyScalar(p.R); refreshFrame(); placePlayer();
-      burst(player.position, 0xffffff); showCard(p.project); landSound(); setSky(p.project.theme); maybeExpand(); closeMap();
+      burst(player.position, 0xffffff); showCard(p.project); landSound(); setSky(p.project.theme); visitWorld(p); maybeExpand(); closeMap();
     }
     function drawMap() {
       const S = mapCanvas.width; mctx.clearRect(0, 0, S, S);
@@ -1215,6 +1218,7 @@
           delivered += n; carrying = 0; carryEl.textContent = '0'; cntEl.textContent = String(delivered);
           const best = parseInt(localStorage.getItem('tp_score') || '0', 10);
           if (delivered > best) localStorage.setItem('tp_score', String(delivered));
+          if (combo > parseInt(localStorage.getItem('tp_combo') || '0', 10)) localStorage.setItem('tp_combo', String(combo));
           chime(delivered % 10 === 0);
           popEl.textContent = '+' + n + ' 📦' + (combo > 1 ? '   Combo x' + combo : '');
           popEl.classList.remove('show'); void popEl.offsetWidth; popEl.classList.add('show');
@@ -1350,7 +1354,7 @@
           cur = np; pos.copy(up).multiplyScalar(cur.R); refreshFrame();
           mode = 'ground'; height = 0; vUp = 0; vel.set(0, 0, 0); canJump = true;
           burst(player.position, 0xffffff); shock(player.position, up, 0xffffff); shake = 0.32; toast(cur.rich ? 'Zuhause! 🏠' : 'Neuer Planet! 🪐', 1400);
-          showCard(cur.project); landSound(); setSky(cur.project.theme);
+          showCard(cur.project); landSound(); setSky(cur.project.theme); visitWorld(cur);
           maybeExpand();
         }
       }
