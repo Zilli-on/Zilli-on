@@ -80,6 +80,10 @@
       box-shadow: var(--shadow);
     }
     #toast.show { opacity: 1; translate: -50% -6px; }
+    #pop { position: fixed; left: 50%; top: 38%; translate: -50% 0; z-index: 7; pointer-events: none; opacity: 0;
+      font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 30px; color: #0f766e; text-shadow: 0 3px 14px rgba(255,255,255,0.7); }
+    #pop.show { animation: popUp .85s cubic-bezier(.2,.9,.3,1.2) forwards; }
+    @keyframes popUp { 0% { opacity: 0; transform: translateY(10px) scale(.7); } 25% { opacity: 1; transform: translateY(0) scale(1.1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-34px) scale(1); } }
     .badge { position: fixed; left: 14px; bottom: 10px; z-index: 5; font-size: 11px; color: rgba(12,42,48,0.6); }
     .badge a { color: var(--teal); text-decoration: none; font-weight: 700; }
 
@@ -212,6 +216,7 @@
     <div class="prow"><a class="gh" id="projGh" target="_blank" rel="noopener">Auf GitHub öffnen ↗</a><button class="cl" id="projClose">Schließen (Esc)</button></div>
   </div></div>
   <div id="toast"></div>
+  <div id="pop"></div>
   <div id="win">
     <h2>Alle Pakete zugestellt! 🎉</h2>
     <p id="winText">Zeit: 0:00</p>
@@ -265,7 +270,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v36 · dynamic charge-cam';
+    const BUILD = 'v37 · score pop + combo';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -885,7 +890,8 @@
           timerEl = document.getElementById('timer'), worldEl = document.getElementById('world'), compassEl = document.getElementById('compass'),
           arrowEl = compassEl.querySelector('.arrow'), lblEl = compassEl.querySelector('.lbl'),
           winEl = document.getElementById('win'), winTextEl = document.getElementById('winText');
-    let carrying = 0, delivered = 0, toastTimer = 0, elapsed = 0, finished = false;
+    let carrying = 0, delivered = 0, toastTimer = 0, elapsed = 0, finished = false, combo = 0, comboT = 0;
+    const popEl = document.getElementById('pop');
     const TOTAL = parcels.length;
     function toast(m, ms = 1600) { toastEl.textContent = m; toastEl.classList.add('show'); toastTimer = ms / 1000; }
     function coachSeq() {
@@ -1186,10 +1192,14 @@
         o.t += dt; o.ring.rotation.z += dt * 1.5; o.ring.position.y = 2.5 + Math.sin(o.t * 2) * 0.15;
         o.beam.material.opacity = 0.35 + Math.sin(o.t * 3) * 0.2;
         if (carrying > 0 && o.worldPos.distanceTo(player.position) < 2.4) {
-          delivered += carrying; carrying = 0; carryEl.textContent = '0'; cntEl.textContent = String(delivered);
+          const n = carrying; combo = comboT > 0 ? combo + 1 : 1; comboT = 5;
+          delivered += n; carrying = 0; carryEl.textContent = '0'; cntEl.textContent = String(delivered);
           const best = parseInt(localStorage.getItem('tp_score') || '0', 10);
           if (delivered > best) localStorage.setItem('tp_score', String(delivered));
-          chime(delivered % 10 === 0); toast(delivered % 10 === 0 ? ('🎉 ' + delivered + ' geliefert!') : 'Geliefert! ✅', 1500);
+          chime(delivered % 10 === 0);
+          popEl.textContent = '+' + n + ' 📦' + (combo > 1 ? '   Combo x' + combo : '');
+          popEl.classList.remove('show'); void popEl.offsetWidth; popEl.classList.add('show');
+          if (delivered % 10 === 0) toast('🎉 ' + delivered + ' geliefert!', 1600);
           burst(o.worldPos, 0xffd166);
         }
       }
@@ -1361,6 +1371,7 @@
       if (mapOpen) drawMap();
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
       if (cardTimer > 0) { cardTimer -= dt; if (cardTimer <= 0) cardEl.classList.remove('on'); }
+      if (comboT > 0) comboT -= dt;
       composer.render();
     }
     animate();
