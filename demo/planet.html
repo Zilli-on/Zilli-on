@@ -270,7 +270,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v40 · records';
+    const BUILD = 'v41 · adaptive quality';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1181,9 +1181,17 @@
     placePlayer();
     camera.up.copy(up); camera.position.copy(player.position).addScaledVector(up, 2.6).addScaledVector(forward, -6.5);
 
+    // adaptive quality: drop bloom + pixel ratio if the frame rate stays low
+    let fpsT = 0, fpsN = 0, qual = 2;
+    function degrade() {
+      if (qual === 2) { bloom.enabled = false; renderer.setPixelRatio(1); composer.setPixelRatio(1); composer.setSize(innerWidth, innerHeight); qual = 1; toast('⚙️ Grafik für flüssiges Spiel angepasst', 1800); }
+    }
+    window.__dbg.q = () => ({ qual, bloom: bloom.enabled });
+
     function animate() {
       requestAnimationFrame(animate);
       const dt = Math.min(clock.getDelta(), 0.05);
+      if (started && elapsed > 3) { fpsT += dt; fpsN++; if (fpsT >= 2) { if (fpsN / fpsT < 38 && qual === 2) degrade(); fpsT = 0; fpsN = 0; } }
       oceanUniforms.time.value += dt;
       dayT = (dayT + dt / 150) % 1; updateDayNight(); // ~2.5 min full day
       updateShoot(dt);
