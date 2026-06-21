@@ -265,7 +265,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v34 · auto showreel';
+    const BUILD = 'v35 · jump aim preview';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -928,6 +928,11 @@
     const trail = [], trailGeo = new THREE.SphereGeometry(0.22, 6, 6), trailMat = new THREE.MeshBasicMaterial({ color: 0x9ff7ec, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false });
     let trailTimer = 0;
     function trailDot(at) { const m = new THREE.Mesh(trailGeo, trailMat); m.position.copy(at); m.userData = { life: 0 }; scene.add(m); trail.push(m); }
+    // jump aim preview: predicted trajectory line + destination ring
+    const AIMN = 18, aimGeo = new THREE.BufferGeometry(); aimGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(AIMN * 3), 3));
+    const aimLine = new THREE.Line(aimGeo, new THREE.LineBasicMaterial({ color: 0x9ff7ec, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); aimLine.frustumCulled = false; aimLine.visible = false; scene.add(aimLine);
+    const aimRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.07, 8, 28), new THREE.MeshBasicMaterial({ color: 0x9ff7ec, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); aimRing.visible = false; aimRing.frustumCulled = false; scene.add(aimRing);
+    const _aimP = new THREE.Vector3(), _aimV = new THREE.Vector3(), _aimG = new THREE.Vector3(), _aimLast = new THREE.Vector3();
 
     // ---------- Mini radar ----------
     const radarEl = document.getElementById('radar'), rctx = radarEl.getContext('2d');
@@ -1274,8 +1279,16 @@
       }
 
       let mv = 0;
-      if (charging) { charge = Math.min(1, charge + dt * 1.1); chargeFill.style.width = (charge * 100) + '%'; chargeBar.classList.add('on'); }
-      else chargeBar.classList.remove('on');
+      if (charging) {
+        charge = Math.min(1, charge + dt * 1.1); chargeFill.style.width = (charge * 100) + '%'; chargeBar.classList.add('on');
+        // predict the launch trajectory (same integration as flight)
+        _aimP.copy(player.position); _aimV.copy(up).multiplyScalar(7 + charge * 7).addScaledVector(forward, 9 + charge * 15);
+        const arr = aimGeo.attributes.position.array;
+        for (let i = 0; i < AIMN; i++) { arr[i*3] = _aimP.x; arr[i*3+1] = _aimP.y; arr[i*3+2] = _aimP.z; const np = nearestPlanet(_aimP); _aimG.copy(np.center).sub(_aimP).normalize(); _aimV.addScaledVector(_aimG, G * 0.9 * 0.13); _aimP.addScaledVector(_aimV, 0.13); }
+        aimGeo.attributes.position.needsUpdate = true; aimLine.visible = true;
+        _aimLast.set(arr[(AIMN-1)*3], arr[(AIMN-1)*3+1], arr[(AIMN-1)*3+2]); const dest = nearestPlanet(_aimLast);
+        if (dest && dest !== cur) { aimRing.visible = true; aimRing.position.copy(dest.center); aimRing.scale.setScalar(dest.R * 1.3); aimRing.quaternion.copy(camera.quaternion); } else aimRing.visible = false;
+      } else { chargeBar.classList.remove('on'); aimLine.visible = false; aimRing.visible = false; }
       if (started && mode === 'ground' && !cinematic) {
         const speed = (keys.sprint || touchSprint ? 6.8 : 3.7), turnSpeed = 2.3;
         let turn = (Number(keys.l) - Number(keys.r)) * turnSpeed * dt - touchMove.x * turnSpeed * dt - dragTurn;
