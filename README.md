@@ -13,11 +13,12 @@ Building **local-first developer tools** for AI assistants.
 ## Demo
 
 - **[Tiny Planet](demo/planet.html)** — an endless **galaxy of project worlds** you explore Super-Mario-Galaxy style. Each planet is a project node; hold the jump key to leap through space and get pulled onto the next world. Single self-contained HTML file (WebGL + Three.js). Inspired by `messenger.abeto.co`.
-  - 🪐 **Galaxy mode**: gravity flight between procedurally generated planets, an "infinite" cluster that grows as you explore (Minecraft-style distance culling)
-  - 🧠 **Data-brain**: worlds are linked like synapses with travelling data-pulses; a **brain map** (M) lets you tap any project world to travel there
-  - 🎨 Per-theme worlds (grass / desert / snow / volcano / tech) with their own ambient FX, atmosphere halos and rings; toon shading, bloom, day/night cycle, shooting stars
-  - 🤖 Rigged glTF hero with idle/walk/run; pick-up & delivery loop, compass, radar, timer, best score; procedural ambient audio + SFX
-  - 💎 Glassmorphic UI (Outfit / Space Grotesk); works on desktop **and** phone. Controls: `W/S` walk · `A/D` turn · `Shift` run · **hold `Space`** planet-jump · `M` map
+  - 🪐 **Galaxy mode**: charge-jump with gravity flight + trajectory aim-preview between procedurally generated planets; an "infinite" cluster that grows as you explore (jump into the void to discover new worlds) with Minecraft-style distance culling
+  - 🧠 **Data-brain**: worlds are linked like synapses with travelling data-pulses; a **brain map** (M) lets you tap any project world to fly there. Each world is a project — press **E** to open a panel with the live GitHub README
+  - 🎨 Per-theme worlds (grass / desert / snow / volcano / tech) with their own flora, wildlife (penguins, lizards, hover-drones…), ambient FX (lava, snowfall, holograms), atmosphere halos, rings and sky tint; toon shading, bloom, day/night cycle, shooting stars, depth fog
+  - 🤖 Rigged glTF hero with idle/walk/run; pick-up & delivery loop with per-world goals, combo pops, compass, radar, timer, best score; procedural ambient **music** + SFX
+  - 🎬 **Showreel** (auto-fly attract mode) and 📷 **photo mode** (C) for clean shots; first-time onboarding; dynamic top-down camera that tilts while aiming a jump
+  - 💎 Glassmorphic UI (Outfit / Space Grotesk); works on desktop **and** phone. Controls: `W/S` walk · `A/D` turn · `Shift` run · **hold `Space`** planet-jump · `M` map · `E` project · `C` photo
 - **[Walkable 3D World](demo/index.html)** — a first-person tech-city you can walk around. `WASD` move · mouse look · `Shift` sprint · `Space` jump, plus touch controls on mobile.
 
 Both are single self-contained HTML files (Three.js via CDN) — open them locally, or use a render link since GitHub shows `.html` as source rather than running it.
