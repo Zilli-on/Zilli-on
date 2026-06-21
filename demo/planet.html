@@ -270,7 +270,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v37 · score pop + combo';
+    const BUILD = 'v38 · wildlife everywhere';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -450,12 +450,25 @@
       return g;
     }
     function makeRock() { const g = new THREE.Group(); const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.35 + rnd()*0.4, 0), toonMat({ color: 0x9aa0a6 })); m.position.y = 0.25; m.castShadow = true; m.receiveShadow = true; g.add(m); return g; }
-    function makeCritter() {
-      const g = new THREE.Group(); const cols = [0xf2d9c0, 0xe8b894, 0xd9a679, 0xf5e6d0];
-      const col = cols[(rnd() * cols.length) | 0];
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), toonMat({ color: col })); body.scale.set(1, 0.85, 1.2); body.position.y = 0.4; body.castShadow = true; g.add(body);
-      for (const sx of [-1, 1]) { const ear = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.34, 5), toonMat({ color: col })); ear.position.set(sx * 0.16, 0.75, 0.18); g.add(ear); }
-      const nose = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), toonMat({ color: 0x33312f })); nose.position.set(0, 0.42, 0.48); g.add(nose);
+    function makeCritter(theme) {
+      const g = new THREE.Group();
+      if (theme === 'snow') { // penguin
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 0.4, 4, 8), toonMat({ color: 0x2b3138 })); body.position.y = 0.5; body.castShadow = true; g.add(body);
+        const belly = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.34, 4, 8), toonMat({ color: 0xf3f6f8 })); belly.position.set(0, 0.5, 0.14); g.add(belly);
+        const beak = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.18, 5), toonMat({ color: 0xf2a13a })); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.62, 0.3); g.add(beak);
+      } else if (theme === 'desert') { // lizard
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.7, 4, 8), toonMat({ color: 0x9a8b4f })); body.rotation.z = Math.PI / 2; body.position.y = 0.22; body.castShadow = true; g.add(body);
+        const tail = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.5, 6), toonMat({ color: 0x9a8b4f })); tail.rotation.z = -Math.PI / 2; tail.position.set(-0.55, 0.22, 0); g.add(tail);
+      } else if (theme === 'tech') { // hover drone
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.22, 0.4), toonMat({ color: 0x4a5568, emissive: 0x5eead4, emissiveIntensity: 0.4 })); body.position.y = 0.7; body.castShadow = true; g.add(body);
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshBasicMaterial({ color: 0x7ffcee })); eye.position.set(0, 0.7, 0.22); g.add(eye);
+      } else { // bunny (grass/home/volcano)
+        const cols = theme === 'volcano' ? [0x4a3a34, 0x5a4136] : [0xf2d9c0, 0xe8b894, 0xd9a679, 0xf5e6d0];
+        const col = cols[(rnd() * cols.length) | 0];
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), toonMat({ color: col })); body.scale.set(1, 0.85, 1.2); body.position.y = 0.4; body.castShadow = true; g.add(body);
+        for (const sx of [-1, 1]) { const ear = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.34, 5), toonMat({ color: col })); ear.position.set(sx * 0.16, 0.75, 0.18); g.add(ear); }
+        const nose = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), toonMat({ color: 0x33312f })); nose.position.set(0, 0.42, 0.48); g.add(nose);
+      }
       return g;
     }
 
@@ -463,6 +476,17 @@
     const parcelMat = toonMat({ color: 0xd9a066, emissive: 0x5eead4, emissiveIntensity: 0.45 });
     const ringMat = new THREE.MeshBasicMaterial({ color: 0x5eead4 });
     const beamMat = new THREE.MeshBasicMaterial({ color: 0x5eead4, transparent: true, opacity: 0.55 });
+    const birdGeo = new THREE.ConeGeometry(0.18, 0.7, 4); birdGeo.rotateX(Math.PI / 2);
+    const birdMat = toonMat({ color: 0x37404a });
+    const birds = [];
+    function addBirds(center, PR, n, pl) {
+      for (let i = 0; i < n; i++) {
+        const bm = new THREE.Mesh(birdGeo, birdMat); const axis = randDir(), ref = new THREE.Vector3(0, 1, 0);
+        if (Math.abs(axis.dot(ref)) > 0.9) ref.set(1, 0, 0);
+        const u = new THREE.Vector3().crossVectors(axis, ref).normalize(), v = new THREE.Vector3().crossVectors(axis, u);
+        birds.push({ mesh: bm, center, axis, u, v, rad: PR + 3 + rnd() * 3, ang: rnd() * 6.28, speed: 0.4 + rnd() * 0.4, flap: rnd() * 6, pl }); scene.add(bm);
+      }
+    }
     const _cc = new THREE.Color(), _ct = new THREE.Color();
     const planets = [], parcels = [], dropoffs = [], windy = [], critters = [];
 
@@ -555,14 +579,16 @@
         deco.scale.setScalar(0.8 + rnd() * 0.5); orientOnSphere(deco, dir, landR(dir)); group.add(deco);
         if (isTree) windy.push({ obj: deco, base: deco.quaternion.clone(), phase: rnd() * 6.28, pl });
       }
-      // critters
-      const cN = rich ? 8 : 3;
+      // critters (biome-specific)
+      const cN = rich ? 8 : 4;
       for (let i = 0; i < cN; i++) {
         let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < PR * 0.03; k++) dir = randDir(); if (terrain(dir) < PR * 0.03) continue;
-        const cr = makeCritter(); cr.scale.setScalar(0.7 + rnd() * 0.5);
+        const cr = makeCritter(project.theme); cr.scale.setScalar(0.7 + rnd() * 0.5);
         const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0); fwd.normalize();
         critters.push({ g: cr, dir, fwd, t: rnd() * 6, pl }); orientOnSphere(cr, dir, walkR(dir)); group.add(cr);
       }
+      // birds (a small flock per world)
+      addBirds(pl.center, PR, rich ? 10 : 4, pl);
       // parcels
       const pN = rich ? 6 : 3; let placed = 0, att = 0;
       while (placed < pN && att < 300) {
@@ -628,6 +654,7 @@
       for (let i = dropoffs.length - 1; i >= 0; i--) if (dropoffs[i].pl === p) dropoffs.splice(i, 1);
       for (let i = critters.length - 1; i >= 0; i--) if (critters[i].pl === p) critters.splice(i, 1);
       for (let i = windy.length - 1; i >= 0; i--) if (windy[i].pl === p) windy.splice(i, 1);
+      for (let i = birds.length - 1; i >= 0; i--) if (birds[i].pl === p) { scene.remove(birds[i].mesh); birds.splice(i, 1); }
       const idx = planets.indexOf(p); if (idx >= 0) planets.splice(idx, 1);
     }
     function nearestPlanet(point) { let best = planets[0], bd = Infinity; for (const p of planets) { const d = point.distanceTo(p.center) - p.R; if (d < bd) { bd = d; best = p; } } return best; }
@@ -681,14 +708,6 @@
       for (let j = 0; j < puffN; j++) { const s = 0.8 + rnd() * 1.1; const pm = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 1), cloudMat); pm.position.set((j - puffN/2)*1.1, rnd()*0.4, rnd()*0.6-0.3); pm.scale.y = 0.6; cl.add(pm); }
       const spin = rnd() * 6.28; cl.userData = { axis: randDir(), speed: 0.02 + rnd() * 0.03, spin };
       orientOnSphere(cl, randDir(), R + 5.5 + rnd() * 2.5, spin); clouds.add(cl);
-    }
-    const birds = []; const birdGeo = new THREE.ConeGeometry(0.18, 0.7, 4); birdGeo.rotateX(Math.PI / 2);
-    const birdMat = toonMat({ color: 0x37404a });
-    for (let i = 0; i < 14; i++) {
-      const b = new THREE.Mesh(birdGeo, birdMat); const axis = randDir(), ref = new THREE.Vector3(0, 1, 0);
-      if (Math.abs(axis.dot(ref)) > 0.9) ref.set(1, 0, 0);
-      const u = new THREE.Vector3().crossVectors(axis, ref).normalize(), v = new THREE.Vector3().crossVectors(axis, u);
-      birds.push({ mesh: b, axis, u, v, rad: R + 3.5 + rnd() * 3, ang: rnd() * 6.28, speed: 0.4 + rnd() * 0.4, flap: rnd() * 6 }); scene.add(b);
     }
     const fishes = []; const fishGeo = new THREE.SphereGeometry(0.26, 8, 6); const fishMat = toonMat({ color: 0x6fb6dd });
     for (let i = 0; i < 7; i++) {
@@ -1254,10 +1273,11 @@
         cl.position.applyAxisAngle(cl.userData.axis, cl.userData.speed * dt);
         orientOnSphere(cl, tmp.copy(cl.position).normalize(), cl.position.length(), cl.userData.spin);
       }
-      // orbiting birds
+      // orbiting birds (per world; skip far/culled ones)
       for (const b of birds) {
+        if (!b.pl.group.visible) { b.mesh.visible = false; continue; } b.mesh.visible = true;
         b.ang += b.speed * dt; b.flap += dt * 12;
-        tmp.copy(b.u).multiplyScalar(Math.cos(b.ang)).addScaledVector(b.v, Math.sin(b.ang)).multiplyScalar(b.rad);
+        tmp.copy(b.u).multiplyScalar(Math.cos(b.ang)).addScaledVector(b.v, Math.sin(b.ang)).multiplyScalar(b.rad).add(b.center);
         tmp2.copy(b.u).multiplyScalar(-Math.sin(b.ang)).addScaledVector(b.v, Math.cos(b.ang)); // velocity dir
         b.mesh.position.copy(tmp); b.mesh.lookAt(tmp3.copy(tmp).add(tmp2));
         b.mesh.scale.set(1 + Math.sin(b.flap) * 0.35, 1, 1);
