@@ -323,7 +323,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v68 · richer sky';
+    const BUILD = 'v69 · home core';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -722,6 +722,15 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
           const holo = new THREE.Mesh(new THREE.OctahedronGeometry(0.4, 0), new THREE.MeshBasicMaterial({ color: 0x7ffcee, wireframe: true, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
           orientOnSphere(holo, dir, walkR(dir) + 1.4); group.add(holo); holos.push(holo); }
         pl.fx = { kind: 'tech', grid, holos };
+      }
+      if (rich) { // home = the heart of the data-brain: a glowing core crystal monument
+        const dir = new THREE.Vector3(0.18, 1, 0.12).normalize(); const mon = new THREE.Group();
+        const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(1.5, 0), new THREE.MeshBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false }));
+        crystal.position.y = 2.6; mon.add(crystal);
+        const baseM = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.95, 1.1, 6), toonMat({ color: 0x2a3550 })); baseM.position.y = 0.55; baseM.castShadow = true; mon.add(baseM);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.06, 8, 32), new THREE.MeshBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
+        ring.position.y = 2.6; ring.rotation.x = Math.PI / 2; mon.add(ring);
+        orientOnSphere(mon, dir, landR(dir)); group.add(mon); pl.monument = crystal; pl.monumentRing = ring;
       }
       planets.push(pl); return pl;
     }
@@ -1535,6 +1544,8 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         else if (fx.kind === 'snow') { const a = fx.attr.array; for (let i = 0; i < fx.data.length; i++) { const d = fx.data[i]; d.r -= d.sp * dt; if (d.r < fx.PR) { d.r = fx.PR + 6; d.dir.copy(randDir()); } a[i*3] = d.dir.x*d.r; a[i*3+1] = d.dir.y*d.r; a[i*3+2] = d.dir.z*d.r; } fx.attr.needsUpdate = true; }
         else if (fx.kind === 'tech') { fx.grid.material.opacity = 0.12 + 0.1 * Math.sin(oceanUniforms.time.value * 2 + p.center.x); fx.grid.rotation.y += dt * 0.2; if (fx.holos) for (const h of fx.holos) { h.rotation.y += dt * 1.5; h.rotation.x += dt * 0.8; } }
       }
+      // home core crystal: slow spin + pulse
+      if (HOME.monument && HOME.group.visible) { const tt = oceanUniforms.time.value; HOME.monument.rotation.y += dt * 0.7; HOME.monumentRing.rotation.z += dt * 0.5; HOME.monument.scale.setScalar(1 + 0.12 * Math.sin(tt * 3)); }
 
       // pick up parcels (when not yet carrying the max few)
       for (const p of parcels) {
