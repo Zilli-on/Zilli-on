@@ -238,7 +238,7 @@
   <div id="settings"><div class="proj-card">
     <div class="pn">⚙ Einstellungen</div>
     <div class="prow"><button class="cl" id="setMusic">🔊 Musik: an</button><button class="cl" id="setFx">✨ Effekte: an</button><button class="cl" id="setMotion">🌀 Bewegung: voll</button></div>
-    <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto-Modus · H Hilfe</div>
+    <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto-Modus · F Emoji · H Hilfe</div>
     <div class="prow"><button class="gh" id="setResume">▶ Weiter spielen</button><button class="cl" id="setRestart">↻ Neu starten</button><button class="cl" id="setReset">🗑 Fortschritt löschen</button></div>
   </div></div>
   <div id="help"><div class="proj-card">
@@ -250,7 +250,7 @@ A / D — drehen   ·   Maus / Wischen — Kamera
 Shift — rennen
 Space (gedrückt halten) — Planet-Sprung
 M — Galaxie-Karte   ·   E — Projekt-Info
-C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
+C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     <div class="prow"><button class="cl" id="helpClose">Schließen (Esc / H)</button></div>
   </div></div>
   <div id="reelHint">🎬 Showreel · Klick oder Taste = selbst steuern</div>
@@ -326,7 +326,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v81 · fix HUD overlap';
+    const BUILD = 'v82 · emoji expressions';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -909,6 +909,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       // soft contact shadow grounds the hero (reads well top-down)
       const blob = new THREE.Mesh(new THREE.CircleGeometry(1.15, 24), new THREE.MeshBasicMaterial({ color: 0x06231f, alphaMap: nebTex, transparent: true, opacity: 0.34, depthWrite: false }));
       blob.rotation.x = -Math.PI / 2; blob.position.y = 0.05; avatar.add(blob); hero.blob = blob;
+      // emoji expression bubble above the head (charm, à la messenger.abeto.co)
+      const emo = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, opacity: 0, depthWrite: false, depthTest: false }));
+      emo.scale.set(1.9, 1.9, 1); emo.position.y = 3.8; emo.renderOrder = 999; avatar.add(emo); hero.emoji = emo;
     }
 
     // carried-parcel stack floating above the hero
@@ -953,6 +956,16 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       player.quaternion.setFromRotationMatrix(_m);
     }
     // procedural character animation: walk-cycle, flight pose, charge crouch, squash/stretch, data-node pulse
+    const _emoCache = {};
+    function emojiTex(ch) {
+      if (_emoCache[ch]) return _emoCache[ch];
+      const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+      g.font = '92px system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(ch, 64, 74);
+      const tx = new THREE.CanvasTexture(c); tx.minFilter = THREE.LinearFilter; _emoCache[ch] = tx; return tx;
+    }
+    let emojiLife = 0;
+    function popEmoji(ch) { if (!hero.emoji) return; hero.emoji.material.map = emojiTex(ch); hero.emoji.material.needsUpdate = true; emojiLife = 1.25; }
     function updateAvatar(dt, mv) {
       if (!modelReady) return;
       const t = oceanUniforms.time.value;
@@ -990,6 +1003,10 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       const pulse = 0.5 + 0.5 * Math.sin(t * (4 + cb * 4));
       hero.orb.scale.setScalar(0.8 + pulse * (0.5 + cb * 0.45));
       hero.core.scale.setScalar(0.85 + pulse * (0.3 + cb * 0.35));
+      // emoji expression bubble: pop, rise and fade
+      if (emojiLife > 0) { emojiLife -= dt; const k = emojiLife / 1.25;
+        hero.emoji.material.opacity = Math.min(1, k * 2.2); hero.emoji.position.y = 3.7 + (1 - k) * 0.9; hero.emoji.scale.setScalar(1.7 + (1 - k) * 0.7); }
+      else if (hero.emoji.material.opacity !== 0) hero.emoji.material.opacity = 0;
     }
     // start charging a galaxy-jump (hold), or release it (tap = small hop, hold = leap into space)
     function startCharge() { if (mode === 'ground' && height === 0) { charging = true; charge = 0; } }
@@ -1022,7 +1039,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     addEventListener('keydown', (e) => { switch (e.code) {
       case 'KeyW': case 'ArrowUp': keys.f = true; break; case 'KeyS': case 'ArrowDown': keys.b = true; break;
       case 'KeyA': case 'ArrowLeft': keys.l = true; break; case 'KeyD': case 'ArrowRight': keys.r = true; break;
-      case 'ShiftLeft': case 'ShiftRight': keys.sprint = true; break; case 'Space': hop(); break; } });
+      case 'ShiftLeft': case 'ShiftRight': keys.sprint = true; break; case 'Space': hop(); break;
+      case 'KeyF': if (started) popEmoji(EMOJIS[emoIdx++ % EMOJIS.length]); break; } });
+    const EMOJIS = ['👋', '😄', '🎉', '✨', '🚀', '🪐', '🧠']; let emoIdx = 0;
     addEventListener('keyup', (e) => { switch (e.code) {
       case 'KeyW': case 'ArrowUp': keys.f = false; break; case 'KeyS': case 'ArrowDown': keys.b = false; break;
       case 'KeyA': case 'ArrowLeft': keys.l = false; break; case 'KeyD': case 'ArrowRight': keys.r = false; break;
@@ -1603,6 +1622,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
           chime(delivered % 10 === 0);
           popEl.textContent = '+' + n + ' 📦' + (combo > 1 ? '   Combo x' + combo : '');
           popEl.classList.remove('show'); void popEl.offsetWidth; popEl.classList.add('show');
+          popEmoji(combo > 2 ? '🔥' : '🎉');
           if (delivered % 10 === 0) toast('🎉 ' + delivered + ' geliefert!', 1600);
           burst(o.worldPos, 0xffd166); linkFlash = 1; o.pop = 1; fireDataPacket(cur); // delivered packet ripples through the network; house pops
         }
@@ -1742,7 +1762,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         if (airArmed && airPos.distanceTo(np.center) <= np.R + 2.5) { // entered a world's pull -> land
           cur = np; pos.copy(up).multiplyScalar(cur.R); refreshFrame();
           mode = 'ground'; height = 0; vUp = 0; vel.set(0, 0, 0); canJump = true;
-          burst(player.position, 0xffffff); shock(player.position, up, 0xffffff); shake = 0.32; toast(cur.rich ? 'Zuhause! 🏠' : 'Neuer Planet! 🪐', 1400);
+          burst(player.position, 0xffffff); shock(player.position, up, 0xffffff); shake = 0.32; toast(cur.rich ? 'Zuhause! 🏠' : 'Neuer Planet! 🪐', 1400); popEmoji(cur.rich ? '🏠' : '👋');
           showCard(cur.project); landSound(); setSky(cur.project.theme); visitWorld(cur);
           maybeExpand();
         }
