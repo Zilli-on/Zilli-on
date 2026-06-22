@@ -229,7 +229,7 @@
   <button id="helpBtn" title="Hilfe (H)">❔</button>
   <div id="settings"><div class="proj-card">
     <div class="pn">⚙ Einstellungen</div>
-    <div class="prow"><button class="cl" id="setMusic">🔊 Musik: an</button><button class="cl" id="setFx">✨ Effekte: an</button></div>
+    <div class="prow"><button class="cl" id="setMusic">🔊 Musik: an</button><button class="cl" id="setFx">✨ Effekte: an</button><button class="cl" id="setMotion">🌀 Bewegung: voll</button></div>
     <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto-Modus · H Hilfe</div>
     <div class="prow"><button class="gh" id="setResume">▶ Weiter spielen</button><button class="cl" id="setRestart">↻ Neu starten</button></div>
   </div></div>
@@ -317,7 +317,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v63 · contact shadow';
+    const BUILD = 'v64 · reduce motion';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1312,14 +1312,15 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     cineBtn.addEventListener('click', toggleCine);
     // ---------- settings / pause ----------
     const settingsEl = document.getElementById('settings'), setBtn = document.getElementById('setBtn');
-    const setMusicBtn = document.getElementById('setMusic'), setFxBtn = document.getElementById('setFx');
-    function openSettings() { if (!started) return; paused = true; settingsEl.classList.add('on'); setMusicBtn.textContent = muted ? '🔇 Musik: aus' : '🔊 Musik: an'; setFxBtn.textContent = bloom.enabled ? '✨ Effekte: an' : '✨ Effekte: aus'; if (audio && audio.ctx.suspend) audio.ctx.suspend(); }
+    const setMusicBtn = document.getElementById('setMusic'), setFxBtn = document.getElementById('setFx'), setMotionBtn = document.getElementById('setMotion');
+    function openSettings() { if (!started) return; paused = true; settingsEl.classList.add('on'); setMusicBtn.textContent = muted ? '🔇 Musik: aus' : '🔊 Musik: an'; setFxBtn.textContent = bloom.enabled ? '✨ Effekte: an' : '✨ Effekte: aus'; setMotionBtn.textContent = reduceMotion ? '🌀 Bewegung: reduziert' : '🌀 Bewegung: voll'; if (audio && audio.ctx.suspend) audio.ctx.suspend(); }
     function closeSettings() { paused = false; settingsEl.classList.remove('on'); if (audio && !muted && audio.ctx.resume) audio.ctx.resume(); }
     setBtn.addEventListener('click', openSettings);
     document.getElementById('setResume').addEventListener('click', closeSettings);
     document.getElementById('setRestart').addEventListener('click', () => location.reload());
     setMusicBtn.addEventListener('click', () => { muted = !muted; muteBtn.textContent = muted ? '🔇' : '🔊'; setMusicBtn.textContent = muted ? '🔇 Musik: aus' : '🔊 Musik: an'; if (audio) audio.master.gain.linearRampToValueAtTime(muted ? 0 : 0.5, audio.ctx.currentTime + 0.2); });
     setFxBtn.addEventListener('click', () => { bloom.enabled = !bloom.enabled; setFxBtn.textContent = bloom.enabled ? '✨ Effekte: an' : '✨ Effekte: aus'; });
+    setMotionBtn.addEventListener('click', () => { reduceMotion = !reduceMotion; localStorage.setItem('tp_motion', reduceMotion ? '1' : '0'); gradePass.uniforms.motion.value = reduceMotion ? 0 : 1; setMotionBtn.textContent = reduceMotion ? '🌀 Bewegung: reduziert' : '🌀 Bewegung: voll'; });
     addEventListener('keydown', (e) => { if (started && e.code === 'KeyP') { settingsEl.classList.contains('on') ? closeSettings() : openSettings(); } });
     // ---------- help / controls reference (H) ----------
     const helpEl = document.getElementById('help');
@@ -1448,21 +1449,23 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     if (!lowPerf) composer.addPass(godPass);
     // cinematic grade: saturation, filmic contrast, teal/orange split-tone, chromatic aberration, grain, vignette
     const gradePass = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, sat: { value: 1.16 }, time: { value: 0 } },
+      uniforms: { tDiffuse: { value: null }, sat: { value: 1.16 }, time: { value: 0 }, motion: { value: 1 } },
       vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-      fragmentShader: `uniform sampler2D tDiffuse; uniform float sat; uniform float time; varying vec2 vUv;
+      fragmentShader: `uniform sampler2D tDiffuse; uniform float sat; uniform float time; uniform float motion; varying vec2 vUv;
         float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
         void main(){ vec2 d = vUv - 0.5; float r2 = dot(d,d);
-          float ca = 0.0016 + r2 * 0.01; // chromatic aberration grows toward edges
+          float ca = (0.0016 + r2 * 0.01) * motion; // chromatic aberration grows toward edges (off when motion reduced)
           vec3 c; c.r = texture2D(tDiffuse, vUv + d*ca).r; c.g = texture2D(tDiffuse, vUv).g; c.b = texture2D(tDiffuse, vUv - d*ca).b;
           float l = dot(c, vec3(0.299,0.587,0.114)); c = mix(vec3(l), c, sat);                 // saturation
           c = clamp((c - 0.5) * 1.06 + 0.5, 0.0, 1.0);                                          // gentle contrast
           c += (vec3(0.02,0.05,0.06)) * (1.0 - l) - (vec3(0.04,0.02,0.0)) * (l - 0.5);          // teal shadows / warm highlights
           float v = smoothstep(0.9, 0.28, r2 * 1.15); c *= mix(0.72, 1.0, v);                   // vignette
-          c += (hash(vUv * vec2(1920.0,1080.0) + time) - 0.5) * 0.035;                          // film grain
+          c += (hash(vUv * vec2(1920.0,1080.0) + time) - 0.5) * 0.035 * motion;                 // film grain
           gl_FragColor = vec4(c, 1.0); }`
     });
     composer.addPass(gradePass);
+    let reduceMotion = localStorage.getItem('tp_motion') === '1'; // accessibility: cut grain / aberration / shake / god rays
+    gradePass.uniforms.motion.value = reduceMotion ? 0 : 1;
     composer.addPass(new OutputPass());
 
     // ---------- Loop ----------
@@ -1714,7 +1717,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         const wantFov = (air || ((keys.sprint || touchSprint) && mv !== 0)) ? 68 : 60;
         camera.fov += (wantFov - camera.fov) * 0.1; camera.updateProjectionMatrix();
       }
-      if (shake > 0) { shake -= dt; const s = Math.max(0, shake) * 0.7; camera.position.x += (Math.random() - 0.5) * s; camera.position.y += (Math.random() - 0.5) * s; camera.position.z += (Math.random() - 0.5) * s; }
+      if (shake > 0) { shake -= dt; if (!reduceMotion) { const s = Math.max(0, shake) * 0.7; camera.position.x += (Math.random() - 0.5) * s; camera.position.y += (Math.random() - 0.5) * s; camera.position.z += (Math.random() - 0.5) * s; } }
       if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(window.__ovLook || tmp.set(0,0,0)); } // debug/QA overview hook
 
       if (started && !finished) drawRadar();
@@ -1732,7 +1735,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         const onScreen = _sunP.z < 1 && Math.abs(_sunP.x) < 1.25 && Math.abs(_sunP.y) < 1.25;
         godPass.uniforms.sunPos.value.set(_sunP.x * 0.5 + 0.5, _sunP.y * 0.5 + 0.5);
         // rays only when the sun is in front of the camera, on-screen and it's daytime (few stars)
-        const want = (onScreen && starMat.opacity < 0.5) ? 0.32 : 0.0;
+        const want = (!reduceMotion && onScreen && starMat.opacity < 0.5) ? 0.32 : 0.0;
         godPass.uniforms.intensity.value += (want - godPass.uniforms.intensity.value) * Math.min(1, dt * 4);
       }
       composer.render();
