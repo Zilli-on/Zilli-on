@@ -113,6 +113,10 @@
     #cineBtn.on { display: block; }
     body.cine #hud, body.cine #mapBtn, body.cine #muteBtn, body.cine #compass, body.cine #radar, body.cine #card,
     body.cine #projHint, body.cine #chargeBar, body.cine #touchUI, body.cine .badge, body.cine #toast, body.cine #quest { display: none !important; }
+    /* cinematic letterbox bars (photo mode + showreel) */
+    .cinebar { position: fixed; left: 0; right: 0; height: 0; background: #000; z-index: 8; pointer-events: none; transition: height .45s cubic-bezier(.2,.9,.3,1); }
+    #cinebarTop { top: 0; } #cinebarBot { bottom: 0; }
+    body.cine #cinebarTop, body.cine #cinebarBot { height: 7vh; }
     body.cine #cineBtn { display: block; opacity: 0.5; }
     #mapBtn { left: 14px; top: 62px; padding: 8px 14px; font-size: 13px; display: none; }
     #mapBtn.on { display: block; }
@@ -212,6 +216,7 @@
   </style>
 </head>
 <body>
+  <div id="cinebarTop" class="cinebar"></div><div id="cinebarBot" class="cinebar"></div>
   <div id="hud">📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
   <div id="quest"><div class="qh">🧠 Mission</div><div class="qt" id="questTitle">…</div><div class="qp" id="questProg"></div></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
@@ -308,7 +313,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v53 · help overlay';
+    const BUILD = 'v54 · cinematic letterbox';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
