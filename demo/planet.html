@@ -326,7 +326,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v76 · synapse arcs';
+    const BUILD = 'v77 · arced packets';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -795,7 +795,8 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       if (!nb) return;
       const m = new THREE.Mesh(packetGeo, new THREE.MeshBasicMaterial({ color: 0xb6ffe9, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
       m.frustumCulled = false; m.position.copy(fromWorld.center); scene.add(m);
-      dataPackets.push({ m, a: fromWorld.center.clone(), b: nb.center.clone(), life: 0, dur: 1.1 });
+      const a = fromWorld.center.clone(), b = nb.center.clone();
+      dataPackets.push({ m, a, b, c: linkCtrl(a, b), life: 0, dur: 1.1 }); // ride the curved synapse
     }
     // bow a link outward from the cluster centre into a quadratic-bezier control point
     function linkCtrl(a, b) { const mid = a.clone().add(b).multiplyScalar(0.5); const out = mid.clone(); if (out.lengthSq() < 1) out.set(0, 1, 0); out.normalize(); return mid.addScaledVector(out, a.distanceTo(b) * 0.18); }
@@ -1561,7 +1562,10 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       // travelling delivery packets along real synapses
       for (let i = dataPackets.length - 1; i >= 0; i--) { const dp = dataPackets[i]; dp.life += dt; const f = dp.life / dp.dur;
         if (f >= 1) { scene.remove(dp.m); dp.m.material.dispose(); dataPackets.splice(i, 1); continue; }
-        dp.m.position.lerpVectors(dp.a, dp.b, 1 - (1 - f) * (1 - f)); dp.m.material.opacity = 0.95 * (1 - f); dp.m.scale.setScalar(1 + Math.sin(f * Math.PI) * 0.8); }
+        const ef = 1 - (1 - f) * (1 - f), ie = 1 - ef, cc = dp.c; // ease along the curved synapse
+        if (cc) dp.m.position.set(ie*ie*dp.a.x + 2*ie*ef*cc.x + ef*ef*dp.b.x, ie*ie*dp.a.y + 2*ie*ef*cc.y + ef*ef*dp.b.y, ie*ie*dp.a.z + 2*ie*ef*cc.z + ef*ef*dp.b.z);
+        else dp.m.position.lerpVectors(dp.a, dp.b, ef);
+        dp.m.material.opacity = 0.95 * (1 - f); dp.m.scale.setScalar(1 + Math.sin(f * Math.PI) * 0.8); }
       // per-theme ambient FX (only for nearby worlds)
       for (const p of planets) {
         if (!p.group.visible || !p.fx) continue; const fx = p.fx;
