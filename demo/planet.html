@@ -349,7 +349,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v94 · biome landmarks';
+    const BUILD = 'v95 · shrine puzzles';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -589,6 +589,15 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       }
       g.userData.spin = spin; return g;
     }
+    // shrine puzzle — light all runes to open a sealed memory shrine
+    const runeDimMat = new THREE.MeshBasicMaterial({ color: 0x3a4a6a });
+    const runeLitMat = new THREE.MeshBasicMaterial({ color: 0x8ff5e8 });
+    function makeRune() { const g = new THREE.Group();
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.8, 6), toonMat({ color: 0x2a3550 })); post.position.y = 0.4; post.castShadow = true; g.add(post);
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), runeDimMat); gem.position.y = 0.95; g.add(gem); g.userData.gem = gem; return g; }
+    function makeShrine() { const g = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 0.5, 6), toonMat({ color: 0x3a3550 })); base.position.y = 0.25; base.castShadow = true; g.add(base);
+      const seal = new THREE.Mesh(new THREE.OctahedronGeometry(0.6, 0), new THREE.MeshBasicMaterial({ color: 0x6a6a8a, transparent: true, opacity: 0.85, depthWrite: false })); seal.position.y = 1.2; g.add(seal); g.userData.seal = seal; return g; }
     // bounce pad — a springy glowing mushroom that launches the player high
     function makePad() {
       const g = new THREE.Group();
@@ -639,7 +648,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       }
     }
     const _cc = new THREE.Color(), _ct = new THREE.Color();
-    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [], fragments = [], pads = [], landmarks = [];
+    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [], fragments = [], pads = [], landmarks = [], shrines = [];
 
     // theme palettes per world type
     const THEMES = {
@@ -774,6 +783,17 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       // signature biome landmark (one per world, away from the spawn pole)
       { let dir = new THREE.Vector3(-0.2, 0.9, -0.3).normalize(); for (let k = 0; k < 40 && terrain(dir) < PR * 0.05; k++) dir = randDir();
         if (terrain(dir) >= PR * 0.04) { const lm = makeLandmark(project.theme); orientOnSphere(lm, dir, walkR(dir)); group.add(lm); landmarks.push({ g: lm, pl, t: rnd() * 6, spin: lm.userData.spin, glow: lm.userData.glow, spinObj: lm.userData.spinObj }); } }
+      // shrine puzzle on some worlds (light scattered runes to open it)
+      if (!rich && rnd() < 0.45) {
+        let sd = randDir(); for (let k = 0; k < 40 && terrain(sd) < PR * 0.05; k++) sd = randDir();
+        if (terrain(sd) >= PR * 0.05) {
+          const sh = makeShrine(); orientOnSphere(sh, sd, walkR(sd)); group.add(sh);
+          const runes = []; const rn = 3;
+          for (let i = 0; i < rn; i++) { let rd = randDir(); for (let k = 0; k < 40 && terrain(rd) < PR * 0.04; k++) rd = randDir(); if (terrain(rd) < PR * 0.04) continue;
+            const rg = makeRune(); orientOnSphere(rg, rd, walkR(rd)); group.add(rg); runes.push({ g: rg, dir: rd, lit: false }); }
+          if (runes.length) shrines.push({ g: sh, dir: sd, runes, pl, solved: false, t: 0 });
+        }
+      }
       // bounce pads (playful traversal) on some worlds
       const padN = rich ? 1 : (rnd() < 0.5 ? 1 : 0);
       for (let i = 0; i < padN; i++) {
@@ -859,6 +879,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       for (let i = fragments.length - 1; i >= 0; i--) if (fragments[i].pl === p) fragments.splice(i, 1);
       for (let i = pads.length - 1; i >= 0; i--) if (pads[i].pl === p) pads.splice(i, 1);
       for (let i = landmarks.length - 1; i >= 0; i--) if (landmarks[i].pl === p) landmarks.splice(i, 1);
+      for (let i = shrines.length - 1; i >= 0; i--) if (shrines[i].pl === p) shrines.splice(i, 1);
       for (let i = windy.length - 1; i >= 0; i--) if (windy[i].pl === p) windy.splice(i, 1);
       for (let i = birds.length - 1; i >= 0; i--) if (birds[i].pl === p) { scene.remove(birds[i].mesh); birds.splice(i, 1); }
       const idx = planets.indexOf(p); if (idx >= 0) planets.splice(idx, 1);
@@ -1233,6 +1254,8 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     window.__dbg.gust = () => { gust(); return gustCd; };
     window.__dbg.toPad = () => { const p = pads.find((x) => x.pl === cur); if (!p) return false; pos.copy(p.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
     window.__dbg.ph = () => ({ height: +height.toFixed(2), vUp: +vUp.toFixed(2), pads: pads.filter((p) => p.pl === cur).length });
+    window.__dbg.shrine = () => { const s = shrines.find((x) => x.pl === cur); return s ? { total: s.runes.length, lit: s.runes.filter((r) => r.lit).length, solved: s.solved } : null; };
+    window.__dbg.tpRune = () => { const s = shrines.find((x) => x.pl === cur); if (!s) return false; const ru = s.runes.find((r) => !r.lit); if (!ru) return false; pos.copy(ru.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
     window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
     window.__dbg.attack = () => attack();
     window.__dbg.attackDiag = () => { const r = []; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length(); to.normalize(); r.push({ d: +d.toFixed(2), dot: +to.dot(forward).toFixed(2), hp: e.hp }); } return { mode, attackCd: +attackCd.toFixed(2), fLen: +forward.length().toFixed(2), list: r }; };
@@ -1994,6 +2017,17 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       for (const lm of landmarks) { if (!lm.pl.group.visible) continue; lm.t += dt;
         if (lm.spinObj) lm.spinObj.rotation.z += dt * lm.spin;
         if (lm.glow) lm.glow.scale.setScalar(0.9 + 0.15 * Math.sin(lm.t * 2)); }
+      // shrine puzzles: light runes by walking onto them; all lit → open the shrine
+      for (const sh of shrines) { if (!sh.pl.group.visible) continue; sh.t += dt;
+        if (!sh.solved && sh.pl === cur && mode === 'ground') {
+          for (const ru of sh.runes) { if (ru.lit) continue; _ew.copy(cur.center).add(ru.g.position); if (_ew.distanceTo(player.position) < 1.7) { ru.lit = true; ru.g.userData.gem.material = runeLitMat; chime(false); burst(_ew, 0x8ff5e8); } }
+          if (sh.runes.every((r) => r.lit)) { sh.solved = true; toast('🗝️ Schrein geöffnet — eine Erinnerung wird frei!', 2800); fanfare(); popEmoji('🗝️');
+            _ew.copy(cur.center).add(sh.g.position); shock(_ew, sh.dir, 0x8ff5e8); sh.g.userData.seal.material = new THREE.MeshBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+            const bf = makeFragment(); bf.scale.setScalar(1.5); const fd = sh.dir.clone(); bf.position.copy(fd).multiplyScalar(cur.walkR(fd) + 1.6); cur.group.add(bf); fragments.push({ g: bf, dir: fd, pl: cur, t: 0 }); }
+        }
+        if (sh.g.userData.seal) sh.g.userData.seal.rotation.y += dt * (sh.solved ? 2 : 0.5);
+        for (const ru of sh.runes) if (ru.lit) ru.g.userData.gem.rotation.y += dt * 2;
+      }
 
       let mv = 0;
       if (charging) {
