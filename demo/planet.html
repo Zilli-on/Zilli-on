@@ -291,7 +291,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v47 · story quests';
+    const BUILD = 'v48 · data flows';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -716,6 +716,17 @@
     const pulseMat = new THREE.MeshBasicMaterial({ color: 0xb6ffe9, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
     const pulseMatHot = new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.98, blending: THREE.AdditiveBlending, depthWrite: false }); // related worlds: warmer, busier traffic
     let linkSeg = null, pulses = [], linkFlash = 0; // linkFlash: brief network-wide glow on delivery
+    // a delivered packet visibly travels along a real synapse to the nearest world
+    const packetGeo = new THREE.SphereGeometry(0.55, 12, 12);
+    let dataPackets = [];
+    function fireDataPacket(fromWorld) {
+      let nb = null, bd = Infinity;
+      for (const q of planets) { if (q === fromWorld) continue; const d = fromWorld.center.distanceTo(q.center); if (d < bd) { bd = d; nb = q; } }
+      if (!nb) return;
+      const m = new THREE.Mesh(packetGeo, new THREE.MeshBasicMaterial({ color: 0xb6ffe9, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
+      m.frustumCulled = false; m.position.copy(fromWorld.center); scene.add(m);
+      dataPackets.push({ m, a: fromWorld.center.clone(), b: nb.center.clone(), life: 0, dur: 1.1 });
+    }
     function rebuildLinks() {
       if (linkSeg) { scene.remove(linkSeg); linkSeg.geometry.dispose(); }
       for (const pu of pulses) scene.remove(pu.mesh); pulses = [];
@@ -919,6 +930,7 @@
     window.__dbg.travel = (i) => travelTo(planets[i]);
     window.__dbg.aimAt = (v) => { forward.copy(v).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); };
     window.__dbg.setDay = (t) => { dayT = t; updateDayNight(); };
+    window.__dbg.packets = () => dataPackets.length;
 
     // ---------- Input ----------
     const keys = { f: false, b: false, l: false, r: false, sprint: false };
@@ -1047,7 +1059,7 @@
       document.getElementById('winBtn').textContent = 'Weiter erkunden ✨';
       winEl.classList.add('on');
       linkFlash = 1; const cols = [0x8ff5e8, 0xffd166, 0xb6ffe9]; for (let i = 0; i < 3; i++) burst(player.position, cols[i]);
-      shock(player.position, up, 0x8ff5e8); shake = 0.4; chime(true);
+      shock(player.position, up, 0x8ff5e8); shake = 0.4; fanfare();
     }
 
     // ---------- Footstep dust puffs ----------
@@ -1140,15 +1152,23 @@
         for (const q of others) { const [bx, by] = toS(q.center.x, q.center.z); mctx.beginPath(); mctx.moveTo(ax, ay); mctx.lineTo(bx, by); mctx.stroke(); } }
       // nodes
       mapNodes = [];
+      let activeCount = 0;
       for (const p of planets) {
         const [x, y] = toS(p.center.x, p.center.z); const r = Math.max(7, p.R * sc * 0.5);
         mapNodes.push({ p, x, y, r });
+        const activated = worldsRun.has(p.project.name); if (activated) activeCount++;
+        if (activated) { mctx.save(); mctx.shadowColor = 'rgba(143,245,232,0.95)'; mctx.shadowBlur = 16; }
         mctx.fillStyle = themeColors[p.project.theme] || '#6cc05f';
         mctx.beginPath(); mctx.arc(x, y, r, 0, 7); mctx.fill();
-        if (p === cur) { mctx.strokeStyle = '#ffffff'; mctx.lineWidth = 3; mctx.stroke(); }
+        if (activated) mctx.restore();
+        if (activated) { mctx.strokeStyle = 'rgba(143,245,232,0.9)'; mctx.lineWidth = 2.5; mctx.beginPath(); mctx.arc(x, y, r + 3, 0, 7); mctx.stroke(); } // reactivated synapse node
+        if (p === cur) { mctx.strokeStyle = '#ffffff'; mctx.lineWidth = 3; mctx.beginPath(); mctx.arc(x, y, r, 0, 7); mctx.stroke(); }
         mctx.fillStyle = '#eafffb'; mctx.font = 'bold 13px ui-sans-serif, system-ui, sans-serif'; mctx.textAlign = 'center';
         mctx.fillText(p.project.name, x, y - r - 6);
       }
+      // activation progress
+      mctx.fillStyle = 'rgba(143,245,232,0.95)'; mctx.font = 'bold 14px ui-sans-serif, system-ui, sans-serif'; mctx.textAlign = 'left';
+      mctx.fillText('🧠 ' + activeCount + '/' + planets.length + ' Knoten aktiv', 14, S - 14);
       // player marker
       const [px, py] = toS(player.position.x, player.position.z);
       mctx.fillStyle = '#ffd166'; mctx.beginPath(); mctx.arc(px, py, 4, 0, 7); mctx.fill();
@@ -1251,6 +1271,17 @@
         g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.5, s + 0.02); g.gain.exponentialRampToValueAtTime(0.001, s + 0.5);
         o.start(s); o.stop(s + 0.55);
       });
+    }
+    function fanfare() { // triumphant finale: ascending run + sustained major chord
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const arp = [392, 523, 659, 784, 1047, 1319];
+      arp.forEach((f, i) => { const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
+        const g = ctx.createGain(); const s = t + i * 0.09; g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.4, s + 0.02); g.gain.exponentialRampToValueAtTime(0.001, s + 0.6);
+        o.connect(g); g.connect(audio.master); o.start(s); o.stop(s + 0.65); });
+      const ct = t + arp.length * 0.09;
+      [523, 659, 784, 1047].forEach((f) => { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+        const g = ctx.createGain(); g.gain.setValueAtTime(0, ct); g.gain.linearRampToValueAtTime(0.16, ct + 0.05); g.gain.exponentialRampToValueAtTime(0.001, ct + 1.5);
+        o.connect(g); g.connect(audio.master); o.start(ct); o.stop(ct + 1.6); });
     }
     function step() {
       if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
@@ -1358,6 +1389,10 @@
       if (linkFlash > 0) linkFlash = Math.max(0, linkFlash - dt * 1.6); // decay the delivery flash
       linkMat.opacity = 0.22 + 0.13 * Math.sin(oceanUniforms.time.value * 1.5) + linkFlash * 0.5; // synapse glow + delivery surge
       for (const pu of pulses) { const fr = (oceanUniforms.time.value * (pu.speed || 0.18) + pu.off) % 1; pu.mesh.position.lerpVectors(pu.a, pu.b, fr); }
+      // travelling delivery packets along real synapses
+      for (let i = dataPackets.length - 1; i >= 0; i--) { const dp = dataPackets[i]; dp.life += dt; const f = dp.life / dp.dur;
+        if (f >= 1) { scene.remove(dp.m); dp.m.material.dispose(); dataPackets.splice(i, 1); continue; }
+        dp.m.position.lerpVectors(dp.a, dp.b, 1 - (1 - f) * (1 - f)); dp.m.material.opacity = 0.95 * (1 - f); dp.m.scale.setScalar(1 + Math.sin(f * Math.PI) * 0.8); }
       // per-theme ambient FX (only for nearby worlds)
       for (const p of planets) {
         if (!p.group.visible || !p.fx) continue; const fx = p.fx;
@@ -1390,7 +1425,7 @@
           popEl.textContent = '+' + n + ' 📦' + (combo > 1 ? '   Combo x' + combo : '');
           popEl.classList.remove('show'); void popEl.offsetWidth; popEl.classList.add('show');
           if (delivered % 10 === 0) toast('🎉 ' + delivered + ' geliefert!', 1600);
-          burst(o.worldPos, 0xffd166); linkFlash = 1; // a delivered packet ripples through the data-brain network
+          burst(o.worldPos, 0xffd166); linkFlash = 1; fireDataPacket(cur); // a delivered packet ripples through the data-brain network
         }
       }
       // flight trail fade
