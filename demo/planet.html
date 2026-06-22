@@ -199,8 +199,11 @@
     #mapView p { color: #8fd9cf; font-size: 13px; margin-top: -8px; }
     #mapCanvas { background: rgba(10,28,36,0.55); border: 1px solid rgba(94,234,212,0.28); border-radius: 20px; touch-action: none; max-width: 92vw; max-height: 66vh;
       box-shadow: 0 30px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08); }
+    #mapView .maprow { display: flex; gap: 10px; align-items: center; }
     #mapClose { cursor: pointer; border: 0; border-radius: 999px; padding: 11px 28px; font-size: 15px; font-weight: 800; color: #04302b;
       background: linear-gradient(135deg, #7df0dd, #2dd4bf); box-shadow: 0 12px 30px rgba(20,184,166,0.45); }
+    #mapHome { cursor: pointer; border: 1px solid rgba(255,255,255,0.35); border-radius: 999px; padding: 11px 22px; font-size: 15px; font-weight: 800; color: #eafffb; background: rgba(255,255,255,0.08); }
+    #mapHome:hover { background: rgba(255,255,255,0.16); }
 
     /* ---------- touch controls ---------- */
     #touchUI { display: none; }
@@ -255,7 +258,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     <h3>🧠 Projekt-Galaxie</h3>
     <p>Tippe eine Welt an, um direkt dorthin zu springen</p>
     <canvas id="mapCanvas" width="520" height="520"></canvas>
-    <button id="mapClose">Schließen</button>
+    <div class="maprow"><button id="mapHome">🏠 Heimat</button><button id="mapClose">Schließen</button></div>
   </div>
   <div id="compass"><div class="arrow">⬆</div><div class="lbl">nächstes Paket</div></div>
   <canvas id="radar" width="116" height="116"></canvas>
@@ -323,7 +326,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v73 · review fixes';
+    const BUILD = 'v74 · return home';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1235,6 +1238,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     function closeMap() { mapOpen = false; mapView.classList.remove('on'); }
     mapBtn.addEventListener('click', openMap);
     document.getElementById('mapClose').addEventListener('click', closeMap);
+    document.getElementById('mapHome').addEventListener('click', () => { if (cur !== HOME) travelTo(HOME); closeMap(); }); // one-tap return to the hub
     addEventListener('keydown', (e) => { if (e.code === 'KeyM' && started) { mapOpen ? closeMap() : openMap(); } });
     function landingDir(p) { let dir = new THREE.Vector3(0, 1, 0); for (let i = 0; i < 240; i++) { const c = randDir(); const h = p.terrain(c); if (h > p.R * 0.02 && h < p.R * 0.12) { dir = c; break; } } return dir; }
     function travelTo(p) {
