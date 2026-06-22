@@ -323,7 +323,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v67 · sun disc';
+    const BUILD = 'v68 · richer sky';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -414,8 +414,8 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     const dayKeys = [
       { t: 0.00, top: 0x21304f, mid: 0x3a4a6b, bottom: 0x5b6b8c, sun: 0x6f7bd0, si: 0.25, hi: 0.32, exp: 0.85, star: 0.9 }, // night
       { t: 0.18, top: 0xf0a878, mid: 0xffd9b0, bottom: 0xa9c8e8, sun: 0xffb27a, si: 1.2,  hi: 0.55, exp: 1.0,  star: 0.15 }, // sunrise
-      { t: 0.35, top: 0x7ec0ff, mid: 0xeaf4ff, bottom: 0xbfe4ff, sun: 0xfff4d6, si: 1.85, hi: 0.7,  exp: 1.0,  star: 0.0 }, // day
-      { t: 0.62, top: 0x7ec0ff, mid: 0xeaf4ff, bottom: 0xbfe4ff, sun: 0xfff4d6, si: 1.85, hi: 0.7,  exp: 1.0,  star: 0.0 }, // day
+      { t: 0.35, top: 0x4d9ef0, mid: 0xbfe0ff, bottom: 0x9ccdf5, sun: 0xfff4d6, si: 1.8,  hi: 0.7,  exp: 0.96, star: 0.0 }, // day
+      { t: 0.62, top: 0x4d9ef0, mid: 0xbfe0ff, bottom: 0x9ccdf5, sun: 0xfff4d6, si: 1.8,  hi: 0.7,  exp: 0.96, star: 0.0 }, // day
       { t: 0.78, top: 0xff9e5a, mid: 0xffd0a0, bottom: 0x9fb6d6, sun: 0xff8a4a, si: 1.1,  hi: 0.5,  exp: 1.02, star: 0.2 }, // sunset
       { t: 0.90, top: 0x2c3a5c, mid: 0x46557a, bottom: 0x5b6b8c, sun: 0x8a8fe0, si: 0.45, hi: 0.38, exp: 0.9,  star: 0.6 }, // dusk
     ];
