@@ -46,6 +46,7 @@
     .key { font-size: 12.5px; color: var(--ink); border: 1px solid rgba(15,118,110,0.18); border-radius: 10px; padding: 6px 11px; background: rgba(255,255,255,0.55); }
     .key b { color: var(--teal); }
     #bestLine { font-weight: 700; color: var(--teal); min-height: 1em; font-size: 14px; }
+    #achLine { font-weight: 600; color: var(--ink-soft); font-size: 12.5px; line-height: 1.5; max-width: 420px; }
     .btn-primary {
       margin-top: 6px; cursor: pointer; border: 0; border-radius: 999px; padding: 16px 40px; font-family: "Outfit", sans-serif;
       font-size: 17px; font-weight: 800; letter-spacing: 0.01em; color: #04302b;
@@ -271,6 +272,7 @@
         <span class="key"><b>E</b> Projekt-Info</span>
       </div>
       <p id="bestLine"></p>
+      <p id="achLine"></p>
       <button id="playBtn" class="btn-primary" disabled>Lädt …</button>
       <button id="reelBtn" class="btn-ghost">🎬 Showreel ansehen</button>
     </div>
@@ -294,7 +296,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v51 · nebula depth';
+    const BUILD = 'v52 · achievements';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1088,6 +1090,26 @@
       shock(player.position, up, 0x8ff5e8); shake = 0.4; fanfare();
     }
 
+    // ---------- Achievements (persistent, parallel to the story) ----------
+    const ACHIEVEMENTS = [
+      { id: 'combo5',    label: '🔥 Combo-Meister' ,   test: (s) => s.combo >= 5 },
+      { id: 'world8',    label: '🧭 Entdecker',         test: (s) => s.worlds >= 8 },
+      { id: 'deliver25', label: '📦 Kurier',            test: (s) => s.delivered >= 25 },
+      { id: 'deliver50', label: '🚀 Daten-Logistiker',  test: (s) => s.delivered >= 50 },
+    ];
+    function updateAchievements(s) {
+      for (const a of ACHIEVEMENTS) {
+        if (localStorage.getItem('tp_ach_' + a.id)) continue;
+        if (a.test(s)) { localStorage.setItem('tp_ach_' + a.id, '1'); toast('🏅 Abzeichen freigeschaltet: ' + a.label, 2400); chime(true); }
+      }
+    }
+    function renderAchievements() {
+      const got = ACHIEVEMENTS.filter((a) => localStorage.getItem('tp_ach_' + a.id));
+      const el = document.getElementById('achLine');
+      if (el && got.length) el.textContent = got.map((a) => a.label).join('  ·  ');
+    }
+    renderAchievements();
+
     // ---------- Footstep dust puffs ----------
     const puffs = [], puffGeo = new THREE.SphereGeometry(0.2, 6, 5);
     const puffMat = new THREE.MeshToonMaterial({ gradientMap: gradient, color: 0xece2cc, transparent: true, opacity: 0.5, depthWrite: false });
@@ -1482,6 +1504,7 @@
           toast('🏁 Welt komplett eingesammelt!', 2200); chime(true); burst(player.position, 0x2dd4bf);
         }
         updateQuests();
+        updateAchievements({ delivered, worlds: worldsRun.size, combo });
       }
       // showreel auto-travel through worlds
       if (auto) { autoT -= dt; if (autoT <= 0) { autoT = 6; const others = planets.filter((p) => p !== cur); if (others.length) travelTo(others[(Math.random() * others.length) | 0]); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); } }
