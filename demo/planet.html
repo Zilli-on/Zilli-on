@@ -323,7 +323,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v66 · combo meter';
+    const BUILD = 'v67 · sun disc';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -393,6 +393,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         scene.add(sp); nebula.push(sp);
       }
     }
+    // visible sun disc (camera-relative, follows the day/night cycle; feeds the god rays)
+    const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: nebTex, color: 0xfff2d0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    sunSprite.scale.set(46, 46, 1); scene.add(sunSprite);
 
     // ---------- Lighting ----------
     const hemi = new THREE.HemisphereLight(0xfff0d8, 0x6a8f6a, 0.6); scene.add(hemi);
@@ -1741,6 +1744,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       if (comboT > 0) comboT -= dt;
       if (comboT > 0 && combo > 1) { comboEl.classList.add('on'); comboTxt.textContent = '🔥 Combo x' + combo; comboFill.style.width = Math.max(0, comboT / 5 * 100) + '%'; }
       else comboEl.classList.remove('on');
+      // visible sun disc follows the camera + day/night
+      sunSprite.position.copy(camera.position).addScaledVector(sunDir, 340);
+      sunSprite.material.color.copy(sun.color); sunSprite.material.opacity = Math.max(0, sunDir.y) * 0.55;
       // ---- drive cinematic passes ----
       gradePass.uniforms.time.value = oceanUniforms.time.value; // animated film grain
       if (!lowPerf) {
