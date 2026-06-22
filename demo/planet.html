@@ -326,7 +326,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v77 · arced packets';
+    const BUILD = 'v78 · reactive core';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1574,7 +1574,8 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         else if (fx.kind === 'tech') { fx.grid.material.opacity = 0.12 + 0.1 * Math.sin(oceanUniforms.time.value * 2 + p.center.x); fx.grid.rotation.y += dt * 0.2; if (fx.holos) for (const h of fx.holos) { h.rotation.y += dt * 1.5; h.rotation.x += dt * 0.8; } }
       }
       // home core crystal: slow spin + pulse
-      if (HOME.monument && HOME.group.visible) { const tt = oceanUniforms.time.value; HOME.monument.rotation.y += dt * 0.7; HOME.monumentRing.rotation.z += dt * 0.5; HOME.monument.scale.setScalar(1 + 0.12 * Math.sin(tt * 3)); }
+      if (HOME.monument && HOME.group.visible) { const tt = oceanUniforms.time.value; HOME.monument.rotation.y += dt * 0.7; HOME.monumentRing.rotation.z += dt * 0.5;
+        HOME.monument.scale.setScalar(1 + 0.12 * Math.sin(tt * 3) + linkFlash * 0.6); HOME.monumentRing.scale.setScalar(1 + linkFlash * 0.5); } // brain-core surges with network traffic
 
       // pick up parcels (when not yet carrying the max few)
       for (const p of parcels) {
