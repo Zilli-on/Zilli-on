@@ -151,7 +151,10 @@
     #win.on { display: flex; }
     #win h2 { font-family: "Space Grotesk", sans-serif; font-size: clamp(30px, 7vw, 56px); font-weight: 700; }
     #win p { font-size: 18px; font-weight: 600; }
-    #win button { margin-top: 8px; cursor: pointer; border: 0; border-radius: 999px; padding: 14px 32px; font-size: 16px; font-weight: 800; color: #04302b; background: #fff; box-shadow: 0 12px 30px rgba(0,0,0,0.2); }
+    #win .winRow { margin-top: 8px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: center; }
+    #win button { cursor: pointer; border: 0; border-radius: 999px; padding: 14px 32px; font-size: 16px; font-weight: 800; color: #04302b; background: #fff; box-shadow: 0 12px 30px rgba(0,0,0,0.2); }
+    #win #winGh { cursor: pointer; border-radius: 999px; padding: 13px 26px; font-size: 15px; font-weight: 800; color: #eafffb; text-decoration: none; background: rgba(4,48,43,0.35); border: 1px solid rgba(255,255,255,0.5); }
+    #win #winGh:hover { background: rgba(4,48,43,0.5); }
 
     /* ---------- project panel (press E) ---------- */
     #projHint { position: fixed; left: 50%; bottom: 120px; translate: -50% 0; z-index: 6; display: none; pointer-events: none;
@@ -243,7 +246,7 @@
   <div id="win">
     <h2>Alle Pakete zugestellt! 🎉</h2>
     <p id="winText">Zeit: 0:00</p>
-    <button id="winBtn">Nochmal spielen</button>
+    <div class="winRow"><button id="winBtn">Nochmal spielen</button><a id="winGh" href="https://github.com/Zilli-on" target="_blank" rel="noopener">Zillion auf GitHub ↗</a></div>
   </div>
   <div class="badge">Zillion · <a href="https://github.com/Zilli-on" target="_blank" rel="noopener">github.com/Zilli-on</a></div>
 
@@ -291,7 +294,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v49 · connections';
+    const BUILD = 'v50 · portfolio CTA';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
