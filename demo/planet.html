@@ -231,7 +231,7 @@
     <div class="pn">⚙ Einstellungen</div>
     <div class="prow"><button class="cl" id="setMusic">🔊 Musik: an</button><button class="cl" id="setFx">✨ Effekte: an</button><button class="cl" id="setMotion">🌀 Bewegung: voll</button></div>
     <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto-Modus · H Hilfe</div>
-    <div class="prow"><button class="gh" id="setResume">▶ Weiter spielen</button><button class="cl" id="setRestart">↻ Neu starten</button></div>
+    <div class="prow"><button class="gh" id="setResume">▶ Weiter spielen</button><button class="cl" id="setRestart">↻ Neu starten</button><button class="cl" id="setReset">🗑 Fortschritt löschen</button></div>
   </div></div>
   <div id="help"><div class="proj-card">
     <div class="pn">🎮 Steuerung & Mission</div>
@@ -317,7 +317,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v64 · reduce motion';
+    const BUILD = 'v65 · reset progress';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1318,6 +1318,12 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     setBtn.addEventListener('click', openSettings);
     document.getElementById('setResume').addEventListener('click', closeSettings);
     document.getElementById('setRestart').addEventListener('click', () => location.reload());
+    document.getElementById('setReset').addEventListener('click', () => {
+      ['tp_score', 'tp_combo', 'tp_worlds', 'tp_mission', 'tp_seen'].forEach((k) => localStorage.removeItem(k));
+      ACHIEVEMENTS.forEach((a) => localStorage.removeItem('tp_ach_' + a.id));
+      document.getElementById('bestLine').textContent = ''; const al = document.getElementById('achLine'); if (al) al.textContent = '';
+      toast('🗑 Fortschritt zurückgesetzt', 1800);
+    });
     setMusicBtn.addEventListener('click', () => { muted = !muted; muteBtn.textContent = muted ? '🔇' : '🔊'; setMusicBtn.textContent = muted ? '🔇 Musik: aus' : '🔊 Musik: an'; if (audio) audio.master.gain.linearRampToValueAtTime(muted ? 0 : 0.5, audio.ctx.currentTime + 0.2); });
     setFxBtn.addEventListener('click', () => { bloom.enabled = !bloom.enabled; setFxBtn.textContent = bloom.enabled ? '✨ Effekte: an' : '✨ Effekte: aus'; });
     setMotionBtn.addEventListener('click', () => { reduceMotion = !reduceMotion; localStorage.setItem('tp_motion', reduceMotion ? '1' : '0'); gradePass.uniforms.motion.value = reduceMotion ? 0 : 1; setMotionBtn.textContent = reduceMotion ? '🌀 Bewegung: reduziert' : '🌀 Bewegung: voll'; });
