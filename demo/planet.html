@@ -291,7 +291,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v48 · data flows';
+    const BUILD = 'v49 · connections';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1017,10 +1017,19 @@
     }
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
     { const sc = parseInt(localStorage.getItem('tp_score') || '0', 10), cb = parseInt(localStorage.getItem('tp_combo') || '0', 10), wo = parseInt(localStorage.getItem('tp_worlds') || '0', 10);
-      if (sc || cb || wo) document.getElementById('bestLine').textContent = '🏆 Rekorde: ' + sc + ' Pakete · Combo x' + cb + ' · ' + wo + ' Welten'; }
+      let txt = ''; if (sc || cb || wo) txt = '🏆 Rekorde: ' + sc + ' Pakete · Combo x' + cb + ' · ' + wo + ' Welten';
+      if (localStorage.getItem('tp_mission')) txt += (txt ? ' · ' : '') + '🧠 Datenhirn reaktiviert ✓';
+      if (txt) document.getElementById('bestLine').textContent = txt; }
     { const tg = document.querySelector('.tagline'); if (tg && GH_LIVE) tg.textContent = '● LIVE aus GitHub · ' + (PROJECTS.length - 1) + ' Repos'; }
     const worldsRun = new Set();
-    function visitWorld(p) { worldsRun.add(p.project.name); const mx = Math.max(worldsRun.size, parseInt(localStorage.getItem('tp_worlds') || '0', 10)); localStorage.setItem('tp_worlds', String(mx)); }
+    function visitWorld(p) {
+      const isNew = !worldsRun.has(p.project.name);
+      worldsRun.add(p.project.name);
+      const mx = Math.max(worldsRun.size, parseInt(localStorage.getItem('tp_worlds') || '0', 10)); localStorage.setItem('tp_worlds', String(mx));
+      if (isNew && started && worldsRun.size > 1) { // a brand-new node joins the network
+        toast('🔗 Knoten verbunden: ' + p.project.name, 1800); linkFlash = 1; shock(player.position, up, 0x8ff5e8); connectSound();
+      }
+    }
 
     // ---------- Story / quest layer: reactivate the dormant data-brain ----------
     const questTitleEl = document.getElementById('questTitle'), questProgEl = document.getElementById('questProg'), questEl = document.getElementById('quest');
@@ -1057,7 +1066,7 @@
       winEl.querySelector('h2').textContent = '🧠 Datenhirn erwacht!';
       winTextEl.textContent = 'Alle Synapsen reaktiviert · ' + delivered + ' Pakete · ' + worldsRun.size + ' Welten · ' + fmt(elapsed);
       document.getElementById('winBtn').textContent = 'Weiter erkunden ✨';
-      winEl.classList.add('on');
+      winEl.classList.add('on'); localStorage.setItem('tp_mission', '1');
       linkFlash = 1; const cols = [0x8ff5e8, 0xffd166, 0xb6ffe9]; for (let i = 0; i < 3; i++) burst(player.position, cols[i]);
       shock(player.position, up, 0x8ff5e8); shake = 0.4; fanfare();
     }
@@ -1300,6 +1309,12 @@
       const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(420, t); o.frequency.exponentialRampToValueAtTime(180, t + 0.18);
       const g = ctx.createGain(); g.gain.setValueAtTime(0.22, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
       o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.28);
+    }
+    function connectSound() { // a gentle rising blip when a new node joins the network
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      [523, 784].forEach((f, i) => { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+        const g = ctx.createGain(); const s = t + i * 0.08; g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.3, s + 0.02); g.gain.exponentialRampToValueAtTime(0.001, s + 0.35);
+        o.connect(g); g.connect(audio.master); o.start(s); o.stop(s + 0.4); });
     }
     const muteBtn = document.getElementById('muteBtn');
     muteBtn.addEventListener('click', () => {
