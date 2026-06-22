@@ -349,7 +349,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v93 · bounce pads';
+    const BUILD = 'v94 · biome landmarks';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -564,6 +564,31 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       if (boss) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.07, 8, 24), new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })); ring.position.y = 0.95 * s; ring.rotation.x = Math.PI / 2; g.add(ring); g.userData.ring = ring; }
       return g;
     }
+    // signature biome landmark — gives each world a memorable silhouette/identity
+    function makeLandmark(theme) {
+      const g = new THREE.Group(); let spin = 0;
+      if (theme === 'tech') { // Clockwork — a great rotating gear
+        const gear = new THREE.Group();
+        const ringM = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.32, 10, 24), toonMat({ color: 0x6b7a99, emissive: 0x1b2540, emissiveIntensity: 0.4 })); gear.add(ringM);
+        for (let i = 0; i < 10; i++) { const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.4), toonMat({ color: 0x6b7a99 })); const a = i / 10 * Math.PI * 2; tooth.position.set(Math.cos(a) * 1.85, Math.sin(a) * 1.85, 0); tooth.rotation.z = a; gear.add(tooth); }
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.5, 8), toonMat({ color: 0x8ff5e8, emissive: 0x2bd9c0, emissiveIntensity: 0.5 })); hub.rotation.x = Math.PI / 2; gear.add(hub);
+        gear.position.y = 2.4; gear.castShadow = true; g.add(gear); spin = 0.5; g.userData.spinObj = gear;
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 2.4, 6), toonMat({ color: 0x4a5568 })); post.position.y = 1.0; post.castShadow = true; g.add(post);
+      } else if (theme === 'volcano') { // Ash core — a broken ember obelisk
+        const ob = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.7, 3.2, 5), toonMat({ color: 0x2a1714, emissive: 0xff5a2a, emissiveIntensity: 0.25 })); ob.position.y = 1.6; ob.castShadow = true; g.add(ob);
+        const tip = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), new THREE.MeshBasicMaterial({ color: 0xff7a3a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); tip.position.y = 3.4; g.add(tip); g.userData.glow = tip;
+      } else if (theme === 'snow') { // crystalline ice spire
+        const sp = new THREE.Mesh(new THREE.ConeGeometry(0.7, 3.4, 5), toonMat({ color: 0xcfe9ff, emissive: 0x6fa8d6, emissiveIntensity: 0.3 })); sp.position.y = 1.7; sp.castShadow = true; g.add(sp);
+        const c2 = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1.6, 5), toonMat({ color: 0xeaf6ff })); c2.position.set(0.5, 1.0, 0.2); c2.rotation.z = -0.3; g.add(c2);
+      } else if (theme === 'desert') { // weathered sandstone pillar
+        for (let i = 0; i < 3; i++) { const blk = new THREE.Mesh(new THREE.BoxGeometry(1.1 - i * 0.2, 1.0, 1.1 - i * 0.2), toonMat({ color: i % 2 ? 0xcaa96c : 0xd8b483 })); blk.position.y = 0.5 + i * 1.0; blk.rotation.y = i * 0.3; blk.castShadow = true; g.add(blk); }
+      } else { // grass/home → Mushroom moon: a giant glowing mushroom
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 2.4, 8), toonMat({ color: 0xf0e8d8 })); stem.position.y = 1.2; stem.castShadow = true; g.add(stem);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(1.6, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), toonMat({ color: 0xc56cff, emissive: 0x5a2a8a, emissiveIntensity: 0.35 })); cap.position.y = 2.4; cap.scale.y = 0.8; cap.castShadow = true; g.add(cap); g.userData.glow = cap;
+        for (let i = 0; i < 5; i++) { const dot = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xeac6ff })); const a = i / 5 * 6.28; dot.position.set(Math.cos(a) * 0.9, 2.7, Math.sin(a) * 0.9); g.add(dot); }
+      }
+      g.userData.spin = spin; return g;
+    }
     // bounce pad — a springy glowing mushroom that launches the player high
     function makePad() {
       const g = new THREE.Group();
@@ -614,7 +639,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       }
     }
     const _cc = new THREE.Color(), _ct = new THREE.Color();
-    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [], fragments = [], pads = [];
+    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [], fragments = [], pads = [], landmarks = [];
 
     // theme palettes per world type
     const THEMES = {
@@ -746,6 +771,9 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
           enemies.push({ g: bg, dir, fwd, t: rnd() * 6, pl, hp: 6, hitT: 0, boss: true }); orientOnSphere(bg, dir, walkR(dir)); group.add(bg);
           pl.hadEnemies = true; pl.liberated = false; }
       }
+      // signature biome landmark (one per world, away from the spawn pole)
+      { let dir = new THREE.Vector3(-0.2, 0.9, -0.3).normalize(); for (let k = 0; k < 40 && terrain(dir) < PR * 0.05; k++) dir = randDir();
+        if (terrain(dir) >= PR * 0.04) { const lm = makeLandmark(project.theme); orientOnSphere(lm, dir, walkR(dir)); group.add(lm); landmarks.push({ g: lm, pl, t: rnd() * 6, spin: lm.userData.spin, glow: lm.userData.glow, spinObj: lm.userData.spinObj }); } }
       // bounce pads (playful traversal) on some worlds
       const padN = rich ? 1 : (rnd() < 0.5 ? 1 : 0);
       for (let i = 0; i < padN; i++) {
@@ -830,6 +858,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].pl === p) enemies.splice(i, 1);
       for (let i = fragments.length - 1; i >= 0; i--) if (fragments[i].pl === p) fragments.splice(i, 1);
       for (let i = pads.length - 1; i >= 0; i--) if (pads[i].pl === p) pads.splice(i, 1);
+      for (let i = landmarks.length - 1; i >= 0; i--) if (landmarks[i].pl === p) landmarks.splice(i, 1);
       for (let i = windy.length - 1; i >= 0; i--) if (windy[i].pl === p) windy.splice(i, 1);
       for (let i = birds.length - 1; i >= 0; i--) if (birds[i].pl === p) { scene.remove(birds[i].mesh); birds.splice(i, 1); }
       const idx = planets.indexOf(p); if (idx >= 0) planets.splice(idx, 1);
@@ -1961,6 +1990,10 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       // bounce pads: squash recovery + ring spin
       for (const pad of pads) { if (!pad.pl.group.visible) continue; if (pad.t > 0) pad.t -= dt; const sq = pad.t > 0 ? pad.t / 0.3 : 0;
         const cap = pad.g.userData.cap; cap.scale.set(1 + sq * 0.3, 1 - sq * 0.5, 1 + sq * 0.3); }
+      // biome landmarks: spin gears, pulse glows
+      for (const lm of landmarks) { if (!lm.pl.group.visible) continue; lm.t += dt;
+        if (lm.spinObj) lm.spinObj.rotation.z += dt * lm.spin;
+        if (lm.glow) lm.glow.scale.setScalar(0.9 + 0.15 * Math.sin(lm.t * 2)); }
 
       let mv = 0;
       if (charging) {
