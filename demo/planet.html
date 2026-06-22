@@ -346,7 +346,7 @@ J / K — Angriff   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v88 · dash ability';
+    const BUILD = 'v89 · liberate worlds';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -716,13 +716,14 @@ J / K — Angriff   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   
         critters.push({ g: cr, dir, fwd, t: rnd() * 6, pl }); orientOnSphere(cr, dir, walkR(dir)); group.add(cr);
       }
       // enemies (not on the peaceful home hub)
-      const eN = rich ? 0 : (2 + ((rnd() * 2) | 0));
+      const eN = rich ? 0 : (2 + ((rnd() * 2) | 0)); let ePlaced = 0;
       for (let i = 0; i < eN; i++) {
         let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < PR * 0.04; k++) dir = randDir(); if (terrain(dir) < PR * 0.04) continue;
         const eg = makeEnemy(project.theme);
         const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0); fwd.normalize();
-        enemies.push({ g: eg, dir, fwd, t: rnd() * 6, pl, hp: 2, hitT: 0 }); orientOnSphere(eg, dir, walkR(dir)); group.add(eg);
+        enemies.push({ g: eg, dir, fwd, t: rnd() * 6, pl, hp: 2, hitT: 0 }); orientOnSphere(eg, dir, walkR(dir)); group.add(eg); ePlaced++;
       }
+      if (ePlaced > 0) { pl.hadEnemies = true; pl.liberated = false; }
       // birds (a small flock per world)
       addBirds(pl.center, PR, rich ? 10 : 4, pl);
       // parcels
@@ -1075,9 +1076,13 @@ J / K — Angriff   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   
       const pdir = tmp2.copy(player.position).sub(cur.center).normalize(); // knock the enemy away along the surface
       e.dir.addScaledVector(tmp3.copy(e.dir).sub(pdir), 0.12).normalize();
       e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)); if (e.fwd.lengthSq() < 1e-4) e.fwd.set(1, 0, 0); e.fwd.normalize();
-      if (e.hp <= 0) { burst(_ew, 0xffd166); shock(_ew, e.dir, 0xff8a5a); e.pl.group.remove(e.g); enemies.splice(i, 1); defeated++;
-        const fg = makeFragment(); const fd = e.dir.clone(); fg.position.copy(fd).multiplyScalar(e.pl.walkR(fd) + 0.7); e.pl.group.add(fg);
-        fragments.push({ g: fg, dir: fd, pl: e.pl, t: rnd() * 6 }); }
+      if (e.hp <= 0) { burst(_ew, 0xffd166); shock(_ew, e.dir, 0xff8a5a); const pl = e.pl; pl.group.remove(e.g); enemies.splice(i, 1); defeated++;
+        const fg = makeFragment(); const fd = e.dir.clone(); fg.position.copy(fd).multiplyScalar(pl.walkR(fd) + 0.7); pl.group.add(fg);
+        fragments.push({ g: fg, dir: fd, pl, t: rnd() * 6 });
+        if (pl.hadEnemies && !pl.liberated && !enemies.some((x) => x.pl === pl)) { // world cleared → reward
+          pl.liberated = true; toast('🕊️ Welt befreit! Eine Erinnerung erwacht …', 2600); fanfare(); popEmoji('🕊️'); shock(_ew, fd, 0xbfa8ff);
+          const bf = makeFragment(); bf.scale.setScalar(1.6); bf.position.copy(fd).multiplyScalar(pl.walkR(fd) + 1.1); pl.group.add(bf); fragments.push({ g: bf, dir: fd.clone(), pl, t: 0 }); }
+      }
     }
     function attack() {
       if (mode !== 'ground' || attackCd > 0) return;
@@ -1148,9 +1153,10 @@ J / K — Angriff   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   
     window.__dbg.aimAt = (v) => { forward.copy(v).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); };
     window.__dbg.setDay = (t) => { dayT = t; updateDayNight(); };
     window.__dbg.packets = () => dataPackets.length;
-    window.__dbg.combat = () => ({ enemies: enemies.length, onCur: enemies.filter((e) => e.pl === cur).length, defeated, hp, frags, fragsOnCur: fragments.filter((f) => f.pl === cur).length });
+    window.__dbg.combat = () => ({ enemies: enemies.length, onCur: enemies.filter((e) => e.pl === cur).length, defeated, hp, frags, fragsOnCur: fragments.filter((f) => f.pl === cur).length, curLiberated: !!cur.liberated, curHadEnemies: !!cur.hadEnemies });
     window.__dbg.hurt = () => { hurtT = 0; hurtPlayer(player.position.clone()); };
     window.__dbg.dash = () => { const p0 = player.position.clone(); dash(); return { dashT, dashCd }; };
+    window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
     window.__dbg.attack = () => attack();
     window.__dbg.attackDiag = () => { const r = []; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length(); to.normalize(); r.push({ d: +d.toFixed(2), dot: +to.dot(forward).toFixed(2), hp: e.hp }); } return { mode, attackCd: +attackCd.toFixed(2), fLen: +forward.length().toFixed(2), list: r }; };
     window.__dbg.fightNearest = () => { let best = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; } } if (!best) return false;
