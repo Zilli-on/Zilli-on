@@ -280,7 +280,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v43 · live GitHub galaxy';
+    const BUILD = 'v45 · living data-brain';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -703,7 +703,8 @@
     const linkMat = new THREE.LineBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false });
     const pulseGeo = new THREE.SphereGeometry(0.45, 8, 8);
     const pulseMat = new THREE.MeshBasicMaterial({ color: 0xb6ffe9, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
-    let linkSeg = null, pulses = [];
+    const pulseMatHot = new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.98, blending: THREE.AdditiveBlending, depthWrite: false }); // related worlds: warmer, busier traffic
+    let linkSeg = null, pulses = [], linkFlash = 0; // linkFlash: brief network-wide glow on delivery
     function rebuildLinks() {
       if (linkSeg) { scene.remove(linkSeg); linkSeg.geometry.dispose(); }
       for (const pu of pulses) scene.remove(pu.mesh); pulses = [];
@@ -713,7 +714,10 @@
         for (const q of others) {
           pts.push(p.center.x, p.center.y, p.center.z, q.center.x, q.center.y, q.center.z);
           const key = [planets.indexOf(p), planets.indexOf(q)].sort((a, b) => a - b).join('-');
-          if (!seen.has(key)) { seen.add(key); const m = new THREE.Mesh(pulseGeo, pulseMat); m.frustumCulled = false; scene.add(m); pulses.push({ a: p.center, b: q.center, mesh: m, off: rnd() }); }
+          if (!seen.has(key)) { seen.add(key);
+            const rel = p.project && q.project && p.project.theme === q.project.theme; // shared "language" => related projects
+            const m = new THREE.Mesh(pulseGeo, rel ? pulseMatHot : pulseMat); m.frustumCulled = false; if (rel) m.scale.setScalar(1.45); scene.add(m);
+            pulses.push({ a: p.center, b: q.center, mesh: m, off: rnd(), speed: rel ? 0.30 : 0.16 }); }
         }
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
@@ -1194,18 +1198,41 @@
     composer.addPass(new RenderPass(scene, camera));
     const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight).multiplyScalar(lowPerf ? 0.5 : 1), lowPerf ? 0.24 : 0.35, 0.4, 0.9);
     composer.addPass(bloom);
-    composer.addPass(new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, sat: { value: 1.14 }, darkness: { value: 1.15 } },
+    // god rays / volumetric light scattering toward the sun (disabled on low-perf)
+    const godPass = new ShaderPass({
+      uniforms: { tDiffuse: { value: null }, sunPos: { value: new THREE.Vector2(0.5, 0.5) }, intensity: { value: 0.0 } },
       vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-      fragmentShader: `uniform sampler2D tDiffuse; uniform float sat; uniform float darkness; varying vec2 vUv;
-        void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(0.299,0.587,0.114)); c.rgb = mix(vec3(l), c.rgb, sat);
-          vec2 uv = vUv - 0.5; float v = smoothstep(0.85, 0.25, dot(uv,uv)*darkness); c.rgb *= mix(0.74, 1.0, v); gl_FragColor = c; }`
-    }));
+      fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 sunPos; uniform float intensity; varying vec2 vUv;
+        void main(){ vec3 col = texture2D(tDiffuse, vUv).rgb;
+          if(intensity > 0.001){ vec2 uv = vUv; vec2 stp = (sunPos - vUv) * (1.0/24.0) * 0.92; float decay = 1.0; vec3 sum = vec3(0.0);
+            for(int i=0;i<24;i++){ uv += stp; vec3 s = texture2D(tDiffuse, uv).rgb; float b = max(0.0, dot(s, vec3(0.299,0.587,0.114)) - 0.72); sum += s * b * decay; decay *= 0.955; }
+            col += sum * intensity; }
+          gl_FragColor = vec4(col, 1.0); }`
+    });
+    if (!lowPerf) composer.addPass(godPass);
+    // cinematic grade: saturation, filmic contrast, teal/orange split-tone, chromatic aberration, grain, vignette
+    const gradePass = new ShaderPass({
+      uniforms: { tDiffuse: { value: null }, sat: { value: 1.16 }, time: { value: 0 } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+      fragmentShader: `uniform sampler2D tDiffuse; uniform float sat; uniform float time; varying vec2 vUv;
+        float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+        void main(){ vec2 d = vUv - 0.5; float r2 = dot(d,d);
+          float ca = 0.0016 + r2 * 0.01; // chromatic aberration grows toward edges
+          vec3 c; c.r = texture2D(tDiffuse, vUv + d*ca).r; c.g = texture2D(tDiffuse, vUv).g; c.b = texture2D(tDiffuse, vUv - d*ca).b;
+          float l = dot(c, vec3(0.299,0.587,0.114)); c = mix(vec3(l), c, sat);                 // saturation
+          c = clamp((c - 0.5) * 1.06 + 0.5, 0.0, 1.0);                                          // gentle contrast
+          c += (vec3(0.02,0.05,0.06)) * (1.0 - l) - (vec3(0.04,0.02,0.0)) * (l - 0.5);          // teal shadows / warm highlights
+          float v = smoothstep(0.9, 0.28, r2 * 1.15); c *= mix(0.72, 1.0, v);                   // vignette
+          c += (hash(vUv * vec2(1920.0,1080.0) + time) - 0.5) * 0.035;                          // film grain
+          gl_FragColor = vec4(c, 1.0); }`
+    });
+    composer.addPass(gradePass);
     composer.addPass(new OutputPass());
 
     // ---------- Loop ----------
     const G = 18, tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3(), clock = new THREE.Clock();
     const _qA = new THREE.Quaternion(), _vx = new THREE.Vector3(1, 0, 0);
+    const _sunW = new THREE.Vector3(), _sunP = new THREE.Vector3(); // sun world/screen projection for god rays
     // shooting stars (night only)
     const shootSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: sparkTex, color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
     shootSprite.scale.set(0, 0, 1); scene.add(shootSprite);
@@ -1224,7 +1251,7 @@
     // adaptive quality: drop bloom + pixel ratio if the frame rate stays low
     let fpsT = 0, fpsN = 0, qual = 2;
     function degrade() {
-      if (qual === 2) { bloom.enabled = false; renderer.setPixelRatio(1); composer.setPixelRatio(1); composer.setSize(innerWidth, innerHeight); qual = 1; toast('⚙️ Grafik für flüssiges Spiel angepasst', 1800); }
+      if (qual === 2) { bloom.enabled = false; godPass.enabled = false; renderer.setPixelRatio(1); composer.setPixelRatio(1); composer.setSize(innerWidth, innerHeight); qual = 1; toast('⚙️ Grafik für flüssiges Spiel angepasst', 1800); }
     }
     window.__dbg.q = () => ({ qual, bloom: bloom.enabled });
     window.__dbg.gh = () => ({ live: GH_LIVE, count: PROJECTS.length, names: PROJECTS.slice(0, 6).map((p) => p.name) });
@@ -1239,8 +1266,9 @@
       updateShoot(dt);
       // Minecraft-style culling: only keep nearby worlds drawn & updated
       for (const p of planets) { const vis = player.position.distanceTo(p.center) < 150; if (p.group.visible !== vis) p.group.visible = vis; }
-      linkMat.opacity = 0.22 + 0.13 * Math.sin(oceanUniforms.time.value * 1.5); // synapse glow
-      for (const pu of pulses) { const fr = (oceanUniforms.time.value * 0.18 + pu.off) % 1; pu.mesh.position.lerpVectors(pu.a, pu.b, fr); }
+      if (linkFlash > 0) linkFlash = Math.max(0, linkFlash - dt * 1.6); // decay the delivery flash
+      linkMat.opacity = 0.22 + 0.13 * Math.sin(oceanUniforms.time.value * 1.5) + linkFlash * 0.5; // synapse glow + delivery surge
+      for (const pu of pulses) { const fr = (oceanUniforms.time.value * (pu.speed || 0.18) + pu.off) % 1; pu.mesh.position.lerpVectors(pu.a, pu.b, fr); }
       // per-theme ambient FX (only for nearby worlds)
       for (const p of planets) {
         if (!p.group.visible || !p.fx) continue; const fx = p.fx;
@@ -1273,7 +1301,7 @@
           popEl.textContent = '+' + n + ' 📦' + (combo > 1 ? '   Combo x' + combo : '');
           popEl.classList.remove('show'); void popEl.offsetWidth; popEl.classList.add('show');
           if (delivered % 10 === 0) toast('🎉 ' + delivered + ' geliefert!', 1600);
-          burst(o.worldPos, 0xffd166);
+          burst(o.worldPos, 0xffd166); linkFlash = 1; // a delivered packet ripples through the data-brain network
         }
       }
       // flight trail fade
@@ -1446,6 +1474,18 @@
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
       if (cardTimer > 0) { cardTimer -= dt; if (cardTimer <= 0) cardEl.classList.remove('on'); }
       if (comboT > 0) comboT -= dt;
+      // ---- drive cinematic passes ----
+      gradePass.uniforms.time.value = oceanUniforms.time.value; // animated film grain
+      if (!lowPerf) {
+        // project a point far along the sun's direction into screen space for the god-ray origin
+        _sunW.copy(camera.position).addScaledVector(sunDir, 900);
+        _sunP.copy(_sunW).project(camera);
+        const onScreen = _sunP.z < 1 && Math.abs(_sunP.x) < 1.25 && Math.abs(_sunP.y) < 1.25;
+        godPass.uniforms.sunPos.value.set(_sunP.x * 0.5 + 0.5, _sunP.y * 0.5 + 0.5);
+        // rays only when the sun is in front of the camera, on-screen and it's daytime (few stars)
+        const want = (onScreen && starMat.opacity < 0.5) ? 0.5 : 0.0;
+        godPass.uniforms.intensity.value += (want - godPass.uniforms.intensity.value) * Math.min(1, dt * 4);
+      }
       composer.render();
     }
     animate();
