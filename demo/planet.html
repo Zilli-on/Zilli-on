@@ -349,7 +349,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v91 · wind gust';
+    const BUILD = 'v92 · combat feel';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1105,9 +1105,12 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     function attack() {
       if (mode !== 'ground' || attackCd > 0) return;
       attackCd = 0.42; attackT = 0.28; swing();
+      // aim-assist: snap to face the nearest foe in reach so the swing connects (Zelda-like)
+      { let bx = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (d < 3.6 && d < bd) { bd = d; bx = _ew.clone(); } }
+        if (bx) { forward.copy(bx).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() > 1e-4) forward.normalize(); } }
       for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.pl !== cur) continue;
         _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length();
-        if (d > 3.3) continue; to.normalize(); if (to.dot(forward) < 0.25) continue; // within range + front arc
+        if (d > 3.4) continue; to.normalize(); if (to.dot(forward) < 0.2) continue; // within range + front arc
         hitEnemy(e, i);
       }
     }
@@ -1911,13 +1914,15 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         if (!e.pl.group.visible) continue;
         e.t += dt; if (e.hitT > 0) e.hitT -= dt;
         let chasing = false;
-        if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); if (pdir.dot(e.dir) > 0.86) { // player within ~30° on the surface → chase
-            e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) { e.fwd.normalize(); chasing = true; } } }
-        if (!chasing) e.fwd.applyAxisAngle(e.dir, Math.sin(e.t * 0.5) * 0.8 * dt);
-        const sp = chasing ? (e.boss ? 1.1 : 1.7) : 0.7; e.dir.addScaledVector(e.fwd, sp * dt).normalize();
-        e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
-        if (e.pl.terrain(e.dir) < e.pl.R * 0.02) { e.fwd.applyAxisAngle(e.dir, Math.PI * 0.8); e.dir.addScaledVector(e.fwd, 1.4 * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize(); }
-        const bob = Math.abs(Math.sin(e.t * 3)) * 0.18;
+        if (e.hitT <= 0) { // staggered foes hold still (readable combat); otherwise wander/chase
+          if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); if (pdir.dot(e.dir) > 0.86) { // player within ~30° on the surface → chase
+              e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) { e.fwd.normalize(); chasing = true; } } }
+          if (!chasing) e.fwd.applyAxisAngle(e.dir, Math.sin(e.t * 0.5) * 0.8 * dt);
+          const sp = chasing ? (e.boss ? 1.1 : 1.7) : 0.7; e.dir.addScaledVector(e.fwd, sp * dt).normalize();
+          e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
+          if (e.pl.terrain(e.dir) < e.pl.R * 0.02) { e.fwd.applyAxisAngle(e.dir, Math.PI * 0.8); e.dir.addScaledVector(e.fwd, 1.4 * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize(); }
+        }
+        const bob = e.hitT > 0 ? 0 : Math.abs(Math.sin(e.t * 3)) * 0.18;
         e.g.position.copy(e.dir).multiplyScalar(e.pl.walkR(e.dir) + 0.2 + bob);
         _up.copy(e.dir); _r.crossVectors(_up, e.fwd).normalize(); _m.makeBasis(_r, _up, e.fwd); e.g.quaternion.setFromRotationMatrix(_m);
         e.g.children[0].rotation.y += dt * 2; // spin the body
