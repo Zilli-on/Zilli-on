@@ -323,7 +323,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v72 · galaxy menu';
+    const BUILD = 'v73 · review fixes';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -755,7 +755,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     }
     function nearestPlanet(point) { let best = planets[0], bd = Infinity; for (const p of planets) { const d = point.distanceTo(p.center) - p.R; if (d < bd) { bd = d; best = p; } } return best; }
     const MAXP = 16;
-    function cullFar() { while (planets.length > MAXP) { let far = -1, fd = -1; for (let i = 0; i < planets.length; i++) { if (planets[i] === cur) continue; const d = planets[i].center.distanceTo(player.position); if (d > fd) { fd = d; far = i; } } if (far < 0) break; removePlanet(planets[far]); } }
+    function cullFar() { while (planets.length > MAXP) { let far = -1, fd = -1; for (let i = 0; i < planets.length; i++) { if (planets[i] === cur || planets[i] === HOME) continue; const d = planets[i].center.distanceTo(player.position); if (d > fd) { fd = d; far = i; } } if (far < 0) break; removePlanet(planets[far]); } } // never cull home or the current world
     function maybeExpand() {
       let near = 0; for (const p of planets) if (p !== cur && p.center.distanceTo(cur.center) < 75) near++;
       while (near < 3 && planets.length < MAXP) { if (spawnNeighbor(cur.center)) near++; else break; }
@@ -1019,7 +1019,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     let cinematic = false, cineA = 0, pitchEff = 1.48, paused = false;
     const canvas = renderer.domElement;
     canvas.addEventListener('mousedown', (e) => { mouseDown = true; lastX = e.clientX; lastY = e.clientY; });
-    addEventListener('mousemove', (e) => { if (!mouseDown) return; dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.55, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
+    addEventListener('mousemove', (e) => { if (!mouseDown) return; lastInput = performance.now(); dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.55, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
     addEventListener('mouseup', () => { mouseDown = false; });
 
     // ---------- Touch ----------
@@ -1063,7 +1063,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
 
     let lookId = null;
     canvas.addEventListener('touchstart', (e) => { if (!started) return; const t = e.changedTouches[0]; if (lookId === null) { lookId = t.identifier; lastX = t.clientX; lastY = t.clientY; } }, { passive: false });
-    canvas.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) { dragTurn += (t.clientX - lastX) * 0.006; camPitch = Math.max(-0.1, Math.min(1.55, camPitch + (t.clientY - lastY) * 0.005)); lastX = t.clientX; lastY = t.clientY; e.preventDefault(); } }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) { lastInput = performance.now(); dragTurn += (t.clientX - lastX) * 0.006; camPitch = Math.max(-0.1, Math.min(1.55, camPitch + (t.clientY - lastY) * 0.005)); lastX = t.clientX; lastY = t.clientY; e.preventDefault(); } }, { passive: false });
     const lookEnd = (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) lookId = null; };
     canvas.addEventListener('touchend', lookEnd); canvas.addEventListener('touchcancel', lookEnd);
 
@@ -1093,7 +1093,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       steps.forEach((s, i) => setTimeout(() => { if (started) toast(s, 3600); }, 1200 + i * 4000));
     }
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
-    { const sc = parseInt(localStorage.getItem('tp_score') || '0', 10), cb = parseInt(localStorage.getItem('tp_combo') || '0', 10), wo = parseInt(localStorage.getItem('tp_worlds') || '0', 10);
+    { const sc = parseInt(localStorage.getItem('tp_score'), 10) || 0, cb = parseInt(localStorage.getItem('tp_combo'), 10) || 0, wo = parseInt(localStorage.getItem('tp_worlds'), 10) || 0;
       let txt = ''; if (sc || cb || wo) txt = '🏆 Rekorde: ' + sc + ' Pakete · Combo x' + cb + ' · ' + wo + ' Welten';
       if (localStorage.getItem('tp_mission')) txt += (txt ? ' · ' : '') + '🧠 Datenhirn reaktiviert ✓';
       if (txt) document.getElementById('bestLine').textContent = txt; }
@@ -1103,7 +1103,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     function visitWorld(p) {
       const isNew = !worldsRun.has(p.project.name);
       worldsRun.add(p.project.name);
-      const mx = Math.max(worldsRun.size, parseInt(localStorage.getItem('tp_worlds') || '0', 10)); localStorage.setItem('tp_worlds', String(mx));
+      const mx = Math.max(worldsRun.size, parseInt(localStorage.getItem('tp_worlds'), 10) || 0); localStorage.setItem('tp_worlds', String(mx));
       if (isNew && started && worldsRun.size > 1) { // a brand-new node joins the network
         toast('🔗 Knoten verbunden: ' + p.project.name, 1800); linkFlash = 1; shock(player.position, up, 0x8ff5e8); connectSound();
       }
@@ -1575,9 +1575,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         if (carrying > 0 && o.worldPos.distanceTo(player.position) < 2.4) {
           const n = carrying; combo = comboT > 0 ? combo + 1 : 1; comboT = 5;
           delivered += n; carrying = 0; carryEl.textContent = '0'; cntEl.textContent = String(delivered);
-          const best = parseInt(localStorage.getItem('tp_score') || '0', 10);
+          const best = parseInt(localStorage.getItem('tp_score'), 10) || 0;
           if (delivered > best) localStorage.setItem('tp_score', String(delivered));
-          if (combo > parseInt(localStorage.getItem('tp_combo') || '0', 10)) localStorage.setItem('tp_combo', String(combo));
+          if (combo > (parseInt(localStorage.getItem('tp_combo'), 10) || 0)) localStorage.setItem('tp_combo', String(combo));
           chime(delivered % 10 === 0);
           popEl.textContent = '+' + n + ' 📦' + (combo > 1 ? '   Combo x' + combo : '');
           popEl.classList.remove('show'); void popEl.offsetWidth; popEl.classList.add('show');
@@ -1610,7 +1610,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         updateAchievements({ delivered, worlds: worldsRun.size, combo });
       }
       // showreel auto-travel through worlds
-      if (auto) { autoT -= dt; if (autoT <= 0) { autoT = 6; const others = planets.filter((p) => p !== cur); if (others.length) travelTo(others[(Math.random() * others.length) | 0]); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); } }
+      if (auto && !finished) { autoT -= dt; if (autoT <= 0) { autoT = 6; const others = planets.filter((p) => p !== cur); if (others.length) travelTo(others[(Math.random() * others.length) | 0]); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); } }
       // AFK auto-showreel: after ~30s of no input (wall-clock), drift into the cinematic tour
       if (started && !auto && !cinematic && !paused && !finished && !mapOpen && !projOpen) {
         const active = mode === 'air' || keys.f || keys.b || keys.l || keys.r || keys.sprint || charging || touchMove.x || touchMove.y || touchSprint;
