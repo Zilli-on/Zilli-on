@@ -21,7 +21,8 @@ Building **local-first developer tools** for AI assistants.
   - 📖 **Story / quest layer**: the data-brain has gone dormant — as a data courier you reactivate its synapses through a 5-stage mission (first delivery → wake a node → data stream → weave the network → awaken the brain), tracked in a live HUD panel, building to a celebratory finale; then keep exploring the endless galaxy
   - 🏅 **Progression that sticks**: persistent best scores plus unlockable achievements (Combo-Meister, Entdecker, Kurier, Daten-Logistiker) and a "data-brain reactivated" badge, all shown on the start menu
   - 🎬 **Showreel** + **attract mode** (auto-fly after ~30s idle, ideal as a kiosk) and 📷 **photo mode** (C) with cinematic letterbox framing for clean shots; in-game help overlay (`H` / ❔); first-time onboarding; dynamic top-down camera that tilts while aiming a jump
-  - 💎 Glassmorphic UI (Outfit / Space Grotesk); works on desktop **and** phone. Controls: `W/S` walk · `A/D` turn · `Shift` run · **hold `Space`** planet-jump · `M` map · `E` project · `C` photo · `H` help
+  - 😄 Avatar **emoji expressions** (press `F` / on-screen button; auto-pops on deliveries & landings) — a charm nod to `messenger.abeto.co`; plus a polished loading screen
+  - 💎 Glassmorphic UI (Outfit / Space Grotesk); works on desktop **and** phone. Controls: `W/S` walk · `A/D` turn · `Shift` run · **hold `Space`** planet-jump · `M` map · `E` project · `C` photo · `F` emoji · `H` help
 - **[Walkable 3D World](demo/index.html)** — a first-person tech-city you can walk around. `WASD` move · mouse look · `Shift` sprint · `Space` jump, plus touch controls on mobile.
 
 Both are single self-contained HTML files (Three.js via CDN) — open them locally, or use a render link since GitHub shows `.html` as source rather than running it.
