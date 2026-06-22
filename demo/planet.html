@@ -349,7 +349,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v99 · enemy telegraph';
+    const BUILD = 'v100 · telegraph flash';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -554,6 +554,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     const enemyEyeMat = new THREE.MeshBasicMaterial({ color: 0xff5a5a });
     const enemyHitMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const bossEyeMat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
+    const enemyWarnMat = new THREE.MeshBasicMaterial({ color: 0xfff2a8 }); // bright wind-up flash — telegraphs an incoming hit
     function makeEnemy(theme, boss) {
       const g = new THREE.Group();
       const tint = boss ? 0x241226 : theme === 'tech' ? 0x3a4a64 : theme === 'volcano' ? 0x3a201c : theme === 'snow' ? 0x3a4658 : theme === 'desert' ? 0x5a4632 : 0x33324a;
@@ -2024,7 +2025,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         _up.copy(e.dir); _r.crossVectors(_up, e.fwd).normalize(); _m.makeBasis(_r, _up, e.fwd); e.g.quaternion.setFromRotationMatrix(_m);
         e.g.children[0].rotation.y += dt * 2; // spin the body
         if (e.g.userData.ring) e.g.userData.ring.rotation.z += dt * 1.6;
-        if (e.g.userData.eye) e.g.userData.eye.material = e.hitT > 0 ? enemyHitMat : (e.boss ? bossEyeMat : enemyEyeMat);
+        if (e.g.userData.eye) e.g.userData.eye.material = e.hitT > 0 ? enemyHitMat : (e.warn > 0.5 ? enemyWarnMat : (e.boss ? bossEyeMat : enemyEyeMat));
         if (e.pl === cur && mode === 'ground' && hurtT <= 0 && e.hitT <= 0) { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 1.55) hurtPlayer(_ew); }
       }
       // memory fragments: bob/spin, and collect on touch
