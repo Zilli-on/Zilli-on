@@ -82,6 +82,7 @@
     }
     #hud { display: none; } #hud.on { display: flex; }
     #hud b { color: var(--teal); font-variant-numeric: tabular-nums; }
+    #hud b.hp { color: #ff6b81; letter-spacing: 1px; }
     #quest {
       position: fixed; left: 14px; top: 104px; z-index: 5; max-width: 250px; pointer-events: none;
       padding: 9px 14px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--stroke);
@@ -241,7 +242,7 @@
 <body>
   <div id="loader"><div class="ring"></div><div class="lt">Tiny <span>Planet</span></div><div class="ls">Lade Galaxie …</div></div>
   <div id="cinebarTop" class="cinebar"></div><div id="cinebarBot" class="cinebar"></div>
-  <div id="hud">📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
+  <div id="hud"><b id="hearts" class="hp">❤❤❤❤❤</b> · 📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
   <div id="quest"><div class="qh">🧠 Mission</div><div class="qt" id="questTitle">…</div><div class="qp" id="questProg"></div></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
   <button id="mapBtn">🧠 Karte</button>
@@ -341,7 +342,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v85 · combat core';
+    const BUILD = 'v86 · player health';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -976,6 +977,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     let mode = 'ground'; const vel = new THREE.Vector3(), airPos = new THREE.Vector3();
     let charging = false, charge = 0, airArmed = false, launchPlanet = null, airTime = 0;
     let attackT = 0, attackCd = 0; // melee swing timer + cooldown
+    let hp = 5; const maxHp = 5; let hurtT = 0; // player health + invulnerability window
     const up = new THREE.Vector3();
     function refreshFrame() {
       up.copy(pos).normalize();
@@ -1026,6 +1028,8 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
         hero.legL.rotation.x = sw; hero.legR.rotation.x = -sw;
         hero.armL.rotation.x = -sw * 0.85; hero.armR.rotation.x = sw * 0.85;
       }
+      // invulnerability blink after taking a hit
+      if (hurtT > 0) { hurtT -= dt; avatar.visible = Math.floor(hurtT * 14) % 2 === 0; } else if (!avatar.visible) avatar.visible = true;
       // melee: swing arms forward + flash the slash arc
       if (attackCd > 0) attackCd -= dt;
       if (attackT > 0) { attackT -= dt; const k = Math.max(0, attackT / 0.28); const sweep = -2.2 + (1 - k) * 3.2;
@@ -1072,6 +1076,21 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
         hitEnemy(e, i);
       }
     }
+    const heartsEl = document.getElementById('hearts');
+    function renderHearts() { heartsEl.textContent = '❤'.repeat(Math.max(0, hp)) + '♡'.repeat(Math.max(0, maxHp - hp)); }
+    function hurtPlayer(fromPos) {
+      if (hurtT > 0 || mode !== 'ground' || !started || finished) return;
+      hp -= 1; hurtT = 1.0; renderHearts(); shake = 0.42; hurtSound(); burst(player.position, 0xff6b81);
+      const away = tmp.copy(pos).sub(tmp2.copy(fromPos).sub(cur.center)); away.addScaledVector(up, -away.dot(up)); // knock back along the surface
+      if (away.lengthSq() > 1e-4) { away.normalize(); pos.addScaledVector(away, 1.6); const d = tmp3.copy(pos).normalize(); pos.copy(d).multiplyScalar(cur.walkR(d)); refreshFrame(); }
+      combo = 0; comboT = 0;
+      if (hp <= 0) respawnPlayer();
+    }
+    renderHearts();
+    function respawnPlayer() {
+      hp = maxHp; hurtT = 1.8; renderHearts(); toast('🌀 Erwischt! Zurück zum sicheren Punkt', 1900); popEmoji('💫');
+      const d = landingDir(cur); pos.copy(d).multiplyScalar(cur.walkR(d)); height = 0; vUp = 0; refreshFrame(); placePlayer(); shock(player.position, up, 0xff6b81);
+    }
     // start charging a galaxy-jump (hold), or release it (tap = small hop, hold = leap into space)
     function startCharge() { if (mode === 'ground' && height === 0) { charging = true; charge = 0; } }
     function releaseCharge() {
@@ -1097,7 +1116,8 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     window.__dbg.aimAt = (v) => { forward.copy(v).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); };
     window.__dbg.setDay = (t) => { dayT = t; updateDayNight(); };
     window.__dbg.packets = () => dataPackets.length;
-    window.__dbg.combat = () => ({ enemies: enemies.length, onCur: enemies.filter((e) => e.pl === cur).length, defeated });
+    window.__dbg.combat = () => ({ enemies: enemies.length, onCur: enemies.filter((e) => e.pl === cur).length, defeated, hp });
+    window.__dbg.hurt = () => { hurtT = 0; hurtPlayer(player.position.clone()); };
     window.__dbg.attack = () => attack();
     window.__dbg.attackDiag = () => { const r = []; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length(); to.normalize(); r.push({ d: +d.toFixed(2), dot: +to.dot(forward).toFixed(2), hp: e.hp }); } return { mode, attackCd: +attackCd.toFixed(2), fLen: +forward.length().toFixed(2), list: r }; };
     window.__dbg.fightNearest = () => { let best = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; } } if (!best) return false;
@@ -1567,6 +1587,12 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
       [320, 480].forEach((f, i) => { const o = ctx.createOscillator(); o.type = i ? 'square' : 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.5, t + 0.12);
         const g = ctx.createGain(); g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.16); o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.18); });
     }
+    function hurtSound() { // player takes a hit
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(70, t + 0.22);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+      o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.28);
+    }
     function connectSound() { // a gentle rising blip when a new node joins the network
       if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
       [523, 784].forEach((f, i) => { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
@@ -1823,6 +1849,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
         _up.copy(e.dir); _r.crossVectors(_up, e.fwd).normalize(); _m.makeBasis(_r, _up, e.fwd); e.g.quaternion.setFromRotationMatrix(_m);
         e.g.children[0].rotation.y += dt * 2; // spin the body
         if (e.g.userData.eye) e.g.userData.eye.material = e.hitT > 0 ? enemyHitMat : enemyEyeMat;
+        if (e.pl === cur && mode === 'ground' && hurtT <= 0 && e.hitT <= 0) { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 1.55) hurtPlayer(_ew); }
       }
 
       let mv = 0;
@@ -1864,6 +1891,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
         if (airArmed && airPos.distanceTo(np.center) <= np.R + 2.5) { // entered a world's pull -> land
           cur = np; pos.copy(up).multiplyScalar(cur.R); refreshFrame();
           mode = 'ground'; height = 0; vUp = 0; vel.set(0, 0, 0); canJump = true;
+          hp = maxHp; hurtT = 0; renderHearts(); // fresh health on each new world
           burst(player.position, 0xffffff); shock(player.position, up, 0xffffff); shake = 0.32; toast(cur.rich ? 'Zuhause! 🏠' : 'Neuer Planet! 🪐', 1400); popEmoji(cur.rich ? '🏠' : '👋');
           showCard(cur.project); landSound(); setSky(cur.project.theme); visitWorld(cur);
           maybeExpand();
