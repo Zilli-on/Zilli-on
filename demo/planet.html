@@ -88,7 +88,7 @@
     .badge a { color: var(--teal); text-decoration: none; font-weight: 700; }
 
     /* ---------- round control buttons (glass) ---------- */
-    #muteBtn, #mapBtn {
+    #muteBtn, #mapBtn, #cineBtn, #setBtn {
       position: fixed; z-index: 6; cursor: pointer; color: var(--teal); font-weight: 800;
       background: var(--panel-2); border: 1px solid var(--stroke); border-radius: 12px;
       box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -146,9 +146,12 @@
       font-size: 13px; font-weight: 700; color: var(--ink); background: var(--panel-2); border: 1px solid var(--stroke); padding: 6px 12px; border-radius: 10px; box-shadow: var(--shadow); }
     #projHint.on { display: block; }
     #projHint b { color: var(--teal); }
-    #proj { position: fixed; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center; padding: 22px;
+    #proj, #settings { position: fixed; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center; padding: 22px;
       background: radial-gradient(120% 90% at 50% 0%, rgba(8,30,38,0.6), rgba(4,14,20,0.82)); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
-    #proj.on { display: flex; }
+    #proj.on, #settings.on { display: flex; }
+    #setBtn { right: 98px; top: 56px; padding: 7px 11px; font-size: 16px; line-height: 1; display: none; }
+    #setBtn.on { display: block; }
+    body.cine #setBtn { display: none !important; }
     .proj-card { max-width: 520px; width: 100%; padding: 26px 28px; border-radius: 22px; background: rgba(255,255,255,0.7); border: 1px solid var(--stroke);
       box-shadow: 0 30px 80px rgba(8,40,45,0.4), inset 0 1px 0 rgba(255,255,255,0.7); backdrop-filter: blur(16px) saturate(1.3); -webkit-backdrop-filter: blur(16px) saturate(1.3);
       animation: cardIn .45s cubic-bezier(.2,.9,.3,1.3) both; }
@@ -197,6 +200,13 @@
   <button id="muteBtn" title="Ton an/aus">🔊</button>
   <button id="mapBtn">🧠 Karte</button>
   <button id="cineBtn" title="Foto-Modus (C)">📷</button>
+  <button id="setBtn" title="Einstellungen (P)">⚙</button>
+  <div id="settings"><div class="proj-card">
+    <div class="pn">⚙ Einstellungen</div>
+    <div class="prow"><button class="cl" id="setMusic">🔊 Musik: an</button><button class="cl" id="setFx">✨ Effekte: an</button></div>
+    <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto-Modus</div>
+    <div class="prow"><button class="gh" id="setResume">▶ Weiter spielen</button><button class="cl" id="setRestart">↻ Neu starten</button></div>
+  </div></div>
   <div id="reelHint">🎬 Showreel · Klick oder Taste = selbst steuern</div>
   <div id="mapView">
     <h3>🧠 Projekt-Galaxie</h3>
@@ -270,7 +280,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v41 · adaptive quality';
+    const BUILD = 'v42 · settings + pause';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -855,7 +865,7 @@
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = false; break; case 'Space': releaseCharge(); break; } });
 
     let camPitch = 1.48, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
-    let cinematic = false, cineA = 0, pitchEff = 1.48;
+    let cinematic = false, cineA = 0, pitchEff = 1.48, paused = false;
     const canvas = renderer.domElement;
     canvas.addEventListener('mousedown', (e) => { mouseDown = true; lastX = e.clientX; lastY = e.clientY; });
     addEventListener('mousemove', (e) => { if (!mouseDown) return; dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.55, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
@@ -870,7 +880,7 @@
     function startGame(showreel) {
       if (playBtn.disabled || started) return;
       started = true; overlay.classList.add('hidden');
-      compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); cineBtn.classList.add('on');
+      compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); cineBtn.classList.add('on'); setBtn.classList.add('on');
       if (isTouch) touchUI.classList.add('on');
       initAudio(); showCard(cur.project); visitWorld(cur);
       if (showreel) { auto = true; autoT = 4; autoStart = performance.now(); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); }
@@ -1062,10 +1072,21 @@
     document.getElementById('projClose').addEventListener('click', closeProj);
     projEl.addEventListener('click', (e) => { if (e.target === projEl) closeProj(); });
     document.getElementById('card').addEventListener('click', (e) => { if (e.target.id !== 'cardLink') openProj(); }); // tap card to open (mobile)
-    addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') { projOpen ? closeProj() : openProj(); } else if (e.code === 'KeyC') { toggleCine(); } else if (e.code === 'Escape') { closeProj(); closeMap(); if (cinematic) toggleCine(); } });
+    addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') { projOpen ? closeProj() : openProj(); } else if (e.code === 'KeyC') { toggleCine(); } else if (e.code === 'Escape') { closeProj(); closeMap(); closeSettings(); if (cinematic) toggleCine(); } });
     const cineBtn = document.getElementById('cineBtn');
     function toggleCine() { if (!started) return; cinematic = !cinematic; document.body.classList.toggle('cine', cinematic); }
     cineBtn.addEventListener('click', toggleCine);
+    // ---------- settings / pause ----------
+    const settingsEl = document.getElementById('settings'), setBtn = document.getElementById('setBtn');
+    const setMusicBtn = document.getElementById('setMusic'), setFxBtn = document.getElementById('setFx');
+    function openSettings() { if (!started) return; paused = true; settingsEl.classList.add('on'); setMusicBtn.textContent = muted ? '🔇 Musik: aus' : '🔊 Musik: an'; setFxBtn.textContent = bloom.enabled ? '✨ Effekte: an' : '✨ Effekte: aus'; if (audio && audio.ctx.suspend) audio.ctx.suspend(); }
+    function closeSettings() { paused = false; settingsEl.classList.remove('on'); if (audio && !muted && audio.ctx.resume) audio.ctx.resume(); }
+    setBtn.addEventListener('click', openSettings);
+    document.getElementById('setResume').addEventListener('click', closeSettings);
+    document.getElementById('setRestart').addEventListener('click', () => location.reload());
+    setMusicBtn.addEventListener('click', () => { muted = !muted; muteBtn.textContent = muted ? '🔇' : '🔊'; setMusicBtn.textContent = muted ? '🔇 Musik: aus' : '🔊 Musik: an'; if (audio) audio.master.gain.linearRampToValueAtTime(muted ? 0 : 0.5, audio.ctx.currentTime + 0.2); });
+    setFxBtn.addEventListener('click', () => { bloom.enabled = !bloom.enabled; setFxBtn.textContent = bloom.enabled ? '✨ Effekte: an' : '✨ Effekte: aus'; });
+    addEventListener('keydown', (e) => { if (started && e.code === 'KeyP') { settingsEl.classList.contains('on') ? closeSettings() : openSettings(); } });
 
     // ---------- Procedural ambient audio (WebAudio, no files) ----------
     let audio = null, muted = false;
@@ -1190,7 +1211,8 @@
 
     function animate() {
       requestAnimationFrame(animate);
-      const dt = Math.min(clock.getDelta(), 0.05);
+      let dt = Math.min(clock.getDelta(), 0.05);
+      if (paused) dt = 0; // settings/pause freezes the simulation
       if (started && elapsed > 3) { fpsT += dt; fpsN++; if (fpsT >= 2) { if (fpsN / fpsT < 38 && qual === 2) degrade(); fpsT = 0; fpsN = 0; } }
       oceanUniforms.time.value += dt;
       dayT = (dayT + dt / 150) % 1; updateDayNight(); // ~2.5 min full day
