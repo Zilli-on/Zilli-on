@@ -349,7 +349,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v98 · combat juice';
+    const BUILD = 'v99 · enemy telegraph';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -2014,8 +2014,13 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
           e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
           if (e.pl.terrain(e.dir) < e.pl.R * 0.02) { e.fwd.applyAxisAngle(e.dir, Math.PI * 0.8); e.dir.addScaledVector(e.fwd, 1.4 * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize(); }
         }
-        const bob = e.hitT > 0 ? 0 : Math.abs(Math.sin(e.t * 3)) * 0.18;
+        // fair telegraph: a chasing foe "winds up" (puffs + jitters) just before it can land a touch-hit, so the dodge-dash has a readable window
+        let wt = 0;
+        if (e.hitT <= 0 && chasing && e.pl === cur && mode === 'ground') { _ew.copy(cur.center).add(e.g.position); const dp = _ew.distanceTo(player.position); if (dp < 2.6 && dp > 1.35) wt = 1; }
+        e.warn = (e.warn || 0) + (wt - (e.warn || 0)) * Math.min(1, dt * 8);
+        const bob = e.hitT > 0 ? 0 : Math.abs(Math.sin(e.t * 3)) * 0.18 + e.warn * (0.1 + Math.abs(Math.sin(e.t * 15)) * 0.14);
         e.g.position.copy(e.dir).multiplyScalar(e.pl.walkR(e.dir) + 0.2 + bob);
+        e.g.scale.setScalar(1 + e.warn * 0.22);
         _up.copy(e.dir); _r.crossVectors(_up, e.fwd).normalize(); _m.makeBasis(_r, _up, e.fwd); e.g.quaternion.setFromRotationMatrix(_m);
         e.g.children[0].rotation.y += dt * 2; // spin the body
         if (e.g.userData.ring) e.g.userData.ring.rotation.z += dt * 1.6;
