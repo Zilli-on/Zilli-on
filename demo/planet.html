@@ -317,7 +317,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v58 · mobile help button';
+    const BUILD = 'v59 · readme stream';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1260,10 +1260,21 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     const cleanMd = (t) => t.replace(/```[\s\S]*?```/g, '').replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
       .replace(/^#{1,6}\s*/gm, '').replace(/^\s*[-*]\s+/gm, '• ').replace(/[`*_>~|]/g, '').replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim();
     function rawUrl(u) { const m = u.match(/github\.com\/([^/]+)\/([^/]+)/); return m ? `https://raw.githubusercontent.com/${m[1]}/${m[2]}/BRANCH/README.md` : null; }
+    let streamTimer = null;
+    function streamText(text, token) { // reveal the README in chunks — "live data streaming in"
+      if (streamTimer) { clearInterval(streamTimer); streamTimer = null; }
+      let i = 0; const step = Math.max(8, Math.ceil(text.length / 90)); projBody.textContent = '';
+      streamTimer = setInterval(() => {
+        if (!projOpen || token !== projToken) { clearInterval(streamTimer); streamTimer = null; return; }
+        i = Math.min(text.length, i + step);
+        projBody.textContent = text.slice(0, i) + (i < text.length ? ' ▌' : '');
+        if (i >= text.length) { clearInterval(streamTimer); streamTimer = null; }
+      }, 16);
+    }
     async function loadReadme(p, token) {
       const base = rawUrl(p.url); if (!base) return;
       for (const br of ['main', 'master']) {
-        try { const r = await fetch(base.replace('BRANCH', br)); if (r.ok) { const t = await r.text(); if (projOpen && token === projToken) projBody.textContent = cleanMd(t).slice(0, 750) + ' …'; return; } } catch (e) {}
+        try { const r = await fetch(base.replace('BRANCH', br)); if (r.ok) { const t = await r.text(); if (projOpen && token === projToken) streamText(cleanMd(t).slice(0, 750) + ' …', token); return; } } catch (e) {}
       }
     }
     function openProj() {
