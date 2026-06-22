@@ -323,7 +323,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v71 · kindred packets';
+    const BUILD = 'v72 · galaxy menu';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1729,9 +1729,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       placePlayer();
 
       if (!started) {
-        // cinematic slow orbit behind the start menu
-        const a = oceanUniforms.time.value * 0.16;
-        tmp.set(Math.cos(a) * (R + 14), 7, Math.sin(a) * (R + 14));
+        // cinematic slow orbit behind the start menu — pulled back to reveal the galaxy + synapses
+        const a = oceanUniforms.time.value * 0.13;
+        tmp.set(Math.cos(a) * (R + 30), 15, Math.sin(a) * (R + 30));
         camera.position.lerp(tmp, 0.04); camera.up.set(0, 1, 0); camera.lookAt(0, 0, 0);
       } else if (cinematic) {
         // photo/cinematic mode: slow tilted orbit around the current world
