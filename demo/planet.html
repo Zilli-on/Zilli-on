@@ -317,7 +317,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v60 · afk showreel';
+    const BUILD = 'v61 · low-end perf';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -367,8 +367,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     });
     scene.add(new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), skyMat));
     const starGeo = new THREE.BufferGeometry();
-    const starPos = new Float32Array(500 * 3);
-    for (let i = 0; i < 500; i++) { const v = new THREE.Vector3().randomDirection().multiplyScalar(320); starPos[i*3]=v.x; starPos[i*3+1]=v.y; starPos[i*3+2]=v.z; }
+    const STAR_N = lowPerf ? 220 : 500;
+    const starPos = new Float32Array(STAR_N * 3);
+    for (let i = 0; i < STAR_N; i++) { const v = new THREE.Vector3().randomDirection().multiplyScalar(320); starPos[i*3]=v.x; starPos[i*3+1]=v.y; starPos[i*3+2]=v.z; }
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
     const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.4, transparent: true, opacity: 0.0 });
     scene.add(new THREE.Points(starGeo, starMat));
@@ -377,7 +378,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.22)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
     const nebula = [];
-    { const cols = [0x2bd9c0, 0x6a5acd, 0xc04bd0, 0x4aa3ff, 0x2bd9c0, 0x8a5cff];
+    { const cols = [0x2bd9c0, 0x6a5acd, 0xc04bd0, 0x4aa3ff, 0x2bd9c0, 0x8a5cff].slice(0, lowPerf ? 3 : 6);
       for (let i = 0; i < cols.length; i++) {
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: nebTex, color: cols[i], transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
         sp.position.copy(new THREE.Vector3().randomDirection().multiplyScalar(300));
@@ -812,7 +813,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       const t = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (t.lengthSq() < 1e-3) t.set(1, 0, 0); t.normalize();
       f.visible = false; scene.add(f); fishes.push({ f, dir, t, phase: rnd() * 8, period: 4 + rnd() * 4 });
     }
-    const FF = 130, ffGeo = new THREE.BufferGeometry(), ffPos = new Float32Array(FF * 3), ffData = [];
+    const FF = lowPerf ? 60 : 130, ffGeo = new THREE.BufferGeometry(), ffPos = new Float32Array(FF * 3), ffData = [];
     for (let i = 0; i < FF; i++) {
       let dir = randDir(); let tr = 0; while (terrain(dir) < 0.4 && tr++ < 40) dir = randDir();
       const p = dir.clone().multiplyScalar(walkRadius(dir) + 0.6 + rnd() * 2.4);
