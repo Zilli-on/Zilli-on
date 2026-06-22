@@ -30,6 +30,14 @@
       transition: opacity .5s ease;
     }
     #overlay.hidden { opacity: 0; pointer-events: none; }
+    #loader { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+      background: radial-gradient(circle at 50% 38%, #0e3a44, #061018); color: #eafffb; transition: opacity .6s ease; }
+    #loader.hidden { opacity: 0; pointer-events: none; }
+    #loader .ring { width: 46px; height: 46px; border-radius: 50%; border: 3px solid rgba(143,245,232,0.22); border-top-color: #5eead4; animation: lspin .8s linear infinite; }
+    #loader .lt { font-family: "Space Grotesk", system-ui, sans-serif; font-size: clamp(26px, 6vw, 42px); font-weight: 700; }
+    #loader .lt span { color: #5eead4; }
+    #loader .ls { font-size: 13px; font-weight: 600; color: #8fd9cf; letter-spacing: .02em; }
+    @keyframes lspin { to { transform: rotate(360deg); } }
     .menu-card { max-width: 540px; width: 100%; text-align: center; padding: 34px 30px 30px; display: flex; flex-direction: column; align-items: center; gap: 14px;
       background: rgba(255,255,255,0.66); border: 1px solid var(--stroke); border-radius: 28px;
       box-shadow: 0 30px 80px rgba(8,40,45,0.35), inset 0 1px 0 rgba(255,255,255,0.7);
@@ -227,6 +235,7 @@
   </style>
 </head>
 <body>
+  <div id="loader"><div class="ring"></div><div class="lt">Tiny <span>Planet</span></div><div class="ls">Lade Galaxie …</div></div>
   <div id="cinebarTop" class="cinebar"></div><div id="cinebarBot" class="cinebar"></div>
   <div id="hud">📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
   <div id="quest"><div class="qh">🧠 Mission</div><div class="qt" id="questTitle">…</div><div class="qp" id="questProg"></div></div>
@@ -326,7 +335,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v82 · emoji expressions';
+    const BUILD = 'v83 · loading screen';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -338,7 +347,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
           document.body.appendChild(e); }
         e.textContent += msg + '\n';
       }
-      addEventListener('error', (ev) => show('⚠️ ' + (ev.message || ev.error) + (ev.filename ? '\n   @ ' + ev.filename + ':' + ev.lineno : '')));
+      addEventListener('error', (ev) => { show('⚠️ ' + (ev.message || ev.error) + (ev.filename ? '\n   @ ' + ev.filename + ':' + ev.lineno : '')); const ld = document.getElementById('loader'); if (ld) ld.classList.add('hidden'); });
       addEventListener('unhandledrejection', (ev) => show('⚠️ promise: ' + (ev.reason && ev.reason.message ? ev.reason.message : ev.reason)));
     })();
 
@@ -1827,6 +1836,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
       composer.render();
     }
     animate();
+    { const ld = document.getElementById('loader'); if (ld) requestAnimationFrame(() => ld.classList.add('hidden')); } // reveal once the scene is up
 
     addEventListener('resize', () => {
       camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
