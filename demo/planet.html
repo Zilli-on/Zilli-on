@@ -83,6 +83,7 @@
     #hud { display: none; } #hud.on { display: flex; }
     #hud b { color: var(--teal); font-variant-numeric: tabular-nums; }
     #hud b.hp { color: #ff6b81; letter-spacing: 1px; }
+    #hud b.fr { color: #bfa8ff; }
     #quest {
       position: fixed; left: 14px; top: 104px; z-index: 5; max-width: 250px; pointer-events: none;
       padding: 9px 14px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--stroke);
@@ -242,7 +243,7 @@
 <body>
   <div id="loader"><div class="ring"></div><div class="lt">Tiny <span>Planet</span></div><div class="ls">Lade Galaxie …</div></div>
   <div id="cinebarTop" class="cinebar"></div><div id="cinebarBot" class="cinebar"></div>
-  <div id="hud"><b id="hearts" class="hp">❤❤❤❤❤</b> · 📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
+  <div id="hud"><b id="hearts" class="hp">❤❤❤❤❤</b> · 📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · <b id="frags" class="fr">✦ 0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
   <div id="quest"><div class="qh">🧠 Mission</div><div class="qt" id="questTitle">…</div><div class="qp" id="questProg"></div></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
   <button id="mapBtn">🧠 Karte</button>
@@ -342,7 +343,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v86 · player health';
+    const BUILD = 'v87 · memory fragments';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -554,6 +555,10 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
       const eye = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), enemyEyeMat); eye.position.set(0, 0.95, 0.34); g.add(eye); g.userData.eye = eye;
       return g;
     }
+    // memory fragment — a glowing soul-shard dropped by defeated foes
+    const fragGeo = new THREE.OctahedronGeometry(0.34, 0);
+    const fragMat = new THREE.MeshBasicMaterial({ color: 0xbfa8ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+    function makeFragment() { const g = new THREE.Mesh(fragGeo, fragMat); g.castShadow = false; return g; }
     function makeCritter(theme) {
       const g = new THREE.Group();
       if (theme === 'snow') { // penguin
@@ -592,7 +597,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
       }
     }
     const _cc = new THREE.Color(), _ct = new THREE.Color();
-    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [];
+    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [], fragments = [];
 
     // theme palettes per world type
     const THEMES = {
@@ -791,6 +796,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
       for (let i = dropoffs.length - 1; i >= 0; i--) if (dropoffs[i].pl === p) dropoffs.splice(i, 1);
       for (let i = critters.length - 1; i >= 0; i--) if (critters[i].pl === p) critters.splice(i, 1);
       for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].pl === p) enemies.splice(i, 1);
+      for (let i = fragments.length - 1; i >= 0; i--) if (fragments[i].pl === p) fragments.splice(i, 1);
       for (let i = windy.length - 1; i >= 0; i--) if (windy[i].pl === p) windy.splice(i, 1);
       for (let i = birds.length - 1; i >= 0; i--) if (birds[i].pl === p) { scene.remove(birds[i].mesh); birds.splice(i, 1); }
       const idx = planets.indexOf(p); if (idx >= 0) planets.splice(idx, 1);
@@ -1065,7 +1071,9 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
       const pdir = tmp2.copy(player.position).sub(cur.center).normalize(); // knock the enemy away along the surface
       e.dir.addScaledVector(tmp3.copy(e.dir).sub(pdir), 0.12).normalize();
       e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)); if (e.fwd.lengthSq() < 1e-4) e.fwd.set(1, 0, 0); e.fwd.normalize();
-      if (e.hp <= 0) { burst(_ew, 0xffd166); shock(_ew, e.dir, 0xff8a5a); e.pl.group.remove(e.g); enemies.splice(i, 1); defeated++; }
+      if (e.hp <= 0) { burst(_ew, 0xffd166); shock(_ew, e.dir, 0xff8a5a); e.pl.group.remove(e.g); enemies.splice(i, 1); defeated++;
+        const fg = makeFragment(); const fd = e.dir.clone(); fg.position.copy(fd).multiplyScalar(e.pl.walkR(fd) + 0.7); e.pl.group.add(fg);
+        fragments.push({ g: fg, dir: fd, pl: e.pl, t: rnd() * 6 }); }
     }
     function attack() {
       if (mode !== 'ground' || attackCd > 0) return;
@@ -1078,6 +1086,22 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     }
     const heartsEl = document.getElementById('hearts');
     function renderHearts() { heartsEl.textContent = '❤'.repeat(Math.max(0, hp)) + '♡'.repeat(Math.max(0, maxHp - hp)); }
+    // memory fragments — collectible soul-shards that whisper a lost world's story
+    const fragsEl = document.getElementById('frags');
+    let frags = 0, memIdx = 0;
+    const MEMORIES = [
+      '„… das Licht der Heimatsonne, bevor sie verlosch."',
+      '„Wir bauten Brücken aus Wind zwischen den Inseln."',
+      '„Ein Reisender ließ hier nur seinen Namen zurück."',
+      '„Die Maschinen träumten, als niemand mehr kam."',
+      '„Halte das Fragment ans Ohr — du hörst das Meer."',
+      '„Jede Welt erinnert sich an die, die sie betraten."',
+    ];
+    function collectFragment(at) {
+      frags++; fragsEl.textContent = '✦ ' + frags; chime(false); burst(at, 0xbfa8ff); popEmoji('✨');
+      toast('🜂 Erinnerung: ' + MEMORIES[memIdx++ % MEMORIES.length], 3200);
+      const best = Math.max(frags, parseInt(localStorage.getItem('tp_frags'), 10) || 0); localStorage.setItem('tp_frags', String(best));
+    }
     function hurtPlayer(fromPos) {
       if (hurtT > 0 || mode !== 'ground' || !started || finished) return;
       hp -= 1; hurtT = 1.0; renderHearts(); shake = 0.42; hurtSound(); burst(player.position, 0xff6b81);
@@ -1116,7 +1140,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     window.__dbg.aimAt = (v) => { forward.copy(v).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); };
     window.__dbg.setDay = (t) => { dayT = t; updateDayNight(); };
     window.__dbg.packets = () => dataPackets.length;
-    window.__dbg.combat = () => ({ enemies: enemies.length, onCur: enemies.filter((e) => e.pl === cur).length, defeated, hp });
+    window.__dbg.combat = () => ({ enemies: enemies.length, onCur: enemies.filter((e) => e.pl === cur).length, defeated, hp, frags, fragsOnCur: fragments.filter((f) => f.pl === cur).length });
     window.__dbg.hurt = () => { hurtT = 0; hurtPlayer(player.position.clone()); };
     window.__dbg.attack = () => attack();
     window.__dbg.attackDiag = () => { const r = []; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length(); to.normalize(); r.push({ d: +d.toFixed(2), dot: +to.dot(forward).toFixed(2), hp: e.hp }); } return { mode, attackCd: +attackCd.toFixed(2), fLen: +forward.length().toFixed(2), list: r }; };
@@ -1221,7 +1245,9 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     }
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
     { const sc = parseInt(localStorage.getItem('tp_score'), 10) || 0, cb = parseInt(localStorage.getItem('tp_combo'), 10) || 0, wo = parseInt(localStorage.getItem('tp_worlds'), 10) || 0;
+      const fr = parseInt(localStorage.getItem('tp_frags'), 10) || 0;
       let txt = ''; if (sc || cb || wo) txt = '🏆 Rekorde: ' + sc + ' Pakete · Combo x' + cb + ' · ' + wo + ' Welten';
+      if (fr) txt += (txt ? ' · ' : '') + '🜂 ' + fr + ' Erinnerungen';
       if (localStorage.getItem('tp_mission')) txt += (txt ? ' · ' : '') + '🧠 Datenhirn reaktiviert ✓';
       if (txt) document.getElementById('bestLine').textContent = txt; }
     { const tg = document.querySelector('.tagline'); if (tg && GH_LIVE) { const stars = PROJECTS.reduce((s, p) => s + (p.stars || 0), 0);
@@ -1850,6 +1876,11 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
         e.g.children[0].rotation.y += dt * 2; // spin the body
         if (e.g.userData.eye) e.g.userData.eye.material = e.hitT > 0 ? enemyHitMat : enemyEyeMat;
         if (e.pl === cur && mode === 'ground' && hurtT <= 0 && e.hitT <= 0) { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 1.55) hurtPlayer(_ew); }
+      }
+      // memory fragments: bob/spin, and collect on touch
+      for (let i = fragments.length - 1; i >= 0; i--) { const f = fragments[i]; if (!f.pl.group.visible) continue;
+        f.t += dt; f.g.rotation.y += dt * 1.8; f.g.position.copy(f.dir).multiplyScalar(f.pl.walkR(f.dir) + 0.7 + Math.sin(f.t * 2) * 0.15);
+        if (f.pl === cur && mode === 'ground') { _ew.copy(cur.center).add(f.g.position); if (_ew.distanceTo(player.position) < 1.7) { collectFragment(_ew); f.pl.group.remove(f.g); fragments.splice(i, 1); } }
       }
 
       let mv = 0;
