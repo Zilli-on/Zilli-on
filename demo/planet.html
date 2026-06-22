@@ -313,7 +313,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v55 · live repo stats';
+    const BUILD = 'v56 · delivery juice';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -937,10 +937,11 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       // upper-body bob + idle breathing + charge crouch
       const bob = moving ? Math.abs(Math.sin(gaitPhase)) * (running ? 0.16 : 0.09) : Math.sin(t * 2) * 0.04;
       hero.upper.position.y = bob - (charging ? 0.16 : 0);
-      // pulsing data-node ties the hero to the data-brain
-      const pulse = 0.5 + 0.5 * Math.sin(t * 4);
-      hero.orb.scale.setScalar(0.8 + pulse * 0.5);
-      hero.core.scale.setScalar(0.85 + pulse * 0.3);
+      // pulsing data-node ties the hero to the data-brain; it pulses faster & brighter while carrying cargo
+      const cb = carrying > 0 ? 1 : 0;
+      const pulse = 0.5 + 0.5 * Math.sin(t * (4 + cb * 4));
+      hero.orb.scale.setScalar(0.8 + pulse * (0.5 + cb * 0.45));
+      hero.core.scale.setScalar(0.85 + pulse * (0.3 + cb * 0.35));
     }
     // start charging a galaxy-jump (hold), or release it (tap = small hop, hold = leap into space)
     function startCharge() { if (mode === 'ground' && height === 0) { charging = true; charge = 0; } }
@@ -1493,8 +1494,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       // deliver to glowing houses
       for (const o of dropoffs) {
         if (!o.pl.group.visible) continue;
-        o.t += dt; o.ring.rotation.z += dt * 1.5; o.ring.position.y = 2.5 + Math.sin(o.t * 2) * 0.15;
-        o.beam.material.opacity = 0.35 + Math.sin(o.t * 3) * 0.2;
+        o.pop = Math.max(0, (o.pop || 0) - dt * 2);
+        o.t += dt; o.ring.rotation.z += dt * 1.5 * (1 + o.pop * 6); o.ring.position.y = 2.5 + Math.sin(o.t * 2) * 0.15 + o.pop * 0.9;
+        o.beam.material.opacity = 0.35 + Math.sin(o.t * 3) * 0.2 + o.pop * 0.5;
         if (carrying > 0 && o.worldPos.distanceTo(player.position) < 2.4) {
           const n = carrying; combo = comboT > 0 ? combo + 1 : 1; comboT = 5;
           delivered += n; carrying = 0; carryEl.textContent = '0'; cntEl.textContent = String(delivered);
@@ -1505,7 +1507,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
           popEl.textContent = '+' + n + ' 📦' + (combo > 1 ? '   Combo x' + combo : '');
           popEl.classList.remove('show'); void popEl.offsetWidth; popEl.classList.add('show');
           if (delivered % 10 === 0) toast('🎉 ' + delivered + ' geliefert!', 1600);
-          burst(o.worldPos, 0xffd166); linkFlash = 1; fireDataPacket(cur); // a delivered packet ripples through the data-brain network
+          burst(o.worldPos, 0xffd166); linkFlash = 1; o.pop = 1; fireDataPacket(cur); // delivered packet ripples through the network; house pops
         }
       }
       // flight trail fade
