@@ -127,7 +127,7 @@
     #cineBtn { right: 56px; top: 56px; padding: 7px 11px; font-size: 16px; line-height: 1; display: none; }
     #cineBtn.on { display: block; }
     body.cine #hud, body.cine #mapBtn, body.cine #muteBtn, body.cine #compass, body.cine #radar, body.cine #card,
-    body.cine #projHint, body.cine #chargeBar, body.cine #touchUI, body.cine .badge, body.cine #toast, body.cine #quest, body.cine #combo { display: none !important; }
+    body.cine #projHint, body.cine #chargeBar, body.cine #touchUI, body.cine .badge, body.cine #toast, body.cine #quest, body.cine #combo, body.cine #bossBar { display: none !important; }
     /* cinematic letterbox bars (photo mode + showreel) */
     .cinebar { position: fixed; left: 0; right: 0; height: 0; background: #000; z-index: 8; pointer-events: none; transition: height .45s cubic-bezier(.2,.9,.3,1); }
     #cinebarTop { top: 0; } #cinebarBot { bottom: 0; }
@@ -153,6 +153,11 @@
       background: rgba(255,255,255,0.55); border: 1px solid var(--stroke); border-radius: 10px; overflow: hidden; display: none; box-shadow: var(--shadow); }
     #chargeBar.on { display: block; }
     #chargeFill { height: 100%; width: 0%; background: linear-gradient(90deg, #7df0dd, #14b8a6); box-shadow: 0 0 12px rgba(45,212,191,0.8); }
+    #bossBar { position: fixed; left: 50%; top: 74px; translate: -50% 0; z-index: 6; width: min(52vw, 340px); display: none; text-align: center; pointer-events: none; }
+    #bossBar.on { display: block; }
+    #bossBar .bn { font: 700 12px/1 'Space Grotesk', sans-serif; letter-spacing: 0.1em; color: #ffd166; text-shadow: 0 1px 5px rgba(0,0,0,0.55); margin-bottom: 5px; }
+    #bossBar .bt { height: 12px; background: rgba(255,255,255,0.5); border: 1px solid var(--stroke); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow); }
+    #bossFill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff8a5a, #ff4d6d); box-shadow: 0 0 12px rgba(255,90,90,0.8); transition: width 0.18s ease; }
 
     /* ---------- project info card ---------- */
     #card { position: fixed; left: 50%; bottom: 46px; translate: -50% 8px; z-index: 6; max-width: 340px; text-align: center;
@@ -279,6 +284,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     <canvas id="mapCanvas" width="520" height="520"></canvas>
     <div class="maprow"><button id="mapHome">🏠 Heimat</button><button id="mapClose">Schließen</button></div>
   </div>
+  <div id="bossBar"><div class="bn">🛡️ WÄCHTER</div><div class="bt"><div id="bossFill"></div></div></div>
   <div id="compass"><div class="arrow">⬆</div><div class="lbl">nächstes Paket</div></div>
   <canvas id="radar" width="116" height="116"></canvas>
   <div id="chargeBar"><div id="chargeFill"></div></div>
@@ -349,7 +355,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v102 · lunge recovery';
+    const BUILD = 'v103 · boss health bar';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -778,7 +784,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < PR * 0.05; k++) dir = randDir();
         if (terrain(dir) >= PR * 0.05) { const bg = makeEnemy(project.theme, true);
           const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0); fwd.normalize();
-          enemies.push({ g: bg, dir, fwd, t: rnd() * 6, pl, hp: 6, hitT: 0, boss: true, lungeT: 0, lungeWind: 0, lungeCd: 1.6 }); orientOnSphere(bg, dir, walkR(dir)); group.add(bg);
+          enemies.push({ g: bg, dir, fwd, t: rnd() * 6, pl, hp: 6, bossHpMax: 6, hitT: 0, boss: true, lungeT: 0, lungeWind: 0, lungeCd: 1.6 }); orientOnSphere(bg, dir, walkR(dir)); group.add(bg);
           pl.hadEnemies = true; pl.liberated = false; }
       }
       // signature biome landmark (one per world, away from the spawn pole)
@@ -1195,6 +1201,12 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     }
     const heartsEl = document.getElementById('hearts');
     function renderHearts() { heartsEl.textContent = '❤'.repeat(Math.max(0, hp)) + '♡'.repeat(Math.max(0, maxHp - hp)); }
+    const bossBarEl = document.getElementById('bossBar'), bossFillEl = document.getElementById('bossFill');
+    function updateBossBar() { // show a guardian's health while engaged so the boss fight reads
+      let b = null;
+      if (started && mode === 'ground') { for (const e of enemies) { if (e.boss && e.pl === cur) { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 16) { b = e; break; } } } }
+      if (b) { bossBarEl.classList.add('on'); bossFillEl.style.width = Math.max(0, b.hp / (b.bossHpMax || 6) * 100) + '%'; }
+      else bossBarEl.classList.remove('on'); }
     // memory fragments — collectible soul-shards that whisper a lost world's story
     const fragsEl = document.getElementById('frags');
     let frags = 0, memIdx = 0;
@@ -1273,6 +1285,8 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     window.__dbg.tpRune = () => { const s = shrines.find((x) => x.pl === cur); if (!s) return false; const ru = s.runes.find((r) => !r.lit); if (!ru) return false; pos.copy(ru.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
     window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
     window.__dbg.attack = () => attack();
+    window.__dbg.hitBoss = () => { for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.boss && e.pl === cur) { hitEnemy(e, i, 0); return e.hp; } } return null; };
+    window.__dbg.bossDbg = () => { for (const e of enemies) { if (e.boss && e.pl === cur) { _ew.copy(cur.center).add(e.g.position); return { hp: e.hp, max: e.bossHpMax, dist: +_ew.distanceTo(player.position).toFixed(2), w: bossFillEl.style.width }; } } return null; };
     window.__dbg.enemyEyes = () => enemies.filter((e) => e.pl === cur).map((e) => ({ warn: +(e.warn || 0).toFixed(2), col: e.g.userData.eye ? e.g.userData.eye.material.color.getHexString() : null }));
     window.__dbg.nearEnemy = (dist = 2.0) => { let best = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; } } if (!best) return false; const ed = best.dir.clone(); const t = new THREE.Vector3(0, 1, 0).cross(ed); if (t.lengthSq() < 1e-3) t.set(1, 0, 0); t.normalize(); const ang = dist / cur.R; pos.copy(ed).applyAxisAngle(t, ang).normalize().multiplyScalar(cur.R); refreshFrame(); const pdir = pos.clone().normalize(); forward.copy(ed).sub(pdir); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); placePlayer(); return true; };
     window.__dbg.attackDiag = () => { const r = []; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length(); to.normalize(); r.push({ d: +d.toFixed(2), dot: +to.dot(forward).toFixed(2), hp: e.hp }); } return { mode, attackCd: +attackCd.toFixed(2), fLen: +forward.length().toFixed(2), list: r }; };
@@ -2148,6 +2162,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(window.__ovLook || tmp.set(0,0,0)); } // debug/QA overview hook
 
       if (started && !finished) drawRadar();
+      updateBossBar();
       projHint.classList.toggle('on', started && mode === 'ground' && !projOpen && !mapOpen);
       if (mapOpen) drawMap();
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
