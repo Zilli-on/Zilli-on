@@ -272,7 +272,6 @@
 
   <script type="module">
     import * as THREE from 'three';
-    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
     import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
     import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -280,7 +279,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v45 · living data-brain';
+    const BUILD = 'v46 · custom avatar';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -768,8 +767,46 @@
     const avatar = new THREE.Group(); player.add(avatar);
     scene.add(player);
     window.__dbg = { THREE, player, avatar, scene, camera }; // debug/QA hook (used by headless screenshot harness)
-    const placeholder = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.7, 6, 12), toonMat({ color: 0x3b82c4 }));
-    placeholder.position.y = 1.55; placeholder.castShadow = true; avatar.add(placeholder);
+    // ---- Custom procedural avatar: a friendly "data courier" explorer ----
+    // Built from primitives + procedural animation — a unique look that fits the
+    // data-brain theme, with no external model dependency (no CDN load failures).
+    const suitMat = toonMat({ color: 0xeef3fc });
+    const headMat = toonMat({ color: 0xf6f9ff });
+    const limbMat = toonMat({ color: 0x32405e });
+    const accentMat = toonMat({ color: 0x3b82c4 });
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0x8ff5e8 }); // visor / antenna node — catches bloom
+    const hero = {};
+    {
+      // legs pivot at the hip and swing for the walk cycle
+      const leg = (sx) => {
+        const g = new THREE.Group(); g.position.set(sx, 1.02, 0);
+        const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.66, 4, 10), limbMat); l.position.y = -0.42; l.castShadow = true; g.add(l);
+        const foot = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.16, 0.5), accentMat); foot.position.set(0, -0.86, 0.12); foot.castShadow = true; g.add(foot);
+        avatar.add(g); return g;
+      };
+      hero.legL = leg(-0.26); hero.legR = leg(0.26);
+      // upper body bobs while walking; the planted legs stay on the ground
+      const upper = new THREE.Group(); avatar.add(upper); hero.upper = upper;
+      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.72, 6, 14), suitMat); torso.position.y = 1.66; torso.castShadow = true; upper.add(torso);
+      const sash = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.5, 0.78), accentMat); sash.position.y = 1.34; sash.castShadow = true; upper.add(sash);
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 16), glowMat); core.position.set(0, 1.62, 0.42); upper.add(core); hero.core = core; // glowing data-core on the chest
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 20, 18), headMat); head.position.y = 2.74; head.castShadow = true; upper.add(head); hero.head = head;
+      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.26, 0.14), glowMat); visor.position.set(0, 2.78, 0.31); upper.add(visor); hero.visor = visor;
+      // arms pivot at the shoulder and swing opposite the legs
+      const arm = (sx) => {
+        const g = new THREE.Group(); g.position.set(sx, 2.18, 0);
+        const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.56, 4, 10), suitMat); a.position.y = -0.32; a.castShadow = true; g.add(a);
+        const hand = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12), limbMat); hand.position.y = -0.66; g.add(hand);
+        upper.add(g); return g;
+      };
+      hero.armL = arm(-0.52); hero.armR = arm(0.52);
+      // antenna with a pulsing data-node orb
+      const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.34, 6), limbMat); stalk.position.set(0, 3.16, -0.04); upper.add(stalk);
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 14), glowMat); orb.position.set(0, 3.38, -0.04); upper.add(orb); hero.orb = orb;
+      // little jetpack — reads as an explorer/courier and motivates the flight
+      const pack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.64, 0.3), accentMat); pack.position.set(0, 1.74, -0.46); pack.castShadow = true; upper.add(pack);
+      for (const sx of [-0.14, 0.14]) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 10), glowMat); d.position.set(sx, 1.5, -0.6); upper.add(d); }
+    }
 
     // carried-parcel stack floating above the hero
     const carryStack = new THREE.Group(); carryStack.position.y = 3.9; avatar.add(carryStack);
@@ -779,49 +816,11 @@
       cb.position.y = i * 0.4; cb.castShadow = true; cb.visible = false; carryStack.add(cb); carryBoxes.push(cb);
     }
 
-    let mixer = null, actions = {}, activeAction = null, modelReady = false;
-    function setAction(name) {
-      const next = actions[name]; if (!next || next === activeAction) return;
-      if (activeAction) activeAction.fadeOut(0.2);
-      next.reset().fadeIn(0.2).play(); activeAction = next;
-    }
-    // Accurate bounds from visible mesh geometry only — Box3.setFromObject inflates wildly on rigged models.
-    function meshBox(root) {
-      root.updateWorldMatrix(true, true);
-      const box = new THREE.Box3(), tmpB = new THREE.Box3();
-      root.traverse((o) => { if (o.isMesh && o.geometry) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); tmpB.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); box.union(tmpB); } });
-      return box;
-    }
-    // Play is available immediately; the rigged character streams in afterwards (capsule until then).
+    let modelReady = true;                          // the procedural avatar is ready instantly
+    let gaitPhase = 0, gaitSpeed = 0, squash = 0;   // walk-cycle + squash/stretch state
+    // Play is available immediately.
     const playBtn = document.getElementById('playBtn');
     playBtn.disabled = false; playBtn.textContent = '▶ Planet betreten';
-    new GLTFLoader().load(
-      'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
-      (gltf) => {
-        const model = gltf.scene;
-        model.traverse((o) => {
-          if (o.isMesh) {
-            o.castShadow = true; o.receiveShadow = true;
-            const src = o.material;
-            o.material = toonMat({ color: src.color ? src.color.clone() : new THREE.Color(0xffffff), map: src.map || null,
-              emissive: src.emissive ? src.emissive.clone() : new THREE.Color(0), vertexColors: src.vertexColors || false });
-          }
-        });
-        const size = meshBox(model).getSize(new THREE.Vector3());
-        const s = 3.4 / size.y; model.scale.setScalar(s); // big relative to the tiny planet
-        model.position.y -= meshBox(model).min.y; // feet on the ground (y=0)
-        avatar.remove(placeholder);
-        avatar.add(model);
-        mixer = new THREE.AnimationMixer(model);
-        for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);
-        setAction('Idle');
-        modelReady = true;
-      },
-      undefined,
-      (err) => { // keep the capsule placeholder if the model fails; demo still runs
-        console.warn('character model failed to load', err);
-      }
-    );
 
     // ---------- Player state on the sphere ----------
     let cur = HOME; // planet the player is currently bound to
@@ -850,18 +849,52 @@
       _r.crossVectors(up, forward).normalize(); _m.makeBasis(_r, up, forward);
       player.quaternion.setFromRotationMatrix(_m);
     }
+    // procedural character animation: walk-cycle, flight pose, charge crouch, squash/stretch, data-node pulse
+    function updateAvatar(dt, mv) {
+      if (!modelReady) return;
+      const t = oceanUniforms.time.value;
+      const onGround = mode === 'ground' && height === 0;
+      const running = keys.sprint || touchSprint;
+      const moving = onGround && mv !== 0;
+      const target = moving ? (running ? 15 : 10) : 0;
+      gaitSpeed += (target - gaitSpeed) * Math.min(1, dt * 8);
+      gaitPhase += gaitSpeed * dt;
+      const amp = moving ? (running ? 1.0 : 0.65) : 0;
+      const sw = Math.sin(gaitPhase) * amp;
+      if (mode === 'air') { // tucked flight pose
+        hero.legL.rotation.x = -0.5; hero.legR.rotation.x = -0.85;
+        hero.armL.rotation.x = -2.3; hero.armR.rotation.x = -2.3;
+      } else if (charging) { // crouch before a leap
+        hero.legL.rotation.x = 0.5; hero.legR.rotation.x = 0.5;
+        hero.armL.rotation.x = -0.4; hero.armR.rotation.x = -0.4;
+      } else { // walk / run / idle
+        hero.legL.rotation.x = sw; hero.legR.rotation.x = -sw;
+        hero.armL.rotation.x = -sw * 0.85; hero.armR.rotation.x = sw * 0.85;
+      }
+      // squash & stretch from vertical motion + jump impulse (decays back to neutral)
+      squash += (0 - squash) * Math.min(1, dt * 6);
+      const vs = Math.max(-0.18, Math.min(0.22, vUp * 0.03)) + squash;
+      avatar.scale.set(1 - vs * 0.5, 1 + vs, 1 - vs * 0.5);
+      // upper-body bob + idle breathing + charge crouch
+      const bob = moving ? Math.abs(Math.sin(gaitPhase)) * (running ? 0.16 : 0.09) : Math.sin(t * 2) * 0.04;
+      hero.upper.position.y = bob - (charging ? 0.16 : 0);
+      // pulsing data-node ties the hero to the data-brain
+      const pulse = 0.5 + 0.5 * Math.sin(t * 4);
+      hero.orb.scale.setScalar(0.8 + pulse * 0.5);
+      hero.core.scale.setScalar(0.85 + pulse * 0.3);
+    }
     // start charging a galaxy-jump (hold), or release it (tap = small hop, hold = leap into space)
     function startCharge() { if (mode === 'ground' && height === 0) { charging = true; charge = 0; } }
     function releaseCharge() {
       if (mode !== 'ground') return;
       if (!charging) return; charging = false;
-      if (charge < 0.16) { if (canJump) { vUp = 6.5; canJump = false; if (actions['Jump']) { const j = actions['Jump']; j.reset(); j.setLoop(THREE.LoopOnce); j.play(); } } }
+      if (charge < 0.16) { if (canJump) { vUp = 6.5; canJump = false; squash = -0.32; } }
       else { // launch into space toward where we face
         ensureFrontier(forward); // discover a new world if jumping into the void
         mode = 'air'; airPos.copy(player.position); airArmed = false; launchPlanet = cur; airTime = 0;
         vel.copy(up).multiplyScalar(7 + charge * 7).addScaledVector(forward, 9 + charge * 15);
         canJump = false; height = 0; vUp = 0; whoosh(); shock(player.position, up, 0x8ff5e8);
-        if (actions['Jump']) { const j = actions['Jump']; j.reset(); j.setLoop(THREE.LoopOnce); j.play(); }
+        squash = -0.4;
       }
       charge = 0;
     }
@@ -1409,7 +1442,6 @@
         mv = Math.max(-1, Math.min(1, (Number(keys.f) - Number(keys.b)) + touchMove.y));
         if (mv !== 0) { pos.addScaledVector(forward, mv * speed * dt); pos.setLength(cur.R); refreshFrame(); }
         if (height > 0 || vUp > 0) { vUp -= G * dt; height += vUp * dt; if (height <= 0) { height = 0; vUp = 0; canJump = true; } }
-        if (modelReady && mixer) setAction(mv !== 0 ? ((keys.sprint || touchSprint) ? 'Running' : 'Walking') : 'Idle');
         if (mv !== 0 && height === 0) { stepTimer -= dt; if (stepTimer <= 0) { stepTimer = (keys.sprint || touchSprint) ? 0.22 : 0.34; puff(player.position, up); step(); } } else stepTimer = 0;
       } else if (started && mode === 'air' && !cinematic) {
         // steer slightly while flying
@@ -1425,7 +1457,6 @@
         trailTimer -= dt; if (trailTimer <= 0) { trailTimer = 0.045; trailDot(airPos); }
         up.copy(airPos).sub(np.center).normalize();
         forward.copy(vel).addScaledVector(up, -vel.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0).addScaledVector(up, -up.x); forward.normalize();
-        if (modelReady && mixer) setAction('Jump');
         if (!airArmed && airPos.distanceTo(launchPlanet.center) > launchPlanet.R + 6) airArmed = true;
         if (airTime > 9) airArmed = true; // safety: allow capture after a long flight
         if (airArmed && airPos.distanceTo(np.center) <= np.R + 2.5) { // entered a world's pull -> land
@@ -1436,7 +1467,7 @@
           maybeExpand();
         }
       }
-      if (mixer) mixer.update(dt);
+      updateAvatar(dt, mv);
       placePlayer();
 
       if (!started) {
@@ -1466,7 +1497,7 @@
         camera.fov += (wantFov - camera.fov) * 0.1; camera.updateProjectionMatrix();
       }
       if (shake > 0) { shake -= dt; const s = Math.max(0, shake) * 0.7; camera.position.x += (Math.random() - 0.5) * s; camera.position.y += (Math.random() - 0.5) * s; camera.position.z += (Math.random() - 0.5) * s; }
-      if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(0,0,0); } // debug/QA overview hook
+      if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(window.__ovLook || tmp.set(0,0,0)); } // debug/QA overview hook
 
       if (started && !finished) drawRadar();
       projHint.classList.toggle('on', started && mode === 'ground' && !projOpen && !mapOpen);
