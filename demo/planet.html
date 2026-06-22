@@ -75,7 +75,7 @@
     #hud { display: none; } #hud.on { display: flex; }
     #hud b { color: var(--teal); font-variant-numeric: tabular-nums; }
     #quest {
-      position: fixed; left: 14px; top: 60px; z-index: 5; max-width: 250px; pointer-events: none;
+      position: fixed; left: 14px; top: 104px; z-index: 5; max-width: 250px; pointer-events: none;
       padding: 9px 14px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--stroke);
       box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
       opacity: 0; translate: -6px 0; transition: opacity .3s ease, translate .3s ease;
@@ -326,7 +326,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v80 · enter to start';
+    const BUILD = 'v81 · fix HUD overlap';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
