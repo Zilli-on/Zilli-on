@@ -346,7 +346,7 @@ J / K — Angriff   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v89 · liberate worlds';
+    const BUILD = 'v90 · guardians';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -550,12 +550,15 @@ J / K — Angriff   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   
     // hostile little wisp/drone — a glowing-eyed foe (per-theme tint)
     const enemyEyeMat = new THREE.MeshBasicMaterial({ color: 0xff5a5a });
     const enemyHitMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    function makeEnemy(theme) {
+    const bossEyeMat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
+    function makeEnemy(theme, boss) {
       const g = new THREE.Group();
-      const tint = theme === 'tech' ? 0x3a4a64 : theme === 'volcano' ? 0x3a201c : theme === 'snow' ? 0x3a4658 : theme === 'desert' ? 0x5a4632 : 0x33324a;
-      const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.42, 0), toonMat({ color: tint })); body.position.y = 0.95; body.castShadow = true; g.add(body);
-      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 4), toonMat({ color: tint })); spike.position.y = 1.45; g.add(spike);
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), enemyEyeMat); eye.position.set(0, 0.95, 0.34); g.add(eye); g.userData.eye = eye;
+      const tint = boss ? 0x241226 : theme === 'tech' ? 0x3a4a64 : theme === 'volcano' ? 0x3a201c : theme === 'snow' ? 0x3a4658 : theme === 'desert' ? 0x5a4632 : 0x33324a;
+      const s = boss ? 1.9 : 1;
+      const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.42 * s, 0), toonMat({ color: tint })); body.position.y = 0.95 * s; body.castShadow = true; g.add(body);
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.16 * s, 0.5 * s, 4), toonMat({ color: tint })); spike.position.y = (0.95 + 0.5) * s; g.add(spike);
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.13 * s, 12, 12), boss ? bossEyeMat : enemyEyeMat); eye.position.set(0, 0.95 * s, 0.34 * s); g.add(eye); g.userData.eye = eye;
+      if (boss) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.07, 8, 24), new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })); ring.position.y = 0.95 * s; ring.rotation.x = Math.PI / 2; g.add(ring); g.userData.ring = ring; }
       return g;
     }
     // memory fragment — a glowing soul-shard dropped by defeated foes
@@ -724,6 +727,14 @@ J / K — Angriff   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   
         enemies.push({ g: eg, dir, fwd, t: rnd() * 6, pl, hp: 2, hitT: 0 }); orientOnSphere(eg, dir, walkR(dir)); group.add(eg); ePlaced++;
       }
       if (ePlaced > 0) { pl.hadEnemies = true; pl.liberated = false; }
+      // occasional guardian (mini-boss) on a third of the worlds
+      if (!rich && rnd() < 0.34) {
+        let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < PR * 0.05; k++) dir = randDir();
+        if (terrain(dir) >= PR * 0.05) { const bg = makeEnemy(project.theme, true);
+          const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0); fwd.normalize();
+          enemies.push({ g: bg, dir, fwd, t: rnd() * 6, pl, hp: 6, hitT: 0, boss: true }); orientOnSphere(bg, dir, walkR(dir)); group.add(bg);
+          pl.hadEnemies = true; pl.liberated = false; }
+      }
       // birds (a small flock per world)
       addBirds(pl.center, PR, rich ? 10 : 4, pl);
       // parcels
@@ -1079,6 +1090,8 @@ J / K — Angriff   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   
       if (e.hp <= 0) { burst(_ew, 0xffd166); shock(_ew, e.dir, 0xff8a5a); const pl = e.pl; pl.group.remove(e.g); enemies.splice(i, 1); defeated++;
         const fg = makeFragment(); const fd = e.dir.clone(); fg.position.copy(fd).multiplyScalar(pl.walkR(fd) + 0.7); pl.group.add(fg);
         fragments.push({ g: fg, dir: fd, pl, t: rnd() * 6 });
+        if (e.boss) { toast('🛡️ Wächter besiegt!', 2600); fanfare(); shock(_ew, fd, 0xffd166);
+          for (let k = 0; k < 2; k++) { const a = tmp2.copy(fd).addScaledVector(e.fwd, k ? 0.22 : -0.22).normalize(); const bf = makeFragment(); bf.position.copy(a).multiplyScalar(pl.walkR(a) + 0.7); pl.group.add(bf); fragments.push({ g: bf, dir: a.clone(), pl, t: rnd() * 6 }); } }
         if (pl.hadEnemies && !pl.liberated && !enemies.some((x) => x.pl === pl)) { // world cleared → reward
           pl.liberated = true; toast('🕊️ Welt befreit! Eine Erinnerung erwacht …', 2600); fanfare(); popEmoji('🕊️'); shock(_ew, fd, 0xbfa8ff);
           const bf = makeFragment(); bf.scale.setScalar(1.6); bf.position.copy(fd).multiplyScalar(pl.walkR(fd) + 1.1); pl.group.add(bf); fragments.push({ g: bf, dir: fd.clone(), pl, t: 0 }); }
@@ -1153,7 +1166,7 @@ J / K — Angriff   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   
     window.__dbg.aimAt = (v) => { forward.copy(v).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); };
     window.__dbg.setDay = (t) => { dayT = t; updateDayNight(); };
     window.__dbg.packets = () => dataPackets.length;
-    window.__dbg.combat = () => ({ enemies: enemies.length, onCur: enemies.filter((e) => e.pl === cur).length, defeated, hp, frags, fragsOnCur: fragments.filter((f) => f.pl === cur).length, curLiberated: !!cur.liberated, curHadEnemies: !!cur.hadEnemies });
+    window.__dbg.combat = () => ({ enemies: enemies.length, onCur: enemies.filter((e) => e.pl === cur).length, bossesOnCur: enemies.filter((e) => e.boss && e.pl === cur).length, defeated, hp, frags, fragsOnCur: fragments.filter((f) => f.pl === cur).length, curLiberated: !!cur.liberated, curHadEnemies: !!cur.hadEnemies });
     window.__dbg.hurt = () => { hurtT = 0; hurtPlayer(player.position.clone()); };
     window.__dbg.dash = () => { const p0 = player.position.clone(); dash(); return { dashT, dashCd }; };
     window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
@@ -1884,14 +1897,15 @@ J / K — Angriff   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   
         if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); if (pdir.dot(e.dir) > 0.86) { // player within ~30° on the surface → chase
             e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) { e.fwd.normalize(); chasing = true; } } }
         if (!chasing) e.fwd.applyAxisAngle(e.dir, Math.sin(e.t * 0.5) * 0.8 * dt);
-        const sp = chasing ? 1.7 : 0.7; e.dir.addScaledVector(e.fwd, sp * dt).normalize();
+        const sp = chasing ? (e.boss ? 1.1 : 1.7) : 0.7; e.dir.addScaledVector(e.fwd, sp * dt).normalize();
         e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
         if (e.pl.terrain(e.dir) < e.pl.R * 0.02) { e.fwd.applyAxisAngle(e.dir, Math.PI * 0.8); e.dir.addScaledVector(e.fwd, 1.4 * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize(); }
         const bob = Math.abs(Math.sin(e.t * 3)) * 0.18;
         e.g.position.copy(e.dir).multiplyScalar(e.pl.walkR(e.dir) + 0.2 + bob);
         _up.copy(e.dir); _r.crossVectors(_up, e.fwd).normalize(); _m.makeBasis(_r, _up, e.fwd); e.g.quaternion.setFromRotationMatrix(_m);
         e.g.children[0].rotation.y += dt * 2; // spin the body
-        if (e.g.userData.eye) e.g.userData.eye.material = e.hitT > 0 ? enemyHitMat : enemyEyeMat;
+        if (e.g.userData.ring) e.g.userData.ring.rotation.z += dt * 1.6;
+        if (e.g.userData.eye) e.g.userData.eye.material = e.hitT > 0 ? enemyHitMat : (e.boss ? bossEyeMat : enemyEyeMat);
         if (e.pl === cur && mode === 'ground' && hurtT <= 0 && e.hitT <= 0) { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 1.55) hurtPlayer(_ew); }
       }
       // memory fragments: bob/spin, and collect on touch
