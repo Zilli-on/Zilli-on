@@ -317,7 +317,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v62 · repo freshness';
+    const BUILD = 'v63 · contact shadow';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -870,6 +870,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       // little jetpack — reads as an explorer/courier and motivates the flight
       const pack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.64, 0.3), accentMat); pack.position.set(0, 1.74, -0.46); pack.castShadow = true; upper.add(pack);
       for (const sx of [-0.14, 0.14]) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 10), glowMat); d.position.set(sx, 1.5, -0.6); upper.add(d); }
+      // soft contact shadow grounds the hero (reads well top-down)
+      const blob = new THREE.Mesh(new THREE.CircleGeometry(1.15, 24), new THREE.MeshBasicMaterial({ color: 0x06231f, alphaMap: nebTex, transparent: true, opacity: 0.34, depthWrite: false }));
+      blob.rotation.x = -Math.PI / 2; blob.position.y = 0.05; avatar.add(blob); hero.blob = blob;
     }
 
     // carried-parcel stack floating above the hero
@@ -942,6 +945,10 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       // upper-body bob + idle breathing + charge crouch
       const bob = moving ? Math.abs(Math.sin(gaitPhase)) * (running ? 0.16 : 0.09) : Math.sin(t * 2) * 0.04;
       hero.upper.position.y = bob - (charging ? 0.16 : 0);
+      // contact shadow shrinks & fades as the hero leaves the ground
+      const lift = mode === 'air' ? 6 : height;
+      hero.blob.material.opacity = Math.max(0, 0.34 * (1 - lift / 4));
+      hero.blob.scale.setScalar(Math.max(0.3, 1 - lift * 0.12));
       // pulsing data-node ties the hero to the data-brain; it pulses faster & brighter while carrying cargo
       const cb = carrying > 0 ? 1 : 0;
       const pulse = 0.5 + 0.5 * Math.sin(t * (4 + cb * 4));
