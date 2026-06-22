@@ -326,7 +326,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v78 · reactive core';
+    const BUILD = 'v79 · home on map';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1283,9 +1283,10 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         mctx.beginPath(); mctx.arc(x, y, r, 0, 7); mctx.fill();
         if (activated) mctx.restore();
         if (activated) { const pa = 0.55 + 0.35 * Math.sin(performance.now() / 320 + x); mctx.strokeStyle = 'rgba(143,245,232,' + pa.toFixed(2) + ')'; mctx.lineWidth = 2.5; mctx.beginPath(); mctx.arc(x, y, r + 3, 0, 7); mctx.stroke(); } // reactivated synapse node (pulsing)
+        if (p === HOME) { mctx.strokeStyle = '#ffd166'; mctx.lineWidth = 3; mctx.beginPath(); mctx.arc(x, y, r + 6, 0, 7); mctx.stroke(); } // home hub
         if (p === cur) { mctx.strokeStyle = '#ffffff'; mctx.lineWidth = 3; mctx.beginPath(); mctx.arc(x, y, r, 0, 7); mctx.stroke(); }
         mctx.fillStyle = '#eafffb'; mctx.font = 'bold 13px ui-sans-serif, system-ui, sans-serif'; mctx.textAlign = 'center';
-        mctx.fillText(p.project.name, x, y - r - 6);
+        mctx.fillText((p === HOME ? '🏠 ' : '') + p.project.name, x, y - r - 6);
       }
       // activation progress
       mctx.fillStyle = 'rgba(143,245,232,0.95)'; mctx.font = 'bold 14px ui-sans-serif, system-ui, sans-serif'; mctx.textAlign = 'left';
