@@ -326,7 +326,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v79 · home on map';
+    const BUILD = 'v80 · enter to start';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1061,6 +1061,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     }
     playBtn.addEventListener('click', () => startGame(false));
     document.getElementById('reelBtn').addEventListener('click', () => startGame(true));
+    addEventListener('keydown', (e) => { if (!started && (e.code === 'Enter' || e.code === 'NumpadEnter')) startGame(false); }); // keyboard: Enter to start
     addEventListener('pointerdown', userTakeControl); addEventListener('keydown', userTakeControl);
     document.getElementById('winBtn').addEventListener('click', () => { winEl.classList.remove('on'); finished = false; }); // finale → keep exploring the endless galaxy
     if (isTouch) document.getElementById('keys').innerHTML =
