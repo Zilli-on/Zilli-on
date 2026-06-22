@@ -280,7 +280,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v42 · settings + pause';
+    const BUILD = 'v43 · live GitHub galaxy';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -510,14 +510,29 @@
       tech:    { sand: 0x3a4a63, grass: 0x2f6f72, grass2: 0x21565a, rock: 0x4a5568, snow: 0x7fe9dd, foam: 0xbff7ef, wet: 0x2a3550, water: true },
     };
     const PAL = THEMES.home; // default
-    // the project worlds this galaxy represents (home + real Zillion repos, then procedural ideas)
-    const PROJECTS = [
+    // the project worlds this galaxy represents — populated live from GitHub (fallback below)
+    let PROJECTS = [
       { name: 'Zillion', desc: 'Local-first dev tools for AI assistants', url: 'https://github.com/Zilli-on', theme: 'home' },
       { name: 'jarvis-graph-mcp', desc: '18 code-analysis tools via MCP', url: 'https://github.com/Zilli-on/jarvis-graph-mcp', theme: 'tech' },
       { name: 'jarvis-graph-lite', desc: 'stdlib-only Python code index', url: 'https://github.com/Zilli-on/jarvis-graph-lite', theme: 'grass' },
       { name: 'jarvis-portfolio', desc: 'AI automation services', url: 'https://github.com/Zilli-on/jarvis-portfolio', theme: 'desert' },
       { name: 'tiny-planet', desc: 'This browser galaxy demo', url: 'https://github.com/Zilli-on', theme: 'snow' },
     ];
+    let GH_LIVE = false;
+    const LANG_THEME = { JavaScript: 'tech', TypeScript: 'tech', HTML: 'tech', CSS: 'tech', Go: 'tech', Python: 'grass', Jupyter: 'grass', Shell: 'desert', Ruby: 'desert', Java: 'desert', Rust: 'volcano', C: 'volcano', 'C++': 'volcano', 'C#': 'volcano' };
+    async function loadRepos() {
+      try {
+        const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 4500);
+        const r = await fetch('https://api.github.com/users/Zilli-on/repos?per_page=100&sort=pushed', { signal: ctrl.signal });
+        clearTimeout(to); if (!r.ok) return;
+        const repos = (await r.json()).filter((x) => !x.fork && x.name);
+        if (!repos.length) return;
+        repos.sort((a, b) => (b.stargazers_count - a.stargazers_count) || (new Date(b.pushed_at) - new Date(a.pushed_at)));
+        const list = [{ name: 'Zillion', desc: 'Local-first dev tools for AI assistants · github.com/Zilli-on', url: 'https://github.com/Zilli-on', theme: 'home' }];
+        for (const x of repos) list.push({ name: x.name, desc: x.description || 'A Zillion project', url: x.html_url, theme: LANG_THEME[x.language] || 'grass', stars: x.stargazers_count });
+        PROJECTS = list; GH_LIVE = true;
+      } catch (e) { /* offline / rate-limited -> keep fallback */ }
+    }
     const IDEA_NAMES = ['idea-lab', 'prototype', 'sandbox', 'experiment', 'side-quest', 'workshop', 'moonshot', 'draft'];
     const IDEA_THEMES = ['grass', 'desert', 'snow', 'volcano', 'tech'];
     let projCursor = 1; // 0 = home, used first
@@ -542,6 +557,7 @@
 
     function makePlanet(center, PR, rich, project) {
       project = project || (rich ? PROJECTS[0] : nextProject());
+      if (project.stars != null && !rich) PR = Math.max(6.5, Math.min(13, 7 + Math.sqrt(project.stars) * 1.2)); // real repos: size by GitHub stars
       const T = THEMES[project.theme] || THEMES.grass;
       const islands = []; const ni = 4 + ((rnd() * 4) | 0);
       for (let i = 0; i < ni; i++) islands.push({ c: randDir(), amp: PR * (0.10 + rnd() * 0.11), w: 0.16 + rnd() * 0.14 });
@@ -704,6 +720,8 @@
       linkSeg = new THREE.LineSegments(g, linkMat); linkSeg.frustumCulled = false; scene.add(linkSeg);
     }
 
+    // pull the real GitHub repos so each world is an actual project (top-level await; falls back if offline)
+    await loadRepos();
     // build the home planet + a starting cluster
     const HOME = makePlanet(new THREE.Vector3(0, 0, 0), R, true);
     const terrain = HOME.terrain, landRadius = HOME.landR, walkRadius = HOME.walkR; // home aliases (spawn helpers)
@@ -935,6 +953,7 @@
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
     { const sc = parseInt(localStorage.getItem('tp_score') || '0', 10), cb = parseInt(localStorage.getItem('tp_combo') || '0', 10), wo = parseInt(localStorage.getItem('tp_worlds') || '0', 10);
       if (sc || cb || wo) document.getElementById('bestLine').textContent = '🏆 Rekorde: ' + sc + ' Pakete · Combo x' + cb + ' · ' + wo + ' Welten'; }
+    { const tg = document.querySelector('.tagline'); if (tg && GH_LIVE) tg.textContent = '● LIVE aus GitHub · ' + (PROJECTS.length - 1) + ' Repos'; }
     const worldsRun = new Set();
     function visitWorld(p) { worldsRun.add(p.project.name); const mx = Math.max(worldsRun.size, parseInt(localStorage.getItem('tp_worlds') || '0', 10)); localStorage.setItem('tp_worlds', String(mx)); }
 
@@ -1208,6 +1227,7 @@
       if (qual === 2) { bloom.enabled = false; renderer.setPixelRatio(1); composer.setPixelRatio(1); composer.setSize(innerWidth, innerHeight); qual = 1; toast('⚙️ Grafik für flüssiges Spiel angepasst', 1800); }
     }
     window.__dbg.q = () => ({ qual, bloom: bloom.enabled });
+    window.__dbg.gh = () => ({ live: GH_LIVE, count: PROJECTS.length, names: PROJECTS.slice(0, 6).map((p) => p.name) });
 
     function animate() {
       requestAnimationFrame(animate);
