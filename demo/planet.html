@@ -313,7 +313,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v56 · delivery juice';
+    const BUILD = 'v57 · menu galaxy stats';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1057,7 +1057,8 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       let txt = ''; if (sc || cb || wo) txt = '🏆 Rekorde: ' + sc + ' Pakete · Combo x' + cb + ' · ' + wo + ' Welten';
       if (localStorage.getItem('tp_mission')) txt += (txt ? ' · ' : '') + '🧠 Datenhirn reaktiviert ✓';
       if (txt) document.getElementById('bestLine').textContent = txt; }
-    { const tg = document.querySelector('.tagline'); if (tg && GH_LIVE) tg.textContent = '● LIVE aus GitHub · ' + (PROJECTS.length - 1) + ' Repos'; }
+    { const tg = document.querySelector('.tagline'); if (tg && GH_LIVE) { const stars = PROJECTS.reduce((s, p) => s + (p.stars || 0), 0);
+        tg.textContent = '● LIVE aus GitHub · ' + (PROJECTS.length - 1) + ' Repos' + (stars ? ' · ' + stars + ' ⭐' : ''); } }
     const worldsRun = new Set();
     function visitWorld(p) {
       const isNew = !worldsRun.has(p.project.name);
