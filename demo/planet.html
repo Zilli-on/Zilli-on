@@ -323,7 +323,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v70 · live brain-map';
+    const BUILD = 'v71 · kindred packets';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -779,8 +779,13 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     const packetGeo = new THREE.SphereGeometry(0.55, 12, 12);
     let dataPackets = [];
     function fireDataPacket(fromWorld) {
-      let nb = null, bd = Infinity;
-      for (const q of planets) { if (q === fromWorld) continue; const d = fromWorld.center.distanceTo(q.center); if (d < bd) { bd = d; nb = q; } }
+      // prefer a nearby world of the same language/theme (a real synapse to a related project), else the nearest
+      const lang = fromWorld.project && (fromWorld.project.lang || fromWorld.project.theme);
+      let nb = null, bd = Infinity, kin = null, kd = Infinity;
+      for (const q of planets) { if (q === fromWorld) continue; const d = fromWorld.center.distanceTo(q.center);
+        if (d < bd) { bd = d; nb = q; }
+        if (lang && q.project && (q.project.lang || q.project.theme) === lang && d < kd) { kd = d; kin = q; } }
+      nb = kin || nb;
       if (!nb) return;
       const m = new THREE.Mesh(packetGeo, new THREE.MeshBasicMaterial({ color: 0xb6ffe9, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
       m.frustumCulled = false; m.position.copy(fromWorld.center); scene.add(m);
