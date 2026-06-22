@@ -222,7 +222,7 @@
       background: rgba(255,255,255,0.22); border: 1.5px solid var(--stroke); backdrop-filter: blur(6px); touch-action: none; user-select: none; box-shadow: var(--shadow); }
     #thumb { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #aef7ec, #2dd4bf); box-shadow: 0 8px 22px rgba(15,118,110,0.5); }
-    #jumpBtn, #sprintBtn, #emojiBtn, #atkBtn { position: fixed; z-index: 6; border-radius: 50%; border: 1.5px solid var(--stroke); color: var(--teal);
+    #jumpBtn, #sprintBtn, #emojiBtn, #atkBtn, #dashBtn { position: fixed; z-index: 6; border-radius: 50%; border: 1.5px solid var(--stroke); color: var(--teal);
       font-weight: 800; background: rgba(255,255,255,0.30); backdrop-filter: blur(6px); touch-action: none; user-select: none; box-shadow: var(--shadow); }
     #jumpBtn { right: 26px; bottom: 40px; width: 96px; height: 96px; font-size: 14px; }
     #jumpBtn:active { background: rgba(94,234,212,0.55); }
@@ -232,6 +232,8 @@
     #emojiBtn:active { background: rgba(94,234,212,0.55); }
     #atkBtn { right: 40px; bottom: 148px; width: 72px; height: 72px; font-size: 26px; }
     #atkBtn:active { background: rgba(255,138,90,0.6); }
+    #dashBtn { right: 120px; bottom: 210px; width: 56px; height: 56px; font-size: 22px; }
+    #dashBtn:active { background: rgba(143,228,255,0.6); }
 
     @media (max-width: 760px) {
       #card { bottom: 140px; max-width: 78vw; }
@@ -253,7 +255,7 @@
   <div id="settings"><div class="proj-card">
     <div class="pn">⚙ Einstellungen</div>
     <div class="prow"><button class="cl" id="setMusic">🔊 Musik: an</button><button class="cl" id="setFx">✨ Effekte: an</button><button class="cl" id="setMotion">🌀 Bewegung: voll</button></div>
-    <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>J Angriff</b> · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto · F Emoji · H Hilfe</div>
+    <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>J Angriff</b> · <b>Q Dash</b> · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto · F Emoji · H Hilfe</div>
     <div class="prow"><button class="gh" id="setResume">▶ Weiter spielen</button><button class="cl" id="setRestart">↻ Neu starten</button><button class="cl" id="setReset">🗑 Fortschritt löschen</button></div>
   </div></div>
   <div id="help"><div class="proj-card">
@@ -265,7 +267,7 @@ A / D — drehen   ·   Maus / Wischen — Kamera
 Shift — rennen
 Space (gedrückt halten) — Planet-Sprung
 M — Galaxie-Karte   ·   E — Projekt-Info
-J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilfe</div>
+J / K — Angriff   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilfe</div>
     <div class="prow"><button class="cl" id="helpClose">Schließen (Esc / H)</button></div>
   </div></div>
   <div id="reelHint">🎬 Showreel · Klick oder Taste = selbst steuern</div>
@@ -301,6 +303,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     <button id="sprintBtn">RUN</button>
     <button id="jumpBtn">HOP</button>
     <button id="atkBtn">⚔️</button>
+    <button id="dashBtn">💨</button>
     <button id="emojiBtn">😄</button>
   </div>
 
@@ -343,7 +346,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v87 · memory fragments';
+    const BUILD = 'v88 · dash ability';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -984,6 +987,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     let charging = false, charge = 0, airArmed = false, launchPlanet = null, airTime = 0;
     let attackT = 0, attackCd = 0; // melee swing timer + cooldown
     let hp = 5; const maxHp = 5; let hurtT = 0; // player health + invulnerability window
+    let dashT = 0, dashCd = 0; // dodge-dash burst + cooldown
     const up = new THREE.Vector3();
     function refreshFrame() {
       up.copy(pos).normalize();
@@ -1084,6 +1088,10 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
         hitEnemy(e, i);
       }
     }
+    function dash() { // quick forward dodge with brief i-frames
+      if (mode !== 'ground' || dashCd > 0 || !started) return;
+      dashCd = 0.8; dashT = 0.2; hurtT = Math.max(hurtT, 0.34); squash = 0.16; swing(); shock(player.position, up, 0xbfe4ff);
+    }
     const heartsEl = document.getElementById('hearts');
     function renderHearts() { heartsEl.textContent = '❤'.repeat(Math.max(0, hp)) + '♡'.repeat(Math.max(0, maxHp - hp)); }
     // memory fragments — collectible soul-shards that whisper a lost world's story
@@ -1142,6 +1150,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     window.__dbg.packets = () => dataPackets.length;
     window.__dbg.combat = () => ({ enemies: enemies.length, onCur: enemies.filter((e) => e.pl === cur).length, defeated, hp, frags, fragsOnCur: fragments.filter((f) => f.pl === cur).length });
     window.__dbg.hurt = () => { hurtT = 0; hurtPlayer(player.position.clone()); };
+    window.__dbg.dash = () => { const p0 = player.position.clone(); dash(); return { dashT, dashCd }; };
     window.__dbg.attack = () => attack();
     window.__dbg.attackDiag = () => { const r = []; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length(); to.normalize(); r.push({ d: +d.toFixed(2), dot: +to.dot(forward).toFixed(2), hp: e.hp }); } return { mode, attackCd: +attackCd.toFixed(2), fLen: +forward.length().toFixed(2), list: r }; };
     window.__dbg.fightNearest = () => { let best = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; } } if (!best) return false;
@@ -1156,7 +1165,8 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
       case 'KeyA': case 'ArrowLeft': keys.l = true; break; case 'KeyD': case 'ArrowRight': keys.r = true; break;
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = true; break; case 'Space': hop(); break;
       case 'KeyF': if (started) popEmoji(EMOJIS[emoIdx++ % EMOJIS.length]); break;
-      case 'KeyJ': case 'KeyK': if (started) attack(); break; } });
+      case 'KeyJ': case 'KeyK': if (started) attack(); break;
+      case 'KeyQ': if (started) dash(); break; } });
     const EMOJIS = ['👋', '😄', '🎉', '✨', '🚀', '🪐', '🧠']; let emoIdx = 0;
     addEventListener('keyup', (e) => { switch (e.code) {
       case 'KeyW': case 'ArrowUp': keys.f = false; break; case 'KeyS': case 'ArrowDown': keys.b = false; break;
@@ -1220,6 +1230,7 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
     sprintBtn.addEventListener('touchstart', (e) => { e.preventDefault(); touchSprint = !touchSprint; sprintBtn.classList.toggle('active', touchSprint); }, { passive: false });
     document.getElementById('emojiBtn').addEventListener('touchstart', (e) => { e.preventDefault(); popEmoji(EMOJIS[emoIdx++ % EMOJIS.length]); }, { passive: false });
     document.getElementById('atkBtn').addEventListener('touchstart', (e) => { e.preventDefault(); attack(); }, { passive: false });
+    document.getElementById('dashBtn').addEventListener('touchstart', (e) => { e.preventDefault(); dash(); }, { passive: false });
     { const jb = document.getElementById('jumpBtn');
       jb.addEventListener('touchstart', (e) => { e.preventDefault(); startCharge(); }, { passive: false });
       jb.addEventListener('touchend', (e) => { e.preventDefault(); releaseCharge(); }, { passive: false }); }
@@ -1900,7 +1911,9 @@ J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einste
         dragTurn = 0;
         if (turn) forward.applyAxisAngle(up, turn);
         mv = Math.max(-1, Math.min(1, (Number(keys.f) - Number(keys.b)) + touchMove.y));
-        if (mv !== 0) { pos.addScaledVector(forward, mv * speed * dt); pos.setLength(cur.R); refreshFrame(); }
+        if (dashCd > 0) dashCd -= dt;
+        if (dashT > 0) { dashT -= dt; pos.addScaledVector(forward, 17 * dt); pos.setLength(cur.R); refreshFrame(); puff(player.position, up); }
+        else if (mv !== 0) { pos.addScaledVector(forward, mv * speed * dt); pos.setLength(cur.R); refreshFrame(); }
         if (height > 0 || vUp > 0) { vUp -= G * dt; height += vUp * dt; if (height <= 0) { height = 0; vUp = 0; canJump = true; } }
         if (mv !== 0 && height === 0) { stepTimer -= dt; if (stepTimer <= 0) { stepTimer = (keys.sprint || touchSprint) ? 0.22 : 0.34; puff(player.position, up); step(); } } else stepTimer = 0;
       } else if (started && mode === 'air' && !cinematic) {
