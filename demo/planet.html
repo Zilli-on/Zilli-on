@@ -355,7 +355,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v104 · memory garden';
+    const BUILD = 'v105 · adaptive music';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1290,6 +1290,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     window.__dbg.ph = () => ({ height: +height.toFixed(2), vUp: +vUp.toFixed(2), pads: pads.filter((p) => p.pl === cur).length });
     window.__dbg.addFrag = () => { collectFragment(player.position.clone()); return { frags, beatIdx, memoryCardOn: cardEl.classList.contains('on') && cardName.textContent.indexOf('🜂') === 0 }; };
     window.__dbg.memGarden = () => HOME.memMotes ? ({ frags, lit: HOME.memMotes.filter((m) => m.mesh.material.opacity > 0.1).length, total: HOME.memMotes.length }) : null;
+    window.__dbg.musicTension = () => audio ? +(audio.tension || 0).toFixed(2) : 'noAudio';
     window.__dbg.shrine = () => { const s = shrines.find((x) => x.pl === cur); return s ? { total: s.runes.length, lit: s.runes.filter((r) => r.lit).length, solved: s.solved } : null; };
     window.__dbg.tpRune = () => { const s = shrines.find((x) => x.pl === cur); if (!s) return false; const ru = s.runes.find((r) => !r.lit); if (!ru) return false; pos.copy(ru.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
     window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
@@ -1507,6 +1508,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     }
     let shake = 0; // brief camera shake on landing
     let hitStop = 0; // micro freeze-frame on a killing blow — combat punch
+    let musicAcc = 0; // throttle for adaptive-music tension updates
     // glowing flight trail
     const trail = [], trailGeo = new THREE.SphereGeometry(0.22, 6, 6), trailMat = new THREE.MeshBasicMaterial({ color: 0x9ff7ec, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false });
     let trailTimer = 0;
@@ -1707,6 +1709,10 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       const { ctx, master } = audio;
       const mg = ctx.createGain(); mg.gain.value = 0.0; mg.connect(master); mg.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 6);
       audio.music = mg;
+      // adaptive combat layer: a low drone (through master, so it respects mute) that swells when foes close in
+      const tg = ctx.createGain(); tg.gain.value = 0; const tlp = ctx.createBiquadFilter(); tlp.type = 'lowpass'; tlp.frequency.value = 360; tg.connect(tlp); tlp.connect(master);
+      [73.42, 110.0].forEach((f) => { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(tg); o.start(); });
+      audio.tensionGain = tg; audio.tension = 0;
       const chords = [[146.83, 185.00, 220.00], [196.00, 246.94, 293.66], [220.00, 277.18, 329.63], [164.81, 220.00, 246.94]];
       const BAR = 4.2; let bar = 0;
       const pad = (fs, t) => fs.forEach((f) => { const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
@@ -1719,6 +1725,8 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         if (!audio) return; const t0 = ctx.currentTime + 0.08; const ch = chords[bar % chords.length];
         pad(ch, t0);
         const arpN = 6; for (let i = 0; i < arpN; i++) pluck(ch[i % 3] * (i >= 3 ? 3 : 2), t0 + i * (BAR / arpN) + (bar % 2 ? 0.0 : 0.0));
+        if (audio.tension > 0.35) { const root = ch[0] / 2; const n = 8; for (let i = 0; i < n; i++) { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = root; // combat ostinato: a pulsing low bass while foes press in
+          const g = ctx.createGain(); const s = t0 + i * (BAR / n); g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.05 * audio.tension, s + 0.01); g.gain.exponentialRampToValueAtTime(0.001, s + 0.18); o.connect(g); g.connect(mg); o.start(s); o.stop(s + 0.2); } }
         bar++;
       }
       schedule(); audio.musicTimer = setInterval(schedule, BAR * 1000);
@@ -2178,6 +2186,11 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
 
       if (started && !finished) drawRadar();
       updateBossBar();
+      // adaptive music: tension swells while foes close in, fades while exploring
+      if (audio && (musicAcc += dt) > 0.2) { musicAcc = 0; let near = 0, boss = 0;
+        if (started && mode === 'ground') { for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (e.boss) { if (d < 16) boss = 1; } else if (d < 11) near++; } }
+        const tgt = Math.min(1, near * 0.38 + boss * 0.6); audio.tension = tgt;
+        if (audio.tensionGain) audio.tensionGain.gain.setTargetAtTime(tgt * 0.14, audio.ctx.currentTime, 0.4); }
       projHint.classList.toggle('on', started && mode === 'ground' && !projOpen && !mapOpen);
       if (mapOpen) drawMap();
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
