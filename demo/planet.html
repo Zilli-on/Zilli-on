@@ -349,7 +349,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v100 · telegraph flash';
+    const BUILD = 'v101 · boss lunge';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -778,7 +778,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < PR * 0.05; k++) dir = randDir();
         if (terrain(dir) >= PR * 0.05) { const bg = makeEnemy(project.theme, true);
           const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0); fwd.normalize();
-          enemies.push({ g: bg, dir, fwd, t: rnd() * 6, pl, hp: 6, hitT: 0, boss: true }); orientOnSphere(bg, dir, walkR(dir)); group.add(bg);
+          enemies.push({ g: bg, dir, fwd, t: rnd() * 6, pl, hp: 6, hitT: 0, boss: true, lungeT: 0, lungeWind: 0, lungeCd: 1.6 }); orientOnSphere(bg, dir, walkR(dir)); group.add(bg);
           pl.hadEnemies = true; pl.liberated = false; }
       }
       // signature biome landmark (one per world, away from the spawn pole)
@@ -2009,17 +2009,30 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         if (!e.pl.group.visible) continue;
         e.t += dt; if (e.hitT > 0) e.hitT -= dt;
         let chasing = false;
+        let windup = false;
         if (e.hitT <= 0) { // staggered foes hold still (readable combat); otherwise wander/chase
-          if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); if (pdir.dot(e.dir) > 0.86) { // player within ~30° on the surface → chase
-              e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) { e.fwd.normalize(); chasing = true; } } }
-          if (!chasing) e.fwd.applyAxisAngle(e.dir, Math.sin(e.t * 0.5) * 0.8 * dt);
-          const sp = chasing ? (e.boss ? 1.1 : 1.7) : 0.7; e.dir.addScaledVector(e.fwd, sp * dt).normalize();
+          if (e.lungeT > 0) { // boss: committed lunge — drive fast along the locked heading; dash through it to dodge
+            e.lungeT -= dt; e.dir.addScaledVector(e.fwd, 5.0 * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
+            if (e.lungeT <= 0) e.lungeCd = 2.6;
+          } else if (e.lungeWind > 0) { // boss: wind-up — hold + face the player while the telegraph flashes, then commit
+            e.lungeWind -= dt; windup = true;
+            if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) e.fwd.normalize(); }
+            if (e.lungeWind <= 0) { e.lungeT = 0.3; whoosh(); }
+          } else {
+            if (e.lungeCd > 0) e.lungeCd -= dt;
+            if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); if (pdir.dot(e.dir) > 0.86) { // player within ~30° on the surface → chase
+                e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) { e.fwd.normalize(); chasing = true; } } }
+            if (!chasing) e.fwd.applyAxisAngle(e.dir, Math.sin(e.t * 0.5) * 0.8 * dt);
+            const sp = chasing ? (e.boss ? 1.2 : 1.7) : 0.7; e.dir.addScaledVector(e.fwd, sp * dt).normalize();
+            // boss: lock on at mid range, then begin a telegraphed lunge
+            if (e.boss && chasing && e.lungeCd <= 0 && e.pl === cur && mode === 'ground') { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 3.2) e.lungeWind = 0.45; }
+          }
           e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
           if (e.pl.terrain(e.dir) < e.pl.R * 0.02) { e.fwd.applyAxisAngle(e.dir, Math.PI * 0.8); e.dir.addScaledVector(e.fwd, 1.4 * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize(); }
         }
-        // fair telegraph: a chasing foe "winds up" (puffs + jitters) just before it can land a touch-hit, so the dodge-dash has a readable window
+        // fair telegraph: a chasing foe (or a winding-up boss) "puffs + flashes" just before it can land a hit, so the dodge-dash has a readable window
         let wt = 0;
-        if (e.hitT <= 0 && chasing && e.pl === cur && mode === 'ground') { _ew.copy(cur.center).add(e.g.position); const dp = _ew.distanceTo(player.position); if (dp < 2.6 && dp > 1.35) wt = 1; }
+        if (e.hitT <= 0 && e.pl === cur && mode === 'ground') { if (windup) wt = 1; else if (chasing) { _ew.copy(cur.center).add(e.g.position); const dp = _ew.distanceTo(player.position); if (dp < 2.6 && dp > 1.35) wt = 1; } }
         e.warn = (e.warn || 0) + (wt - (e.warn || 0)) * Math.min(1, dt * 8);
         const bob = e.hitT > 0 ? 0 : Math.abs(Math.sin(e.t * 3)) * 0.18 + e.warn * (0.1 + Math.abs(Math.sin(e.t * 15)) * 0.14);
         e.g.position.copy(e.dir).multiplyScalar(e.pl.walkR(e.dir) + 0.2 + bob);
