@@ -220,7 +220,7 @@
       background: rgba(255,255,255,0.22); border: 1.5px solid var(--stroke); backdrop-filter: blur(6px); touch-action: none; user-select: none; box-shadow: var(--shadow); }
     #thumb { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #aef7ec, #2dd4bf); box-shadow: 0 8px 22px rgba(15,118,110,0.5); }
-    #jumpBtn, #sprintBtn, #emojiBtn { position: fixed; z-index: 6; border-radius: 50%; border: 1.5px solid var(--stroke); color: var(--teal);
+    #jumpBtn, #sprintBtn, #emojiBtn, #atkBtn { position: fixed; z-index: 6; border-radius: 50%; border: 1.5px solid var(--stroke); color: var(--teal);
       font-weight: 800; background: rgba(255,255,255,0.30); backdrop-filter: blur(6px); touch-action: none; user-select: none; box-shadow: var(--shadow); }
     #jumpBtn { right: 26px; bottom: 40px; width: 96px; height: 96px; font-size: 14px; }
     #jumpBtn:active { background: rgba(94,234,212,0.55); }
@@ -228,6 +228,8 @@
     #sprintBtn.active { background: rgba(94,234,212,0.6); color: #04302b; }
     #emojiBtn { right: 140px; bottom: 134px; width: 56px; height: 56px; font-size: 22px; }
     #emojiBtn:active { background: rgba(94,234,212,0.55); }
+    #atkBtn { right: 40px; bottom: 148px; width: 72px; height: 72px; font-size: 26px; }
+    #atkBtn:active { background: rgba(255,138,90,0.6); }
 
     @media (max-width: 760px) {
       #card { bottom: 140px; max-width: 78vw; }
@@ -249,7 +251,7 @@
   <div id="settings"><div class="proj-card">
     <div class="pn">⚙ Einstellungen</div>
     <div class="prow"><button class="cl" id="setMusic">🔊 Musik: an</button><button class="cl" id="setFx">✨ Effekte: an</button><button class="cl" id="setMotion">🌀 Bewegung: voll</button></div>
-    <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto-Modus · F Emoji · H Hilfe</div>
+    <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>J Angriff</b> · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto · F Emoji · H Hilfe</div>
     <div class="prow"><button class="gh" id="setResume">▶ Weiter spielen</button><button class="cl" id="setRestart">↻ Neu starten</button><button class="cl" id="setReset">🗑 Fortschritt löschen</button></div>
   </div></div>
   <div id="help"><div class="proj-card">
@@ -261,7 +263,7 @@ A / D — drehen   ·   Maus / Wischen — Kamera
 Shift — rennen
 Space (gedrückt halten) — Planet-Sprung
 M — Galaxie-Karte   ·   E — Projekt-Info
-C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — diese Hilfe</div>
+J / K — Angriff   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilfe</div>
     <div class="prow"><button class="cl" id="helpClose">Schließen (Esc / H)</button></div>
   </div></div>
   <div id="reelHint">🎬 Showreel · Klick oder Taste = selbst steuern</div>
@@ -296,6 +298,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
     <div id="joystick"><div id="thumb"></div></div>
     <button id="sprintBtn">RUN</button>
     <button id="jumpBtn">HOP</button>
+    <button id="atkBtn">⚔️</button>
     <button id="emojiBtn">😄</button>
   </div>
 
@@ -338,7 +341,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v84 · mobile emoji';
+    const BUILD = 'v85 · combat core';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -539,6 +542,17 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
       return g;
     }
     function makeRock() { const g = new THREE.Group(); const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.35 + rnd()*0.4, 0), toonMat({ color: 0x9aa0a6 })); m.position.y = 0.25; m.castShadow = true; m.receiveShadow = true; g.add(m); return g; }
+    // hostile little wisp/drone — a glowing-eyed foe (per-theme tint)
+    const enemyEyeMat = new THREE.MeshBasicMaterial({ color: 0xff5a5a });
+    const enemyHitMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    function makeEnemy(theme) {
+      const g = new THREE.Group();
+      const tint = theme === 'tech' ? 0x3a4a64 : theme === 'volcano' ? 0x3a201c : theme === 'snow' ? 0x3a4658 : theme === 'desert' ? 0x5a4632 : 0x33324a;
+      const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.42, 0), toonMat({ color: tint })); body.position.y = 0.95; body.castShadow = true; g.add(body);
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 4), toonMat({ color: tint })); spike.position.y = 1.45; g.add(spike);
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), enemyEyeMat); eye.position.set(0, 0.95, 0.34); g.add(eye); g.userData.eye = eye;
+      return g;
+    }
     function makeCritter(theme) {
       const g = new THREE.Group();
       if (theme === 'snow') { // penguin
@@ -577,7 +591,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
       }
     }
     const _cc = new THREE.Color(), _ct = new THREE.Color();
-    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [];
+    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [];
 
     // theme palettes per world type
     const THEMES = {
@@ -692,6 +706,14 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
         const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0); fwd.normalize();
         critters.push({ g: cr, dir, fwd, t: rnd() * 6, pl }); orientOnSphere(cr, dir, walkR(dir)); group.add(cr);
       }
+      // enemies (not on the peaceful home hub)
+      const eN = rich ? 0 : (2 + ((rnd() * 2) | 0));
+      for (let i = 0; i < eN; i++) {
+        let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < PR * 0.04; k++) dir = randDir(); if (terrain(dir) < PR * 0.04) continue;
+        const eg = makeEnemy(project.theme);
+        const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0); fwd.normalize();
+        enemies.push({ g: eg, dir, fwd, t: rnd() * 6, pl, hp: 2, hitT: 0 }); orientOnSphere(eg, dir, walkR(dir)); group.add(eg);
+      }
       // birds (a small flock per world)
       addBirds(pl.center, PR, rich ? 10 : 4, pl);
       // parcels
@@ -767,6 +789,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
       for (let i = parcels.length - 1; i >= 0; i--) if (parcels[i].pl === p) parcels.splice(i, 1);
       for (let i = dropoffs.length - 1; i >= 0; i--) if (dropoffs[i].pl === p) dropoffs.splice(i, 1);
       for (let i = critters.length - 1; i >= 0; i--) if (critters[i].pl === p) critters.splice(i, 1);
+      for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].pl === p) enemies.splice(i, 1);
       for (let i = windy.length - 1; i >= 0; i--) if (windy[i].pl === p) windy.splice(i, 1);
       for (let i = birds.length - 1; i >= 0; i--) if (birds[i].pl === p) { scene.remove(birds[i].mesh); birds.splice(i, 1); }
       const idx = planets.indexOf(p); if (idx >= 0) planets.splice(idx, 1);
@@ -912,6 +935,9 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
         upper.add(g); return g;
       };
       hero.armL = arm(-0.52); hero.armR = arm(0.52);
+      // melee slash arc (shown briefly on attack)
+      const slash = new THREE.Mesh(new THREE.RingGeometry(1.3, 2.1, 18, 1, -0.95, 1.9), new THREE.MeshBasicMaterial({ color: 0xeaffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+      slash.rotation.x = -Math.PI / 2; slash.position.set(0, 1.25, 0.4); avatar.add(slash); hero.slash = slash;
       // antenna with a pulsing data-node orb
       const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.34, 6), limbMat); stalk.position.set(0, 3.16, -0.04); upper.add(stalk);
       const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 14), glowMat); orb.position.set(0, 3.38, -0.04); upper.add(orb); hero.orb = orb;
@@ -949,6 +975,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
     let height = 0, vUp = 0, canJump = true, stepTimer = 0;
     let mode = 'ground'; const vel = new THREE.Vector3(), airPos = new THREE.Vector3();
     let charging = false, charge = 0, airArmed = false, launchPlanet = null, airTime = 0;
+    let attackT = 0, attackCd = 0; // melee swing timer + cooldown
     const up = new THREE.Vector3();
     function refreshFrame() {
       up.copy(pos).normalize();
@@ -999,6 +1026,12 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
         hero.legL.rotation.x = sw; hero.legR.rotation.x = -sw;
         hero.armL.rotation.x = -sw * 0.85; hero.armR.rotation.x = sw * 0.85;
       }
+      // melee: swing arms forward + flash the slash arc
+      if (attackCd > 0) attackCd -= dt;
+      if (attackT > 0) { attackT -= dt; const k = Math.max(0, attackT / 0.28); const sweep = -2.2 + (1 - k) * 3.2;
+        hero.armR.rotation.x = sweep; hero.armL.rotation.x = sweep * 0.6;
+        hero.slash.material.opacity = k * 0.9; hero.slash.scale.setScalar(0.6 + (1 - k) * 0.7); hero.slash.rotation.z = (1 - k) * 1.2 - 0.6; }
+      else if (hero.slash.material.opacity !== 0) hero.slash.material.opacity = 0;
       // squash & stretch from vertical motion + jump impulse (decays back to neutral)
       squash += (0 - squash) * Math.min(1, dt * 6);
       const vs = Math.max(-0.18, Math.min(0.22, vUp * 0.03)) + squash;
@@ -1019,6 +1052,25 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
       if (emojiLife > 0) { emojiLife -= dt; const k = emojiLife / 1.25;
         hero.emoji.material.opacity = Math.min(1, k * 2.2); hero.emoji.position.y = 3.7 + (1 - k) * 0.9; hero.emoji.scale.setScalar(1.7 + (1 - k) * 0.7); }
       else if (hero.emoji.material.opacity !== 0) hero.emoji.material.opacity = 0;
+    }
+    // ---------- Melee combat ----------
+    const _ew = new THREE.Vector3(); let defeated = 0;
+    function hitEnemy(e, i) {
+      e.hp -= 1; e.hitT = 0.18;
+      _ew.copy(cur.center).add(e.g.position); burst(_ew, 0xff8a5a); clang();
+      const pdir = tmp2.copy(player.position).sub(cur.center).normalize(); // knock the enemy away along the surface
+      e.dir.addScaledVector(tmp3.copy(e.dir).sub(pdir), 0.12).normalize();
+      e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)); if (e.fwd.lengthSq() < 1e-4) e.fwd.set(1, 0, 0); e.fwd.normalize();
+      if (e.hp <= 0) { burst(_ew, 0xffd166); shock(_ew, e.dir, 0xff8a5a); e.pl.group.remove(e.g); enemies.splice(i, 1); defeated++; }
+    }
+    function attack() {
+      if (mode !== 'ground' || attackCd > 0) return;
+      attackCd = 0.42; attackT = 0.28; swing();
+      for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.pl !== cur) continue;
+        _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length();
+        if (d > 3.3) continue; to.normalize(); if (to.dot(forward) < 0.25) continue; // within range + front arc
+        hitEnemy(e, i);
+      }
     }
     // start charging a galaxy-jump (hold), or release it (tap = small hop, hold = leap into space)
     function startCharge() { if (mode === 'ground' && height === 0) { charging = true; charge = 0; } }
@@ -1045,6 +1097,13 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
     window.__dbg.aimAt = (v) => { forward.copy(v).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); };
     window.__dbg.setDay = (t) => { dayT = t; updateDayNight(); };
     window.__dbg.packets = () => dataPackets.length;
+    window.__dbg.combat = () => ({ enemies: enemies.length, onCur: enemies.filter((e) => e.pl === cur).length, defeated });
+    window.__dbg.attack = () => attack();
+    window.__dbg.attackDiag = () => { const r = []; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length(); to.normalize(); r.push({ d: +d.toFixed(2), dot: +to.dot(forward).toFixed(2), hp: e.hp }); } return { mode, attackCd: +attackCd.toFixed(2), fLen: +forward.length().toFixed(2), list: r }; };
+    window.__dbg.fightNearest = () => { let best = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; } } if (!best) return false;
+      const ed = best.dir.clone(); const t = new THREE.Vector3(0, 1, 0).cross(ed); if (t.lengthSq() < 1e-3) t.set(1, 0, 0); t.normalize();
+      pos.copy(ed).addScaledVector(t, -0.16).normalize().multiplyScalar(cur.R); refreshFrame();
+      const pdir = pos.clone().normalize(); forward.copy(ed).sub(pdir).addScaledVector(up, -tmp.copy(ed).sub(pdir).dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); placePlayer(); return true; };
 
     // ---------- Input ----------
     const keys = { f: false, b: false, l: false, r: false, sprint: false };
@@ -1052,7 +1111,8 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
       case 'KeyW': case 'ArrowUp': keys.f = true; break; case 'KeyS': case 'ArrowDown': keys.b = true; break;
       case 'KeyA': case 'ArrowLeft': keys.l = true; break; case 'KeyD': case 'ArrowRight': keys.r = true; break;
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = true; break; case 'Space': hop(); break;
-      case 'KeyF': if (started) popEmoji(EMOJIS[emoIdx++ % EMOJIS.length]); break; } });
+      case 'KeyF': if (started) popEmoji(EMOJIS[emoIdx++ % EMOJIS.length]); break;
+      case 'KeyJ': case 'KeyK': if (started) attack(); break; } });
     const EMOJIS = ['👋', '😄', '🎉', '✨', '🚀', '🪐', '🧠']; let emoIdx = 0;
     addEventListener('keyup', (e) => { switch (e.code) {
       case 'KeyW': case 'ArrowUp': keys.f = false; break; case 'KeyS': case 'ArrowDown': keys.b = false; break;
@@ -1115,6 +1175,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
     const sprintBtn = document.getElementById('sprintBtn'); let touchSprint = false;
     sprintBtn.addEventListener('touchstart', (e) => { e.preventDefault(); touchSprint = !touchSprint; sprintBtn.classList.toggle('active', touchSprint); }, { passive: false });
     document.getElementById('emojiBtn').addEventListener('touchstart', (e) => { e.preventDefault(); popEmoji(EMOJIS[emoIdx++ % EMOJIS.length]); }, { passive: false });
+    document.getElementById('atkBtn').addEventListener('touchstart', (e) => { e.preventDefault(); attack(); }, { passive: false });
     { const jb = document.getElementById('jumpBtn');
       jb.addEventListener('touchstart', (e) => { e.preventDefault(); startCharge(); }, { passive: false });
       jb.addEventListener('touchend', (e) => { e.preventDefault(); releaseCharge(); }, { passive: false }); }
@@ -1495,6 +1556,17 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
       const g = ctx.createGain(); g.gain.setValueAtTime(0.22, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
       o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.28);
     }
+    function swing() { // melee whoosh
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(700, t); o.frequency.exponentialRampToValueAtTime(180, t + 0.16);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0, t); g.gain.linearRampToValueAtTime(0.12, t + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.2);
+    }
+    function clang() { // hit impact
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      [320, 480].forEach((f, i) => { const o = ctx.createOscillator(); o.type = i ? 'square' : 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.5, t + 0.12);
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.16); o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.18); });
+    }
     function connectSound() { // a gentle rising blip when a new node joins the network
       if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
       [523, 784].forEach((f, i) => { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
@@ -1734,6 +1806,23 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — dies
         const hopH = Math.max(0, Math.sin(cr.t * 6)) * 0.12;
         cr.g.position.copy(cr.dir).multiplyScalar(cr.pl.walkR(cr.dir) + hopH);
         _up.copy(cr.dir); _r.crossVectors(_up, cr.fwd).normalize(); _m.makeBasis(_r, _up, cr.fwd); cr.g.quaternion.setFromRotationMatrix(_m);
+      }
+      // enemies: wander, and chase the player when on the same world
+      for (const e of enemies) {
+        if (!e.pl.group.visible) continue;
+        e.t += dt; if (e.hitT > 0) e.hitT -= dt;
+        let chasing = false;
+        if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); if (pdir.dot(e.dir) > 0.86) { // player within ~30° on the surface → chase
+            e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) { e.fwd.normalize(); chasing = true; } } }
+        if (!chasing) e.fwd.applyAxisAngle(e.dir, Math.sin(e.t * 0.5) * 0.8 * dt);
+        const sp = chasing ? 1.7 : 0.7; e.dir.addScaledVector(e.fwd, sp * dt).normalize();
+        e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
+        if (e.pl.terrain(e.dir) < e.pl.R * 0.02) { e.fwd.applyAxisAngle(e.dir, Math.PI * 0.8); e.dir.addScaledVector(e.fwd, 1.4 * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize(); }
+        const bob = Math.abs(Math.sin(e.t * 3)) * 0.18;
+        e.g.position.copy(e.dir).multiplyScalar(e.pl.walkR(e.dir) + 0.2 + bob);
+        _up.copy(e.dir); _r.crossVectors(_up, e.fwd).normalize(); _m.makeBasis(_r, _up, e.fwd); e.g.quaternion.setFromRotationMatrix(_m);
+        e.g.children[0].rotation.y += dt * 2; // spin the body
+        if (e.g.userData.eye) e.g.userData.eye.material = e.hitT > 0 ? enemyHitMat : enemyEyeMat;
       }
 
       let mv = 0;
