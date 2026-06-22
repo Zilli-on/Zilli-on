@@ -349,7 +349,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v96 · memory story';
+    const BUILD = 'v97 · memory finale';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1217,7 +1217,9 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     function showMemory(title, text) { cardName.textContent = '🜂 ' + title; cardDesc.textContent = text; cardLink.textContent = ''; cardLink.removeAttribute('href'); cardEl.classList.add('on'); cardTimer = 9; }
     function collectFragment(at) {
       frags++; fragsEl.textContent = '✦ ' + frags; chime(false); burst(at, 0xbfa8ff); popEmoji('✨');
-      if (beatIdx < STORY.length && frags >= (beatIdx + 1) * 4) { showMemory(STORY[beatIdx][0], STORY[beatIdx][1]); fanfare(); beatIdx++; }
+      if (beatIdx < STORY.length && frags >= (beatIdx + 1) * 4) { showMemory(STORY[beatIdx][0], STORY[beatIdx][1]); fanfare(); beatIdx++;
+        if (beatIdx === STORY.length) { localStorage.setItem('tp_memdone', '1'); shake = 0.5; // the arc completes — a culminating moment
+          const cols = [0xbfa8ff, 0x8ff5e8, 0xffd166]; for (let k = 0; k < 3; k++) burst(player.position, cols[k]); shock(player.position, up, 0xbfa8ff); } }
       else toast('🜂 Erinnerung: ' + MEMORIES[memIdx++ % MEMORIES.length], 3200);
       const best = Math.max(frags, parseInt(localStorage.getItem('tp_frags'), 10) || 0); localStorage.setItem('tp_frags', String(best));
     }
@@ -1379,6 +1381,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       const fr = parseInt(localStorage.getItem('tp_frags'), 10) || 0;
       let txt = ''; if (sc || cb || wo) txt = '🏆 Rekorde: ' + sc + ' Pakete · Combo x' + cb + ' · ' + wo + ' Welten';
       if (fr) txt += (txt ? ' · ' : '') + '🜂 ' + fr + ' Erinnerungen';
+      if (localStorage.getItem('tp_memdone')) txt += (txt ? ' · ' : '') + '🜂 Verlorene Welt erinnert ✓';
       if (localStorage.getItem('tp_mission')) txt += (txt ? ' · ' : '') + '🧠 Datenhirn reaktiviert ✓';
       if (txt) document.getElementById('bestLine').textContent = txt; }
     { const tg = document.querySelector('.tagline'); if (tg && GH_LIVE) { const stars = PROJECTS.reduce((s, p) => s + (p.stars || 0), 0);
@@ -1634,7 +1637,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     document.getElementById('setResume').addEventListener('click', closeSettings);
     document.getElementById('setRestart').addEventListener('click', () => location.reload());
     document.getElementById('setReset').addEventListener('click', () => {
-      ['tp_score', 'tp_combo', 'tp_worlds', 'tp_mission', 'tp_seen'].forEach((k) => localStorage.removeItem(k));
+      ['tp_score', 'tp_combo', 'tp_worlds', 'tp_mission', 'tp_seen', 'tp_frags', 'tp_memdone'].forEach((k) => localStorage.removeItem(k));
       ACHIEVEMENTS.forEach((a) => localStorage.removeItem('tp_ach_' + a.id));
       document.getElementById('bestLine').textContent = ''; const al = document.getElementById('achLine'); if (al) al.textContent = '';
       toast('🗑 Fortschritt zurückgesetzt', 1800);
