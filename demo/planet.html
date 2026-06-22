@@ -101,7 +101,7 @@
     .badge a { color: var(--teal); text-decoration: none; font-weight: 700; }
 
     /* ---------- round control buttons (glass) ---------- */
-    #muteBtn, #mapBtn, #cineBtn, #setBtn {
+    #muteBtn, #mapBtn, #cineBtn, #setBtn, #helpBtn {
       position: fixed; z-index: 6; cursor: pointer; color: var(--teal); font-weight: 800;
       background: var(--panel-2); border: 1px solid var(--stroke); border-radius: 12px;
       box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -172,6 +172,9 @@
     #setBtn { right: 98px; top: 56px; padding: 7px 11px; font-size: 16px; line-height: 1; display: none; }
     #setBtn.on { display: block; }
     body.cine #setBtn { display: none !important; }
+    #helpBtn { right: 140px; top: 56px; padding: 7px 11px; font-size: 16px; line-height: 1; display: none; }
+    #helpBtn.on { display: block; }
+    body.cine #helpBtn { display: none !important; }
     .proj-card { max-width: 520px; width: 100%; padding: 26px 28px; border-radius: 22px; background: rgba(255,255,255,0.7); border: 1px solid var(--stroke);
       box-shadow: 0 30px 80px rgba(8,40,45,0.4), inset 0 1px 0 rgba(255,255,255,0.7); backdrop-filter: blur(16px) saturate(1.3); -webkit-backdrop-filter: blur(16px) saturate(1.3);
       animation: cardIn .45s cubic-bezier(.2,.9,.3,1.3) both; }
@@ -223,6 +226,7 @@
   <button id="mapBtn">🧠 Karte</button>
   <button id="cineBtn" title="Foto-Modus (C)">📷</button>
   <button id="setBtn" title="Einstellungen (P)">⚙</button>
+  <button id="helpBtn" title="Hilfe (H)">❔</button>
   <div id="settings"><div class="proj-card">
     <div class="pn">⚙ Einstellungen</div>
     <div class="prow"><button class="cl" id="setMusic">🔊 Musik: an</button><button class="cl" id="setFx">✨ Effekte: an</button></div>
@@ -313,7 +317,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v57 · menu galaxy stats';
+    const BUILD = 'v58 · mobile help button';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -996,7 +1000,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     function startGame(showreel) {
       if (playBtn.disabled || started) return;
       started = true; overlay.classList.add('hidden');
-      compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); cineBtn.classList.add('on'); setBtn.classList.add('on');
+      compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); cineBtn.classList.add('on'); setBtn.classList.add('on'); document.getElementById('helpBtn').classList.add('on');
       if (isTouch) touchUI.classList.add('on');
       initAudio(); showCard(cur.project); visitWorld(cur);
       if (showreel) { auto = true; autoT = 4; autoStart = performance.now(); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); }
@@ -1293,6 +1297,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     function openHelp() { if (!started) return; closeSettings(); paused = true; helpEl.classList.add('on'); if (audio && audio.ctx.suspend) audio.ctx.suspend(); }
     function closeHelp() { paused = false; helpEl.classList.remove('on'); if (audio && !muted && audio.ctx.resume) audio.ctx.resume(); }
     document.getElementById('helpClose').addEventListener('click', closeHelp);
+    document.getElementById('helpBtn').addEventListener('click', () => { helpEl.classList.contains('on') ? closeHelp() : openHelp(); });
     helpEl.addEventListener('click', (e) => { if (e.target === helpEl) closeHelp(); });
     addEventListener('keydown', (e) => { if (started && e.code === 'KeyH') { helpEl.classList.contains('on') ? closeHelp() : openHelp(); } });
 
