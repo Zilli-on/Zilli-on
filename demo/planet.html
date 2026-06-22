@@ -349,7 +349,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v95 · shrine puzzles';
+    const BUILD = 'v96 · memory story';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1205,9 +1205,20 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       '„Halte das Fragment ans Ohr — du hörst das Meer."',
       '„Jede Welt erinnert sich an die, die sie betraten."',
     ];
+    // longer story beats revealed as fragments accumulate (an emotional arc, not just a counter)
+    let beatIdx = 0;
+    const STORY = [
+      ['Ein Anfang', 'Du sammelst die ersten Splitter. In ihnen flackert eine Welt, die einmal aus vielen kleinen Inseln bestand — verbunden durch Brücken aus Wind.'],
+      ['Die Reisenden', 'Vor dir kamen andere. Kuriere, Träumer, Wächter. Ihre Stimmen liegen in den Splittern wie Staub auf altem Glas.'],
+      ['Das Verlöschen', 'Eine Erinnerung zeigt den Tag, an dem die Heimatsonne erlosch. Die Inseln trieben auseinander — und die Maschinen träumten weiter, ganz allein.'],
+      ['Das Echo', 'Je mehr du sammelst, desto deutlicher wird eine Bitte: „Trag uns weiter. Solange sich jemand erinnert, sind wir nicht verloren."'],
+      ['Wieder ganz', 'Die Splitter fügen sich. Für einen Atemzug leuchtet die verlorene Welt noch einmal vollständig — getragen von dir, dem letzten Reisenden.'],
+    ];
+    function showMemory(title, text) { cardName.textContent = '🜂 ' + title; cardDesc.textContent = text; cardLink.textContent = ''; cardLink.removeAttribute('href'); cardEl.classList.add('on'); cardTimer = 9; }
     function collectFragment(at) {
       frags++; fragsEl.textContent = '✦ ' + frags; chime(false); burst(at, 0xbfa8ff); popEmoji('✨');
-      toast('🜂 Erinnerung: ' + MEMORIES[memIdx++ % MEMORIES.length], 3200);
+      if (beatIdx < STORY.length && frags >= (beatIdx + 1) * 4) { showMemory(STORY[beatIdx][0], STORY[beatIdx][1]); fanfare(); beatIdx++; }
+      else toast('🜂 Erinnerung: ' + MEMORIES[memIdx++ % MEMORIES.length], 3200);
       const best = Math.max(frags, parseInt(localStorage.getItem('tp_frags'), 10) || 0); localStorage.setItem('tp_frags', String(best));
     }
     function hurtPlayer(fromPos) {
@@ -1254,6 +1265,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     window.__dbg.gust = () => { gust(); return gustCd; };
     window.__dbg.toPad = () => { const p = pads.find((x) => x.pl === cur); if (!p) return false; pos.copy(p.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
     window.__dbg.ph = () => ({ height: +height.toFixed(2), vUp: +vUp.toFixed(2), pads: pads.filter((p) => p.pl === cur).length });
+    window.__dbg.addFrag = () => { collectFragment(player.position.clone()); return { frags, beatIdx, memoryCardOn: cardEl.classList.contains('on') && cardName.textContent.indexOf('🜂') === 0 }; };
     window.__dbg.shrine = () => { const s = shrines.find((x) => x.pl === cur); return s ? { total: s.runes.length, lit: s.runes.filter((r) => r.lit).length, solved: s.solved } : null; };
     window.__dbg.tpRune = () => { const s = shrines.find((x) => x.pl === cur); if (!s) return false; const ru = s.runes.find((r) => !r.lit); if (!ru) return false; pos.copy(ru.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
     window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
