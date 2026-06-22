@@ -355,7 +355,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v106 · melee combo';
+    const BUILD = 'v107 · swarmers';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -561,10 +561,10 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     const enemyHitMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const bossEyeMat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
     const enemyWarnMat = new THREE.MeshBasicMaterial({ color: 0xfff2a8 }); // bright wind-up flash — telegraphs an incoming hit
-    function makeEnemy(theme, boss) {
+    function makeEnemy(theme, boss, sz) {
       const g = new THREE.Group();
       const tint = boss ? 0x241226 : theme === 'tech' ? 0x3a4a64 : theme === 'volcano' ? 0x3a201c : theme === 'snow' ? 0x3a4658 : theme === 'desert' ? 0x5a4632 : 0x33324a;
-      const s = boss ? 1.9 : 1;
+      const s = boss ? 1.9 : (sz || 1);
       const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.42 * s, 0), toonMat({ color: tint })); body.position.y = 0.95 * s; body.castShadow = true; g.add(body);
       const spike = new THREE.Mesh(new THREE.ConeGeometry(0.16 * s, 0.5 * s, 4), toonMat({ color: tint })); spike.position.y = (0.95 + 0.5) * s; g.add(spike);
       const eye = new THREE.Mesh(new THREE.SphereGeometry(0.13 * s, 12, 12), boss ? bossEyeMat : enemyEyeMat); eye.position.set(0, 0.95 * s, 0.34 * s); g.add(eye); g.userData.eye = eye;
@@ -774,9 +774,10 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       const eN = rich ? 0 : (2 + ((rnd() * 2) | 0)); let ePlaced = 0;
       for (let i = 0; i < eN; i++) {
         let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < PR * 0.04; k++) dir = randDir(); if (terrain(dir) < PR * 0.04) continue;
-        const eg = makeEnemy(project.theme);
+        const swarm = rnd() < 0.4; // some foes are small, fast 1-HP swarmers for combat variety
+        const eg = makeEnemy(project.theme, false, swarm ? 0.62 : 1);
         const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0); fwd.normalize();
-        enemies.push({ g: eg, dir, fwd, t: rnd() * 6, pl, hp: 2, hitT: 0 }); orientOnSphere(eg, dir, walkR(dir)); group.add(eg); ePlaced++;
+        enemies.push({ g: eg, dir, fwd, t: rnd() * 6, pl, hp: swarm ? 1 : 2, hitT: 0, swarm }); orientOnSphere(eg, dir, walkR(dir)); group.add(eg); ePlaced++;
       }
       if (ePlaced > 0) { pl.hadEnemies = true; pl.liberated = false; }
       // occasional guardian (mini-boss) on a third of the worlds
@@ -1302,6 +1303,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
     window.__dbg.attack = () => attack();
     window.__dbg.forceAttack = () => { attackCd = 0; attack(); return { chainN, heavy: lastHeavy }; };
+    window.__dbg.enemyTypes = () => { const e = enemies.filter((x) => x.pl === cur); return { total: e.length, swarm: e.filter((x) => x.swarm).length, grunt: e.filter((x) => !x.swarm && !x.boss).length, boss: e.filter((x) => x.boss).length }; };
     window.__dbg.hitBoss = () => { for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.boss && e.pl === cur) { hitEnemy(e, i, 0); return e.hp; } } return null; };
     window.__dbg.bossDbg = () => { for (const e of enemies) { if (e.boss && e.pl === cur) { _ew.copy(cur.center).add(e.g.position); return { hp: e.hp, max: e.bossHpMax, dist: +_ew.distanceTo(player.position).toFixed(2), w: bossFillEl.style.width }; } } return null; };
     window.__dbg.enemyEyes = () => enemies.filter((e) => e.pl === cur).map((e) => ({ warn: +(e.warn || 0).toFixed(2), col: e.g.userData.eye ? e.g.userData.eye.material.color.getHexString() : null }));
@@ -2067,7 +2069,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
             if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); if (pdir.dot(e.dir) > 0.86) { // player within ~30° on the surface → chase
                 e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) { e.fwd.normalize(); chasing = true; } } }
             if (!chasing) e.fwd.applyAxisAngle(e.dir, Math.sin(e.t * 0.5) * 0.8 * dt);
-            const sp = chasing ? (e.boss ? 1.2 : 1.7) : 0.7; e.dir.addScaledVector(e.fwd, sp * dt).normalize();
+            const sp = chasing ? (e.boss ? 1.2 : e.swarm ? 2.5 : 1.7) : (e.swarm ? 1.0 : 0.7); e.dir.addScaledVector(e.fwd, sp * dt).normalize();
             // boss: lock on at mid range, then begin a telegraphed lunge
             if (e.boss && chasing && e.lungeCd <= 0 && e.pl === cur && mode === 'ground') { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 3.2) e.lungeWind = 0.45; }
           }
