@@ -323,7 +323,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v69 · home core';
+    const BUILD = 'v70 · live brain-map';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1263,7 +1263,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         mctx.fillStyle = themeColors[p.project.theme] || '#6cc05f';
         mctx.beginPath(); mctx.arc(x, y, r, 0, 7); mctx.fill();
         if (activated) mctx.restore();
-        if (activated) { mctx.strokeStyle = 'rgba(143,245,232,0.9)'; mctx.lineWidth = 2.5; mctx.beginPath(); mctx.arc(x, y, r + 3, 0, 7); mctx.stroke(); } // reactivated synapse node
+        if (activated) { const pa = 0.55 + 0.35 * Math.sin(performance.now() / 320 + x); mctx.strokeStyle = 'rgba(143,245,232,' + pa.toFixed(2) + ')'; mctx.lineWidth = 2.5; mctx.beginPath(); mctx.arc(x, y, r + 3, 0, 7); mctx.stroke(); } // reactivated synapse node (pulsing)
         if (p === cur) { mctx.strokeStyle = '#ffffff'; mctx.lineWidth = 3; mctx.beginPath(); mctx.arc(x, y, r, 0, 7); mctx.stroke(); }
         mctx.fillStyle = '#eafffb'; mctx.font = 'bold 13px ui-sans-serif, system-ui, sans-serif'; mctx.textAlign = 'center';
         mctx.fillText(p.project.name, x, y - r - 6);
@@ -1271,6 +1271,11 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       // activation progress
       mctx.fillStyle = 'rgba(143,245,232,0.95)'; mctx.font = 'bold 14px ui-sans-serif, system-ui, sans-serif'; mctx.textAlign = 'left';
       mctx.fillText('🧠 ' + activeCount + '/' + planets.length + ' Knoten aktiv', 14, S - 14);
+      // live traffic on the synapses: travelling pulses + delivery packets
+      mctx.fillStyle = 'rgba(182,255,233,0.85)';
+      for (const pu of pulses) { const [x, y] = toS(pu.mesh.position.x, pu.mesh.position.z); mctx.beginPath(); mctx.arc(x, y, 2.4, 0, 7); mctx.fill(); }
+      mctx.fillStyle = 'rgba(143,245,232,1)';
+      for (const dp of dataPackets) { const [x, y] = toS(dp.m.position.x, dp.m.position.z); mctx.beginPath(); mctx.arc(x, y, 3.5, 0, 7); mctx.fill(); }
       // player marker
       const [px, py] = toS(player.position.x, player.position.z);
       mctx.fillStyle = '#ffd166'; mctx.beginPath(); mctx.arc(px, py, 4, 0, 7); mctx.fill();
