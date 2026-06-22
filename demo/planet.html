@@ -317,7 +317,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v59 · readme stream';
+    const BUILD = 'v60 · afk showreel';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -964,11 +964,11 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     }
     const hop = startCharge; // keep old name for any references
     // QA hooks for the headless screenshot harness
-    window.__dbg.tp = (v) => { mode = 'ground'; cur = nearestPlanet(v); pos.copy(v).sub(cur.center).setLength(cur.R); refreshFrame(); placePlayer(); };
+    window.__dbg.tp = (v) => { lastInput = performance.now(); mode = 'ground'; cur = nearestPlanet(v); pos.copy(v).sub(cur.center).setLength(cur.R); refreshFrame(); placePlayer(); };
     window.__dbg.parcels = parcels; window.__dbg.dropoffs = dropoffs; window.__dbg.fishes = fishes; window.__dbg.planets = planets;
-    window.__dbg.launch = (p) => { startCharge(); charge = p; releaseCharge(); };
+    window.__dbg.launch = (p) => { lastInput = performance.now(); startCharge(); charge = p; releaseCharge(); };
     window.__dbg.state = () => ({ mode, curIdx: planets.indexOf(cur), planets: planets.length });
-    window.__dbg.travel = (i) => travelTo(planets[i]);
+    window.__dbg.travel = (i) => { lastInput = performance.now(); travelTo(planets[i]); };
     window.__dbg.aimAt = (v) => { forward.copy(v).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); };
     window.__dbg.setDay = (t) => { dayT = t; updateDayNight(); };
     window.__dbg.packets = () => dataPackets.length;
@@ -995,14 +995,14 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     const overlay = document.getElementById('overlay'), touchUI = document.getElementById('touchUI');
     const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
     let started = false;
-    let auto = false, autoT = 0, autoStart = 0;
+    let auto = false, autoT = 0, autoStart = 0, lastInput = 0;
     const reelHint = document.getElementById('reelHint');
     function startGame(showreel) {
       if (playBtn.disabled || started) return;
       started = true; overlay.classList.add('hidden');
       compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); cineBtn.classList.add('on'); setBtn.classList.add('on'); document.getElementById('helpBtn').classList.add('on');
       if (isTouch) touchUI.classList.add('on');
-      initAudio(); showCard(cur.project); visitWorld(cur);
+      initAudio(); showCard(cur.project); visitWorld(cur); lastInput = performance.now();
       if (showreel) { auto = true; autoT = 4; autoStart = performance.now(); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); }
       else {
         questEl.classList.add('on'); renderQuest();
@@ -1010,7 +1010,11 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         if (!localStorage.getItem('tp_seen')) { coachSeq(); localStorage.setItem('tp_seen', '1'); }
       }
     }
-    function userTakeControl() { if (auto && performance.now() - autoStart > 900) { auto = false; cinematic = false; document.body.classList.remove('cine'); reelHint.classList.remove('on'); } }
+    function userTakeControl() { lastInput = performance.now(); if (auto && performance.now() - autoStart > 900) { auto = false; cinematic = false; document.body.classList.remove('cine'); reelHint.classList.remove('on'); } }
+    function startAttract() { // AFK → cinematic auto-tour (portfolio kiosk); any input takes back control
+      if (!started || auto || finished || paused) return;
+      auto = true; autoT = 0.1; autoStart = performance.now(); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on');
+    }
     playBtn.addEventListener('click', () => startGame(false));
     document.getElementById('reelBtn').addEventListener('click', () => startGame(true));
     addEventListener('pointerdown', userTakeControl); addEventListener('keydown', userTakeControl);
@@ -1553,6 +1557,12 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       }
       // showreel auto-travel through worlds
       if (auto) { autoT -= dt; if (autoT <= 0) { autoT = 6; const others = planets.filter((p) => p !== cur); if (others.length) travelTo(others[(Math.random() * others.length) | 0]); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); } }
+      // AFK auto-showreel: after ~30s of no input (wall-clock), drift into the cinematic tour
+      if (started && !auto && !cinematic && !paused && !finished && !mapOpen && !projOpen) {
+        const active = mode === 'air' || keys.f || keys.b || keys.l || keys.r || keys.sprint || charging || touchMove.x || touchMove.y || touchSprint;
+        if (active) lastInput = performance.now();
+        else if (performance.now() - lastInput > 30000) startAttract();
+      } else lastInput = performance.now();
       // timer
       if (started && !finished) { elapsed += dt; timerEl.textContent = fmt(elapsed); }
       // compass: point to nearest drop-off while carrying, else to nearest parcel
