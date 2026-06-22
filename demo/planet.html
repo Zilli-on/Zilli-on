@@ -355,7 +355,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v105 · adaptive music';
+    const BUILD = 'v106 · melee combo';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1081,6 +1081,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     let mode = 'ground'; const vel = new THREE.Vector3(), airPos = new THREE.Vector3();
     let charging = false, charge = 0, airArmed = false, launchPlanet = null, airTime = 0;
     let attackT = 0, attackCd = 0; // melee swing timer + cooldown
+    let chainN = 0, chainT = 0, lastHeavy = false; // 3-hit melee combo: every third swing is a heavier finisher
     let hp = 5; const maxHp = 5; let hurtT = 0; // player health + invulnerability window
     let dashT = 0, dashCd = 0; // dodge-dash burst + cooldown
     let gustCd = 0; // wind-gust cooldown
@@ -1139,6 +1140,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       // melee: swing arms forward + flash the slash arc
       if (attackCd > 0) attackCd -= dt;
       if (gustCd > 0) gustCd -= dt;
+      if (chainT > 0) chainT -= dt;
       if (attackT > 0) { attackT -= dt; const k = Math.max(0, attackT / 0.28); const sweep = -2.2 + (1 - k) * 3.2;
         hero.armR.rotation.x = sweep; hero.armL.rotation.x = sweep * 0.6;
         hero.slash.material.opacity = k * 0.9; hero.slash.scale.setScalar(0.6 + (1 - k) * 0.7); hero.slash.rotation.z = (1 - k) * 1.2 - 0.6; }
@@ -1184,14 +1186,18 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     }
     function attack() {
       if (mode !== 'ground' || attackCd > 0) return;
-      attackCd = 0.42; attackT = 0.28; swing();
+      chainN = chainT > 0 ? chainN + 1 : 1; const heavy = chainN >= 3; if (heavy) chainN = 0; chainT = 0.85; lastHeavy = heavy; // chain swings within the window; the 3rd is a finisher
+      attackCd = heavy ? 0.55 : 0.42; attackT = heavy ? 0.36 : 0.28; swing();
+      if (heavy) { shake = Math.max(shake, 0.3); shock(player.position, up, 0xeaffff); swing(); } // heavy finisher: bigger sweep + a ground shock
       // aim-assist: snap to face the nearest foe in reach so the swing connects (Zelda-like)
-      { let bx = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (d < 3.6 && d < bd) { bd = d; bx = _ew.clone(); } }
+      const reach = heavy ? 4.1 : 3.4;
+      { let bx = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (d < reach + 0.2 && d < bd) { bd = d; bx = _ew.clone(); } }
         if (bx) { forward.copy(bx).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() > 1e-4) forward.normalize(); } }
       for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.pl !== cur) continue;
         _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length();
-        if (d > 3.4) continue; to.normalize(); if (to.dot(forward) < 0.2) continue; // within range + front arc
-        hitEnemy(e, i);
+        if (d > reach) continue; to.normalize(); if (to.dot(forward) < (heavy ? -0.1 : 0.2)) continue; // within range + front arc (finisher hits wider)
+        if (heavy && e.hp > 1) e.hp -= 1; // finisher deals double damage (safe: hitEnemy handles the death/splice)
+        hitEnemy(e, i, heavy ? 0.3 : 0.12);
       }
     }
     function gust() { // ranged wind blast — strong knockback + light damage in a frontal arc
@@ -1295,6 +1301,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     window.__dbg.tpRune = () => { const s = shrines.find((x) => x.pl === cur); if (!s) return false; const ru = s.runes.find((r) => !r.lit); if (!ru) return false; pos.copy(ru.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
     window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
     window.__dbg.attack = () => attack();
+    window.__dbg.forceAttack = () => { attackCd = 0; attack(); return { chainN, heavy: lastHeavy }; };
     window.__dbg.hitBoss = () => { for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.boss && e.pl === cur) { hitEnemy(e, i, 0); return e.hp; } } return null; };
     window.__dbg.bossDbg = () => { for (const e of enemies) { if (e.boss && e.pl === cur) { _ew.copy(cur.center).add(e.g.position); return { hp: e.hp, max: e.bossHpMax, dist: +_ew.distanceTo(player.position).toFixed(2), w: bossFillEl.style.width }; } } return null; };
     window.__dbg.enemyEyes = () => enemies.filter((e) => e.pl === cur).map((e) => ({ warn: +(e.warn || 0).toFixed(2), col: e.g.userData.eye ? e.g.userData.eye.material.color.getHexString() : null }));
