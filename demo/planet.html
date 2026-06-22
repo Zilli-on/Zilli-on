@@ -317,7 +317,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v61 · low-end perf';
+    const BUILD = 'v62 · repo freshness';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -581,7 +581,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         if (!repos.length) return;
         repos.sort((a, b) => (b.stargazers_count - a.stargazers_count) || (new Date(b.pushed_at) - new Date(a.pushed_at)));
         const list = [{ name: 'Zillion', desc: 'Local-first dev tools for AI assistants · github.com/Zilli-on', url: 'https://github.com/Zilli-on', theme: 'home' }];
-        for (const x of repos) list.push({ name: x.name, desc: x.description || 'A Zillion project', url: x.html_url, theme: LANG_THEME[x.language] || 'grass', stars: x.stargazers_count, lang: x.language });
+        for (const x of repos) list.push({ name: x.name, desc: x.description || 'A Zillion project', url: x.html_url, theme: LANG_THEME[x.language] || 'grass', stars: x.stargazers_count, lang: x.language, pushed: x.pushed_at });
         PROJECTS = list; GH_LIVE = true;
       } catch (e) { /* offline / rate-limited -> keep fallback */ }
     }
@@ -1265,6 +1265,12 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     const cleanMd = (t) => t.replace(/```[\s\S]*?```/g, '').replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
       .replace(/^#{1,6}\s*/gm, '').replace(/^\s*[-*]\s+/gm, '• ').replace(/[`*_>~|]/g, '').replace(/\n{3,}/g, '\n\n').replace(/[ \t]{2,}/g, ' ').trim();
     function rawUrl(u) { const m = u.match(/github\.com\/([^/]+)\/([^/]+)/); return m ? `https://raw.githubusercontent.com/${m[1]}/${m[2]}/BRANCH/README.md` : null; }
+    function relTime(iso) { if (!iso) return null; const d = (Date.now() - new Date(iso).getTime()) / 1000;
+      if (d < 3600) return 'vor ' + Math.max(1, Math.round(d / 60)) + ' Min';
+      if (d < 86400) return 'vor ' + Math.round(d / 3600) + ' Std';
+      if (d < 2592000) return 'vor ' + Math.round(d / 86400) + ' Tg';
+      if (d < 31536000) return 'vor ' + Math.round(d / 2592000) + ' Mon';
+      return 'vor ' + Math.round(d / 31536000) + ' J'; }
     let streamTimer = null;
     function streamText(text, token) { // reveal the README in chunks — "live data streaming in"
       if (streamTimer) { clearInterval(streamTimer); streamTimer = null; }
@@ -1285,7 +1291,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     function openProj() {
       if (!cur || mapOpen) return; const p = cur.project; projOpen = true; projToken++;
       projName.textContent = '🪐 ' + p.name;
-      projTheme.textContent = [p.lang || p.theme, (p.stars != null ? '⭐ ' + p.stars : null)].filter(Boolean).join('  ·  ');
+      projTheme.textContent = [p.lang || p.theme, (p.stars != null ? '⭐ ' + p.stars : null), (p.pushed ? '↻ ' + relTime(p.pushed) : null)].filter(Boolean).join('  ·  ');
       projGh.href = p.url;
       projBody.textContent = p.desc; projEl.classList.add('on'); loadReadme(p, projToken);
     }
