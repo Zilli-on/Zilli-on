@@ -326,7 +326,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v75 · night moon';
+    const BUILD = 'v76 · synapse arcs';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -797,6 +797,12 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       m.frustumCulled = false; m.position.copy(fromWorld.center); scene.add(m);
       dataPackets.push({ m, a: fromWorld.center.clone(), b: nb.center.clone(), life: 0, dur: 1.1 });
     }
+    // bow a link outward from the cluster centre into a quadratic-bezier control point
+    function linkCtrl(a, b) { const mid = a.clone().add(b).multiplyScalar(0.5); const out = mid.clone(); if (out.lengthSq() < 1) out.set(0, 1, 0); out.normalize(); return mid.addScaledVector(out, a.distanceTo(b) * 0.18); }
+    function pushArc(a, c, b, pts) { const N = 8; let px, py, pz; // sample the curve into line segments
+      for (let i = 0; i <= N; i++) { const t = i / N, it = 1 - t;
+        const x = it*it*a.x + 2*it*t*c.x + t*t*b.x, y = it*it*a.y + 2*it*t*c.y + t*t*b.y, z = it*it*a.z + 2*it*t*c.z + t*t*b.z;
+        if (i > 0) pts.push(px, py, pz, x, y, z); px = x; py = y; pz = z; } }
     function rebuildLinks() {
       if (linkSeg) { scene.remove(linkSeg); linkSeg.geometry.dispose(); }
       for (const pu of pulses) scene.remove(pu.mesh); pulses = [];
@@ -804,12 +810,12 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       for (const p of planets) {
         const others = planets.filter((q) => q !== p).sort((a, b) => p.center.distanceTo(a.center) - p.center.distanceTo(b.center)).slice(0, 2);
         for (const q of others) {
-          pts.push(p.center.x, p.center.y, p.center.z, q.center.x, q.center.y, q.center.z);
+          const c = linkCtrl(p.center, q.center); pushArc(p.center, c, q.center, pts);
           const key = [planets.indexOf(p), planets.indexOf(q)].sort((a, b) => a - b).join('-');
           if (!seen.has(key)) { seen.add(key);
             const rel = p.project && q.project && p.project.theme === q.project.theme; // shared "language" => related projects
             const m = new THREE.Mesh(pulseGeo, rel ? pulseMatHot : pulseMat); m.frustumCulled = false; if (rel) m.scale.setScalar(1.45); scene.add(m);
-            pulses.push({ a: p.center, b: q.center, mesh: m, off: rnd(), speed: rel ? 0.30 : 0.16 }); }
+            pulses.push({ a: p.center, b: q.center, c, mesh: m, off: rnd(), speed: rel ? 0.30 : 0.16 }); }
         }
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
@@ -1549,7 +1555,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       for (const p of planets) { const vis = player.position.distanceTo(p.center) < 150; if (p.group.visible !== vis) p.group.visible = vis; }
       if (linkFlash > 0) linkFlash = Math.max(0, linkFlash - dt * 1.6); // decay the delivery flash
       linkMat.opacity = 0.22 + 0.13 * Math.sin(oceanUniforms.time.value * 1.5) + linkFlash * 0.5; // synapse glow + delivery surge
-      for (const pu of pulses) { const fr = (oceanUniforms.time.value * (pu.speed || 0.18) + pu.off) % 1; pu.mesh.position.lerpVectors(pu.a, pu.b, fr); }
+      for (const pu of pulses) { const fr = (oceanUniforms.time.value * (pu.speed || 0.18) + pu.off) % 1; const it = 1 - fr; const c = pu.c;
+        if (c) pu.mesh.position.set(it*it*pu.a.x + 2*it*fr*c.x + fr*fr*pu.b.x, it*it*pu.a.y + 2*it*fr*c.y + fr*fr*pu.b.y, it*it*pu.a.z + 2*it*fr*c.z + fr*fr*pu.b.z);
+        else pu.mesh.position.lerpVectors(pu.a, pu.b, fr); }
       // travelling delivery packets along real synapses
       for (let i = dataPackets.length - 1; i >= 0; i--) { const dp = dataPackets[i]; dp.life += dt; const f = dp.life / dp.dur;
         if (f >= 1) { scene.remove(dp.m); dp.m.material.dispose(); dataPackets.splice(i, 1); continue; }
