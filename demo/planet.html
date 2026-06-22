@@ -162,9 +162,9 @@
       font-size: 13px; font-weight: 700; color: var(--ink); background: var(--panel-2); border: 1px solid var(--stroke); padding: 6px 12px; border-radius: 10px; box-shadow: var(--shadow); }
     #projHint.on { display: block; }
     #projHint b { color: var(--teal); }
-    #proj, #settings { position: fixed; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center; padding: 22px;
+    #proj, #settings, #help { position: fixed; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center; padding: 22px;
       background: radial-gradient(120% 90% at 50% 0%, rgba(8,30,38,0.6), rgba(4,14,20,0.82)); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
-    #proj.on, #settings.on { display: flex; }
+    #proj.on, #settings.on, #help.on { display: flex; }
     #setBtn { right: 98px; top: 56px; padding: 7px 11px; font-size: 16px; line-height: 1; display: none; }
     #setBtn.on { display: block; }
     body.cine #setBtn { display: none !important; }
@@ -221,8 +221,20 @@
   <div id="settings"><div class="proj-card">
     <div class="pn">⚙ Einstellungen</div>
     <div class="prow"><button class="cl" id="setMusic">🔊 Musik: an</button><button class="cl" id="setFx">✨ Effekte: an</button></div>
-    <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto-Modus</div>
+    <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto-Modus · H Hilfe</div>
     <div class="prow"><button class="gh" id="setResume">▶ Weiter spielen</button><button class="cl" id="setRestart">↻ Neu starten</button></div>
+  </div></div>
+  <div id="help"><div class="proj-card">
+    <div class="pn">🎮 Steuerung & Mission</div>
+    <div class="pb">Du bist ein <b>Daten-Kurier</b>: reaktiviere das eingeschlafene Datenhirn, indem du Pakete 📦 einsammelst und an die Häuser mit dem türkisen Ring ✅ lieferst — und von Welt zu Welt springst, um das Netzwerk zu verbinden. 🪐🧠
+
+WASD / Pfeile — laufen
+A / D — drehen   ·   Maus / Wischen — Kamera
+Shift — rennen
+Space (gedrückt halten) — Planet-Sprung
+M — Galaxie-Karte   ·   E — Projekt-Info
+C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
+    <div class="prow"><button class="cl" id="helpClose">Schließen (Esc / H)</button></div>
   </div></div>
   <div id="reelHint">🎬 Showreel · Klick oder Taste = selbst steuern</div>
   <div id="mapView">
@@ -296,7 +308,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v52 · achievements';
+    const BUILD = 'v53 · help overlay';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1252,7 +1264,7 @@
     document.getElementById('projClose').addEventListener('click', closeProj);
     projEl.addEventListener('click', (e) => { if (e.target === projEl) closeProj(); });
     document.getElementById('card').addEventListener('click', (e) => { if (e.target.id !== 'cardLink') openProj(); }); // tap card to open (mobile)
-    addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') { projOpen ? closeProj() : openProj(); } else if (e.code === 'KeyC') { toggleCine(); } else if (e.code === 'Escape') { closeProj(); closeMap(); closeSettings(); if (cinematic) toggleCine(); } });
+    addEventListener('keydown', (e) => { if (!started) return; if (e.code === 'KeyE') { projOpen ? closeProj() : openProj(); } else if (e.code === 'KeyC') { toggleCine(); } else if (e.code === 'Escape') { closeProj(); closeMap(); closeSettings(); closeHelp(); if (cinematic) toggleCine(); } });
     const cineBtn = document.getElementById('cineBtn');
     function toggleCine() { if (!started) return; cinematic = !cinematic; document.body.classList.toggle('cine', cinematic); }
     cineBtn.addEventListener('click', toggleCine);
@@ -1267,6 +1279,13 @@
     setMusicBtn.addEventListener('click', () => { muted = !muted; muteBtn.textContent = muted ? '🔇' : '🔊'; setMusicBtn.textContent = muted ? '🔇 Musik: aus' : '🔊 Musik: an'; if (audio) audio.master.gain.linearRampToValueAtTime(muted ? 0 : 0.5, audio.ctx.currentTime + 0.2); });
     setFxBtn.addEventListener('click', () => { bloom.enabled = !bloom.enabled; setFxBtn.textContent = bloom.enabled ? '✨ Effekte: an' : '✨ Effekte: aus'; });
     addEventListener('keydown', (e) => { if (started && e.code === 'KeyP') { settingsEl.classList.contains('on') ? closeSettings() : openSettings(); } });
+    // ---------- help / controls reference (H) ----------
+    const helpEl = document.getElementById('help');
+    function openHelp() { if (!started) return; closeSettings(); paused = true; helpEl.classList.add('on'); if (audio && audio.ctx.suspend) audio.ctx.suspend(); }
+    function closeHelp() { paused = false; helpEl.classList.remove('on'); if (audio && !muted && audio.ctx.resume) audio.ctx.resume(); }
+    document.getElementById('helpClose').addEventListener('click', closeHelp);
+    helpEl.addEventListener('click', (e) => { if (e.target === helpEl) closeHelp(); });
+    addEventListener('keydown', (e) => { if (started && e.code === 'KeyH') { helpEl.classList.contains('on') ? closeHelp() : openHelp(); } });
 
     // ---------- Procedural ambient audio (WebAudio, no files) ----------
     let audio = null, muted = false;
