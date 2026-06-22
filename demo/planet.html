@@ -313,7 +313,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v54 · cinematic letterbox';
+    const BUILD = 'v55 · live repo stats';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -576,7 +576,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         if (!repos.length) return;
         repos.sort((a, b) => (b.stargazers_count - a.stargazers_count) || (new Date(b.pushed_at) - new Date(a.pushed_at)));
         const list = [{ name: 'Zillion', desc: 'Local-first dev tools for AI assistants · github.com/Zilli-on', url: 'https://github.com/Zilli-on', theme: 'home' }];
-        for (const x of repos) list.push({ name: x.name, desc: x.description || 'A Zillion project', url: x.html_url, theme: LANG_THEME[x.language] || 'grass', stars: x.stargazers_count });
+        for (const x of repos) list.push({ name: x.name, desc: x.description || 'A Zillion project', url: x.html_url, theme: LANG_THEME[x.language] || 'grass', stars: x.stargazers_count, lang: x.language });
         PROJECTS = list; GH_LIVE = true;
       } catch (e) { /* offline / rate-limited -> keep fallback */ }
     }
@@ -1166,7 +1166,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     const chargeBar = document.getElementById('chargeBar'), chargeFill = document.getElementById('chargeFill');
     const cardEl = document.getElementById('card'), cardName = document.getElementById('cardName'), cardDesc = document.getElementById('cardDesc'), cardLink = document.getElementById('cardLink');
     let cardTimer = 0;
-    function showCard(pr) { cardName.textContent = '🪐 ' + pr.name; cardDesc.textContent = pr.desc; cardLink.href = pr.url; cardLink.textContent = pr.url.replace('https://', ''); cardEl.classList.add('on'); cardTimer = 7; }
+    function showCard(pr) { cardName.textContent = '🪐 ' + pr.name + (pr.stars ? '  ⭐ ' + pr.stars : ''); cardDesc.textContent = pr.desc; cardLink.href = pr.url; cardLink.textContent = pr.url.replace('https://', ''); cardEl.classList.add('on'); cardTimer = 7; }
     const RC = 58, RR = 50, _rt = new THREE.Vector3(), _rel = new THREE.Vector3();
     function drawRadar() {
       rctx.clearRect(0, 0, 116, 116);
@@ -1262,7 +1262,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     }
     function openProj() {
       if (!cur || mapOpen) return; const p = cur.project; projOpen = true; projToken++;
-      projName.textContent = '🪐 ' + p.name; projTheme.textContent = p.theme; projGh.href = p.url;
+      projName.textContent = '🪐 ' + p.name;
+      projTheme.textContent = [p.lang || p.theme, (p.stars != null ? '⭐ ' + p.stars : null)].filter(Boolean).join('  ·  ');
+      projGh.href = p.url;
       projBody.textContent = p.desc; projEl.classList.add('on'); loadReadme(p, projToken);
     }
     function closeProj() { projOpen = false; projEl.classList.remove('on'); }
