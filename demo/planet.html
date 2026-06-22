@@ -349,7 +349,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v92 · combat feel';
+    const BUILD = 'v93 · bounce pads';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -564,6 +564,14 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       if (boss) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.07, 8, 24), new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })); ring.position.y = 0.95 * s; ring.rotation.x = Math.PI / 2; g.add(ring); g.userData.ring = ring; }
       return g;
     }
+    // bounce pad — a springy glowing mushroom that launches the player high
+    function makePad() {
+      const g = new THREE.Group();
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.5, 8), toonMat({ color: 0xeaf0fb })); stem.position.y = 0.25; stem.castShadow = true; g.add(stem);
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.7, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), toonMat({ color: 0xff6b9d, emissive: 0x5e1a3a, emissiveIntensity: 0.4 })); cap.position.y = 0.5; cap.castShadow = true; g.add(cap);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.06, 8, 22), new THREE.MeshBasicMaterial({ color: 0xffd1e6, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); ring.position.y = 0.52; ring.rotation.x = Math.PI / 2; g.add(ring);
+      g.userData.cap = cap; return g;
+    }
     // memory fragment — a glowing soul-shard dropped by defeated foes
     const fragGeo = new THREE.OctahedronGeometry(0.34, 0);
     const fragMat = new THREE.MeshBasicMaterial({ color: 0xbfa8ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -606,7 +614,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       }
     }
     const _cc = new THREE.Color(), _ct = new THREE.Color();
-    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [], fragments = [];
+    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [], fragments = [], pads = [];
 
     // theme palettes per world type
     const THEMES = {
@@ -738,6 +746,12 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
           enemies.push({ g: bg, dir, fwd, t: rnd() * 6, pl, hp: 6, hitT: 0, boss: true }); orientOnSphere(bg, dir, walkR(dir)); group.add(bg);
           pl.hadEnemies = true; pl.liberated = false; }
       }
+      // bounce pads (playful traversal) on some worlds
+      const padN = rich ? 1 : (rnd() < 0.5 ? 1 : 0);
+      for (let i = 0; i < padN; i++) {
+        let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < PR * 0.04; k++) dir = randDir(); if (terrain(dir) < PR * 0.04) continue;
+        const pg = makePad(); orientOnSphere(pg, dir, walkR(dir)); group.add(pg); pads.push({ g: pg, dir, pl, t: 0 });
+      }
       // birds (a small flock per world)
       addBirds(pl.center, PR, rich ? 10 : 4, pl);
       // parcels
@@ -815,6 +829,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       for (let i = critters.length - 1; i >= 0; i--) if (critters[i].pl === p) critters.splice(i, 1);
       for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].pl === p) enemies.splice(i, 1);
       for (let i = fragments.length - 1; i >= 0; i--) if (fragments[i].pl === p) fragments.splice(i, 1);
+      for (let i = pads.length - 1; i >= 0; i--) if (pads[i].pl === p) pads.splice(i, 1);
       for (let i = windy.length - 1; i >= 0; i--) if (windy[i].pl === p) windy.splice(i, 1);
       for (let i = birds.length - 1; i >= 0; i--) if (birds[i].pl === p) { scene.remove(birds[i].mesh); birds.splice(i, 1); }
       const idx = planets.indexOf(p); if (idx >= 0) planets.splice(idx, 1);
@@ -1187,6 +1202,8 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     window.__dbg.hurt = () => { hurtT = 0; hurtPlayer(player.position.clone()); };
     window.__dbg.dash = () => { const p0 = player.position.clone(); dash(); return { dashT, dashCd }; };
     window.__dbg.gust = () => { gust(); return gustCd; };
+    window.__dbg.toPad = () => { const p = pads.find((x) => x.pl === cur); if (!p) return false; pos.copy(p.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
+    window.__dbg.ph = () => ({ height: +height.toFixed(2), vUp: +vUp.toFixed(2), pads: pads.filter((p) => p.pl === cur).length });
     window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
     window.__dbg.attack = () => attack();
     window.__dbg.attackDiag = () => { const r = []; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length(); to.normalize(); r.push({ d: +d.toFixed(2), dot: +to.dot(forward).toFixed(2), hp: e.hp }); } return { mode, attackCd: +attackCd.toFixed(2), fLen: +forward.length().toFixed(2), list: r }; };
@@ -1669,6 +1686,12 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       const g = ctx.createGain(); g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
       o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.28);
     }
+    function boing() { // bounce-pad launch
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(640, t + 0.18);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.32);
+    }
     function connectSound() { // a gentle rising blip when a new node joins the network
       if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
       [523, 784].forEach((f, i) => { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
@@ -1935,6 +1958,9 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         f.t += dt; f.g.rotation.y += dt * 1.8; f.g.position.copy(f.dir).multiplyScalar(f.pl.walkR(f.dir) + 0.7 + Math.sin(f.t * 2) * 0.15);
         if (f.pl === cur && mode === 'ground') { _ew.copy(cur.center).add(f.g.position); if (_ew.distanceTo(player.position) < 1.7) { collectFragment(_ew); f.pl.group.remove(f.g); fragments.splice(i, 1); } }
       }
+      // bounce pads: squash recovery + ring spin
+      for (const pad of pads) { if (!pad.pl.group.visible) continue; if (pad.t > 0) pad.t -= dt; const sq = pad.t > 0 ? pad.t / 0.3 : 0;
+        const cap = pad.g.userData.cap; cap.scale.set(1 + sq * 0.3, 1 - sq * 0.5, 1 + sq * 0.3); }
 
       let mv = 0;
       if (charging) {
@@ -1956,6 +1982,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         if (dashCd > 0) dashCd -= dt;
         if (dashT > 0) { dashT -= dt; pos.addScaledVector(forward, 17 * dt); pos.setLength(cur.R); refreshFrame(); puff(player.position, up); }
         else if (mv !== 0) { pos.addScaledVector(forward, mv * speed * dt); pos.setLength(cur.R); refreshFrame(); }
+        if (height === 0 && vUp <= 0) { for (const pad of pads) { if (pad.pl !== cur) continue; _ew.copy(cur.center).add(pad.g.position); if (_ew.distanceTo(player.position) < 1.5) { vUp = 13; canJump = false; squash = 0.3; pad.t = 0.3; boing(); break; } } }
         if (height > 0 || vUp > 0) { vUp -= G * dt; height += vUp * dt; if (height <= 0) { height = 0; vUp = 0; canJump = true; } }
         if (mv !== 0 && height === 0) { stepTimer -= dt; if (stepTimer <= 0) { stepTimer = (keys.sprint || touchSprint) ? 0.22 : 0.34; puff(player.position, up); step(); } } else stepTimer = 0;
       } else if (started && mode === 'air' && !cinematic) {
