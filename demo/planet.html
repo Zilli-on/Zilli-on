@@ -355,7 +355,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v103 · boss health bar';
+    const BUILD = 'v104 · memory garden';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -864,6 +864,14 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         const ring = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.06, 8, 32), new THREE.MeshBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
         ring.position.y = 2.6; ring.rotation.x = Math.PI / 2; mon.add(ring);
         orientOnSphere(mon, dir, landR(dir)); group.add(mon); pl.monument = crystal; pl.monumentRing = ring;
+        // memory garden — a constellation around the core that lights up one mote per collected fragment (a visible payoff for returning home)
+        const tU = new THREE.Vector3(0, 1, 0).cross(dir); if (tU.lengthSq() < 1e-3) tU.set(1, 0, 0); tU.normalize();
+        const tV = dir.clone().cross(tU).normalize(); const motes = []; const N = 24;
+        for (let i = 0; i < N; i++) { const ringIdx = i < 12 ? 0 : 1; const k = i % 12; const ang = (k / 12) * Math.PI * 2 + ringIdx * 0.26; const rad = ringIdx ? 4.4 : 3.0;
+          const d = dir.clone().addScaledVector(tU, Math.cos(ang) * rad / PR).addScaledVector(tV, Math.sin(ang) * rad / PR).normalize();
+          const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: 0xbfa8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+          m.position.copy(d).multiplyScalar(landR(d) + 0.75); group.add(m); motes.push({ mesh: m, dir: d, phase: rnd() * 6.28 }); }
+        pl.memMotes = motes;
       }
       planets.push(pl); return pl;
     }
@@ -1281,6 +1289,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     window.__dbg.toPad = () => { const p = pads.find((x) => x.pl === cur); if (!p) return false; pos.copy(p.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
     window.__dbg.ph = () => ({ height: +height.toFixed(2), vUp: +vUp.toFixed(2), pads: pads.filter((p) => p.pl === cur).length });
     window.__dbg.addFrag = () => { collectFragment(player.position.clone()); return { frags, beatIdx, memoryCardOn: cardEl.classList.contains('on') && cardName.textContent.indexOf('🜂') === 0 }; };
+    window.__dbg.memGarden = () => HOME.memMotes ? ({ frags, lit: HOME.memMotes.filter((m) => m.mesh.material.opacity > 0.1).length, total: HOME.memMotes.length }) : null;
     window.__dbg.shrine = () => { const s = shrines.find((x) => x.pl === cur); return s ? { total: s.runes.length, lit: s.runes.filter((r) => r.lit).length, solved: s.solved } : null; };
     window.__dbg.tpRune = () => { const s = shrines.find((x) => x.pl === cur); if (!s) return false; const ru = s.runes.find((r) => !r.lit); if (!ru) return false; pos.copy(ru.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
     window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
@@ -1893,6 +1902,12 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       // home core crystal: slow spin + pulse
       if (HOME.monument && HOME.group.visible) { const tt = oceanUniforms.time.value; HOME.monument.rotation.y += dt * 0.7; HOME.monumentRing.rotation.z += dt * 0.5;
         HOME.monument.scale.setScalar(1 + 0.12 * Math.sin(tt * 3) + linkFlash * 0.6); HOME.monumentRing.scale.setScalar(1 + linkFlash * 0.5); } // brain-core surges with network traffic
+      // memory garden: one mote glows per collected fragment — a visible record of the story you've gathered
+      if (HOME.memMotes && HOME.group.visible) { const tt = oceanUniforms.time.value; const lit = Math.min(frags, HOME.memMotes.length); const over = frags > HOME.memMotes.length;
+        for (let i = 0; i < HOME.memMotes.length; i++) { const mo = HOME.memMotes[i]; const on = i < lit;
+          const tgt = on ? (over ? 0.95 : 0.78) + 0.22 * Math.sin(tt * 2 + mo.phase) : 0;
+          const mat = mo.mesh.material; mat.opacity += (tgt - mat.opacity) * Math.min(1, dt * 4);
+          mo.mesh.rotation.y += dt * 1.2; mo.mesh.position.copy(mo.dir).multiplyScalar(HOME.landR(mo.dir) + 0.75 + (on ? 0.18 * Math.abs(Math.sin(tt * 1.5 + mo.phase)) : 0)); } }
 
       // pick up parcels (when not yet carrying the max few)
       for (const p of parcels) {
