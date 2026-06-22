@@ -73,6 +73,18 @@
     }
     #hud { display: none; } #hud.on { display: flex; }
     #hud b { color: var(--teal); font-variant-numeric: tabular-nums; }
+    #quest {
+      position: fixed; left: 14px; top: 60px; z-index: 5; max-width: 250px; pointer-events: none;
+      padding: 9px 14px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--stroke);
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      opacity: 0; translate: -6px 0; transition: opacity .3s ease, translate .3s ease;
+    }
+    #quest.on { opacity: 1; translate: 0 0; }
+    #quest .qh { font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--mint2); }
+    #quest .qt { font-family: "Space Grotesk", sans-serif; font-size: 14.5px; font-weight: 700; color: var(--ink); margin-top: 1px; }
+    #quest .qp { font-size: 12px; font-weight: 700; color: var(--teal); font-variant-numeric: tabular-nums; margin-top: 2px; }
+    #quest.flash { animation: qflash .7s ease; }
+    @keyframes qflash { 0% { box-shadow: var(--shadow); } 30% { box-shadow: 0 0 0 4px rgba(143,245,232,0.55), var(--shadow); } 100% { box-shadow: var(--shadow); } }
     #toast {
       position: fixed; left: 50%; top: 19%; z-index: 6; pointer-events: none; font-size: 17px; font-weight: 800; color: var(--teal-d);
       background: rgba(255,255,255,0.9); padding: 11px 20px; border-radius: 16px; border: 1px solid var(--stroke);
@@ -99,7 +111,7 @@
     #cineBtn { right: 56px; top: 56px; padding: 7px 11px; font-size: 16px; line-height: 1; display: none; }
     #cineBtn.on { display: block; }
     body.cine #hud, body.cine #mapBtn, body.cine #muteBtn, body.cine #compass, body.cine #radar, body.cine #card,
-    body.cine #projHint, body.cine #chargeBar, body.cine #touchUI, body.cine .badge, body.cine #toast { display: none !important; }
+    body.cine #projHint, body.cine #chargeBar, body.cine #touchUI, body.cine .badge, body.cine #toast, body.cine #quest { display: none !important; }
     body.cine #cineBtn { display: block; opacity: 0.5; }
     #mapBtn { left: 14px; top: 62px; padding: 8px 14px; font-size: 13px; display: none; }
     #mapBtn.on { display: block; }
@@ -197,6 +209,7 @@
 </head>
 <body>
   <div id="hud">📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
+  <div id="quest"><div class="qh">🧠 Mission</div><div class="qt" id="questTitle">…</div><div class="qp" id="questProg"></div></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
   <button id="mapBtn">🧠 Karte</button>
   <button id="cineBtn" title="Foto-Modus (C)">📷</button>
@@ -244,8 +257,7 @@
     <div class="menu-card">
       <div class="tagline">Zillion · Projekt-Galaxie</div>
       <h1>Tiny <span>Planet</span></h1>
-      <p class="lead">Sammle die Pakete 📦 und liefere sie an die Häuser mit dem türkisen Ring ✅.
-        <b>Halte die Sprungtaste</b>, um von Planet zu Planet zu springen — jede Welt ist ein Projekt, alle verbunden wie ein Datenhirn. 🪐🧠</p>
+      <p class="lead">Das <b>Datenhirn ist eingeschlafen</b> — als Daten-Kurier reaktivierst du seine Synapsen. Sammle Pakete 📦, liefere sie an die Häuser mit dem türkisen Ring ✅ und <b>halte die Sprungtaste</b>, um von Welt zu Welt zu springen. Jede Welt ist ein Projekt, alle verbunden wie ein Gehirn. 🪐🧠</p>
       <div class="keys" id="keys">
         <span class="key"><b>W / S</b> Laufen</span>
         <span class="key"><b>A / D</b> Drehen</span>
@@ -279,7 +291,7 @@
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v46 · custom avatar';
+    const BUILD = 'v47 · story quests';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -939,13 +951,17 @@
       if (isTouch) touchUI.classList.add('on');
       initAudio(); showCard(cur.project); visitWorld(cur);
       if (showreel) { auto = true; autoT = 4; autoStart = performance.now(); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); }
-      else if (!localStorage.getItem('tp_seen')) { coachSeq(); localStorage.setItem('tp_seen', '1'); }
+      else {
+        questEl.classList.add('on'); renderQuest();
+        toast('🧠 Das Datenhirn ist eingeschlafen — reaktiviere als Kurier seine Synapsen!', 4200);
+        if (!localStorage.getItem('tp_seen')) { coachSeq(); localStorage.setItem('tp_seen', '1'); }
+      }
     }
     function userTakeControl() { if (auto && performance.now() - autoStart > 900) { auto = false; cinematic = false; document.body.classList.remove('cine'); reelHint.classList.remove('on'); } }
     playBtn.addEventListener('click', () => startGame(false));
     document.getElementById('reelBtn').addEventListener('click', () => startGame(true));
     addEventListener('pointerdown', userTakeControl); addEventListener('keydown', userTakeControl);
-    document.getElementById('winBtn').addEventListener('click', () => location.reload());
+    document.getElementById('winBtn').addEventListener('click', () => { winEl.classList.remove('on'); finished = false; }); // finale → keep exploring the endless galaxy
     if (isTouch) document.getElementById('keys').innerHTML =
       '<span class="key"><b>Joystick</b> Laufen/Drehen</span><span class="key"><b>Wischen</b> Kamera</span><span class="key"><b>RUN</b> Rennen</span><span class="key"><b>HOP</b> Hüpfen</span>';
 
@@ -993,6 +1009,46 @@
     { const tg = document.querySelector('.tagline'); if (tg && GH_LIVE) tg.textContent = '● LIVE aus GitHub · ' + (PROJECTS.length - 1) + ' Repos'; }
     const worldsRun = new Set();
     function visitWorld(p) { worldsRun.add(p.project.name); const mx = Math.max(worldsRun.size, parseInt(localStorage.getItem('tp_worlds') || '0', 10)); localStorage.setItem('tp_worlds', String(mx)); }
+
+    // ---------- Story / quest layer: reactivate the dormant data-brain ----------
+    const questTitleEl = document.getElementById('questTitle'), questProgEl = document.getElementById('questProg'), questEl = document.getElementById('quest');
+    const QUESTS = [
+      { t: 'Erste Verbindung',  d: 'Liefere dein erstes Datenpaket 📦',   goal: (s) => s.delivered >= 1,  p: (s) => Math.min(s.delivered, 1) + '/1',          done: '✨ Erste Synapse leuchtet auf!' },
+      { t: 'Wecke einen Knoten', d: 'Springe 🪐 zu einer zweiten Welt',     goal: (s) => s.worlds >= 2,    p: (s) => Math.min(s.worlds, 2) + '/2 Welten',      done: '🪐 Ein zweiter Knoten erwacht …' },
+      { t: 'Synapsen-Strom',    d: 'Liefere 5 Pakete ins Netzwerk',        goal: (s) => s.delivered >= 5,  p: (s) => Math.min(s.delivered, 5) + '/5',          done: '🧠 Der Datenstrom fließt!' },
+      { t: 'Netzwerk weben',    d: 'Verbinde 3 Projekt-Welten',            goal: (s) => s.worlds >= 3,    p: (s) => Math.min(s.worlds, 3) + '/3 Welten',      done: '🕸️ Das Netzwerk verdichtet sich …' },
+      { t: 'Datenhirn erwecken', d: 'Liefere insgesamt 15 Pakete',         goal: (s) => s.delivered >= 15, p: (s) => Math.min(s.delivered, 15) + '/15',        done: '🌟 Das Datenhirn ist erwacht!' },
+    ];
+    let questIdx = 0, questsDone = false;
+    function renderQuest() {
+      if (questsDone) { questTitleEl.textContent = '🧠 Datenhirn erwacht'; questProgEl.textContent = 'Alle Synapsen aktiv ✓'; return; }
+      const q = QUESTS[questIdx];
+      questTitleEl.textContent = (questIdx + 1) + '/' + QUESTS.length + ' · ' + q.t;
+      questProgEl.textContent = q.d + '  ·  ' + q.p({ delivered, worlds: worldsRun.size });
+    }
+    function updateQuests() {
+      if (questsDone) return;
+      const s = { delivered, worlds: worldsRun.size };
+      let advanced = false;
+      while (questIdx < QUESTS.length && QUESTS[questIdx].goal(s)) {
+        toast(QUESTS[questIdx].done, 2600); chime(true); linkFlash = 1; burst(player.position, 0x8ff5e8);
+        questIdx++; advanced = true;
+      }
+      if (advanced) {
+        questEl.classList.remove('flash'); void questEl.offsetWidth; questEl.classList.add('flash');
+        if (questIdx >= QUESTS.length) { questsDone = true; finale(); }
+      }
+      renderQuest();
+    }
+    function finale() {
+      finished = true;
+      winEl.querySelector('h2').textContent = '🧠 Datenhirn erwacht!';
+      winTextEl.textContent = 'Alle Synapsen reaktiviert · ' + delivered + ' Pakete · ' + worldsRun.size + ' Welten · ' + fmt(elapsed);
+      document.getElementById('winBtn').textContent = 'Weiter erkunden ✨';
+      winEl.classList.add('on');
+      linkFlash = 1; const cols = [0x8ff5e8, 0xffd166, 0xb6ffe9]; for (let i = 0; i < 3; i++) burst(player.position, cols[i]);
+      shock(player.position, up, 0x8ff5e8); shake = 0.4; chime(true);
+    }
 
     // ---------- Footstep dust puffs ----------
     const puffs = [], puffGeo = new THREE.SphereGeometry(0.2, 6, 5);
@@ -1358,6 +1414,7 @@
           cur.cleared = true; const fl = makeFlag(); const fd = landingDir(cur); orientOnSphere(fl, fd, cur.walkR(fd)); cur.group.add(fl);
           toast('🏁 Welt komplett eingesammelt!', 2200); chime(true); burst(player.position, 0x2dd4bf);
         }
+        updateQuests();
       }
       // showreel auto-travel through worlds
       if (auto) { autoT -= dt; if (autoT <= 0) { autoT = 6; const others = planets.filter((p) => p !== cur); if (others.length) travelTo(others[(Math.random() * others.length) | 0]); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); } }
