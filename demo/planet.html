@@ -349,7 +349,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v101 · boss lunge';
+    const BUILD = 'v102 · lunge recovery';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -2013,7 +2013,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         if (e.hitT <= 0) { // staggered foes hold still (readable combat); otherwise wander/chase
           if (e.lungeT > 0) { // boss: committed lunge — drive fast along the locked heading; dash through it to dodge
             e.lungeT -= dt; e.dir.addScaledVector(e.fwd, 5.0 * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
-            if (e.lungeT <= 0) e.lungeCd = 2.6;
+            if (e.lungeT <= 0) { e.lungeCd = 2.6; e.hitT = Math.max(e.hitT, 0.5); } // brief recovery: hold still + vulnerable so a dodged lunge can be punished
           } else if (e.lungeWind > 0) { // boss: wind-up — hold + face the player while the telegraph flashes, then commit
             e.lungeWind -= dt; windup = true;
             if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) e.fwd.normalize(); }
