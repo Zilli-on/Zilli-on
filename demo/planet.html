@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v126 · avatar face';
+    const BUILD = 'v127 · avatar glow-up';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1086,10 +1086,10 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     {
       // legs pivot at the hip and swing for the walk cycle
       const leg = (sx) => {
-        const g = new THREE.Group(); g.position.set(sx, 1.02, 0);
-        const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.155, 0.6, 5, 12), limbMat); l.position.y = -0.4; l.castShadow = true; g.add(l);
-        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), accentMat); knee.position.y = -0.5; g.add(knee);
-        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.52), accentMat); boot.position.set(0, -0.85, 0.12); boot.castShadow = true; g.add(boot);
+        const g = new THREE.Group(); g.position.set(sx, 1.18, 0);
+        const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.155, 0.78, 5, 12), limbMat); l.position.y = -0.5; l.castShadow = true; g.add(l);
+        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), accentMat); knee.position.y = -0.62; g.add(knee);
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.52), accentMat); boot.position.set(0, -1.04, 0.12); boot.castShadow = true; g.add(boot);
         avatar.add(g); return g;
       };
       hero.legL = leg(-0.24); hero.legR = leg(0.24);
@@ -1130,6 +1130,12 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       const packTrim = new THREE.Mesh(new THREE.BoxGeometry(0.53, 0.18, 0.28), accentMat); packTrim.position.set(0, 1.99, -0.45); upper.add(packTrim);
       for (const sx of [-0.16, 0.16]) { const noz = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.095, 0.18, 12), limbMat); noz.position.set(sx, 1.45, -0.5); noz.castShadow = true; upper.add(noz);
         const d = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), glowMat); d.position.set(sx, 1.37, -0.51); upper.add(d); }
+      // flowing scarf — a warm accent that trails and sways with movement (elegance + life)
+      const scarfMat = toonMat({ color: 0xff7a5c, roughness: 0.62, metalness: 0.0, side: THREE.DoubleSide, emissive: 0x4a160c, emissiveIntensity: 0.25 });
+      hero.scarf = [];
+      for (let i = 0; i < 6; i++) { const seg = new THREE.Mesh(new THREE.BoxGeometry(0.3 - i * 0.03, 0.2, 0.05), scarfMat); seg.castShadow = true; upper.add(seg); hero.scarf.push(seg); }
+      // a small knot at the neck where the scarf ties on
+      const knot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), scarfMat); knot.position.set(0, 2.42, 0.2); knot.scale.set(1.2, 1, 0.8); upper.add(knot);
       // soft contact shadow grounds the hero (reads well top-down)
       const blob = new THREE.Mesh(new THREE.CircleGeometry(1.15, 24), new THREE.MeshBasicMaterial({ color: 0x06231f, alphaMap: nebTex, transparent: true, opacity: 0.34, depthWrite: false }));
       blob.rotation.x = -Math.PI / 2; blob.position.y = 0.05; avatar.add(blob); hero.blob = blob;
@@ -1233,7 +1239,12 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       avatar.scale.set(1 - vs * 0.5, 1 + vs, 1 - vs * 0.5);
       // upper-body bob + idle breathing + charge crouch
       const bob = moving ? Math.abs(Math.sin(gaitPhase)) * (running ? 0.16 : 0.09) : Math.sin(t * 2) * 0.04;
-      hero.upper.position.y = bob - (charging ? 0.16 : 0);
+      hero.upper.position.y = 0.16 + bob - (charging ? 0.16 : 0); // +0.16 base lift -> taller, less stubby stance on the longer legs
+      // flowing scarf: trails back & down, sways with speed, streams out in flight
+      if (hero.scarf) { const flow = mode === 'air' ? 1.3 : (moving ? (running ? 0.85 : 0.5) : 0.12);
+        for (let i = 0; i < hero.scarf.length; i++) { const s = hero.scarf[i], f = (i + 1) / hero.scarf.length;
+          s.position.set(Math.sin(t * 6 + i * 0.7) * 0.07 * f * (0.35 + flow), 2.46 - f * (0.42 + flow * 0.18), -0.16 - f * (0.34 + flow * 0.7));
+          s.rotation.x = -0.45 - flow * 0.7 - f * 0.25; s.rotation.z = Math.sin(t * 5 + i * 0.6) * 0.14 * (0.3 + flow); } }
       // contact shadow shrinks & fades as the hero leaves the ground
       const lift = mode === 'air' ? 6 : height;
       hero.blob.material.opacity = Math.max(0, 0.34 * (1 - lift / 4));
