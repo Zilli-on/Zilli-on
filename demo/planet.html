@@ -364,9 +364,10 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
     import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v119 · richer toon light';
+    const BUILD = 'v120 · PBR + IBL';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -395,6 +396,8 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0xbfe3ff, 70, 290); // distance fog -> far worlds fade into the sky (depth)
+    // image-based lighting: a PMREM environment so PBR materials pick up soft, realistic ambient reflections (the core of the high-end look)
+    { const pmrem = new THREE.PMREMGenerator(renderer); scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; }
     const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
 
     // ---------- Toon gradient (cel bands) ----------
@@ -404,7 +407,10 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true;
       return t;
     })();
-    function toonMat(opts) { return new THREE.MeshToonMaterial(Object.assign({ gradientMap: gradient }, opts)); }
+    // PBR material factory (drop-in for the old toon factory): physically-based shading lit by the IBL environment for a high-end look
+    function toonMat(opts) { const o = Object.assign({}, opts); delete o.gradientMap;
+      if (o.roughness === undefined) o.roughness = 0.82; if (o.metalness === undefined) o.metalness = 0.0; if (o.envMapIntensity === undefined) o.envMapIntensity = 0.65;
+      return new THREE.MeshStandardMaterial(o); }
 
     // ---------- Sky dome (animated by the day/night cycle) ----------
     const skyMat = new THREE.ShaderMaterial({
