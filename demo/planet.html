@@ -153,7 +153,7 @@
       background: rgba(255,255,255,0.55); border: 1px solid var(--stroke); border-radius: 10px; overflow: hidden; display: none; box-shadow: var(--shadow); }
     #chargeBar.on { display: block; }
     #chargeFill { height: 100%; width: 0%; background: linear-gradient(90deg, #7df0dd, #14b8a6); box-shadow: 0 0 12px rgba(45,212,191,0.8); }
-    #bossBar { position: fixed; left: 50%; top: 74px; translate: -50% 0; z-index: 6; width: min(52vw, 340px); display: none; text-align: center; pointer-events: none; }
+    #bossBar { position: fixed; left: 50%; top: 104px; translate: -50% 0; z-index: 6; width: min(52vw, 340px); display: none; text-align: center; pointer-events: none; }
     #bossBar.on { display: block; }
     #bossBar .bn { font: 700 12px/1 'Space Grotesk', sans-serif; letter-spacing: 0.1em; color: #ffd166; text-shadow: 0 1px 5px rgba(0,0,0,0.55); margin-bottom: 5px; }
     #bossBar .bt { height: 12px; background: rgba(255,255,255,0.5); border: 1px solid var(--stroke); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow); }
@@ -249,6 +249,7 @@
       #card { bottom: 140px; max-width: 78vw; }
       #chargeBar { bottom: 150px; }
       #compass { top: 96px; }
+      #bossBar { top: 146px; width: min(64vw, 320px); }
     }
   </style>
 </head>
@@ -265,7 +266,7 @@
   <div id="settings"><div class="proj-card">
     <div class="pn">⚙ Einstellungen</div>
     <div class="prow"><button class="cl" id="setMusic">🔊 Musik: an</button><button class="cl" id="setFx">✨ Effekte: an</button><button class="cl" id="setMotion">🌀 Bewegung: voll</button></div>
-    <div class="pb">WASD laufen · A/D drehen · Shift rennen · <b>J Angriff</b> · <b>K Windstoß</b> · <b>Q Dash</b> · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto · F Emoji · H Hilfe</div>
+    <div class="pb">WASD laufen · A/D drehen · Shift rennen · <b>J Angriff</b> · <b>K Windstoß</b> · <b>B Bombe</b> · <b>Q Dash</b> · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto · F Emoji · H Hilfe</div>
     <div class="prow"><button class="gh" id="setResume">▶ Weiter spielen</button><button class="cl" id="setRestart">↻ Neu starten</button><button class="cl" id="setReset">🗑 Fortschritt löschen</button></div>
   </div></div>
   <div id="help"><div class="proj-card">
@@ -277,7 +278,9 @@ A / D — drehen   ·   Maus / Wischen — Kamera
 Shift — rennen
 Space (gedrückt halten) — Planet-Sprung
 M — Galaxie-Karte   ·   E — Projekt-Info
-J — Angriff   ·   K — Windstoß   ·   B — Bombe   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilfe</div>
+J — Angriff (3er-Combo, jeder 3. Schlag stärker)   ·   K — Windstoß   ·   B — Bombe (Flächenschaden)   ·   Q — Dash (Ausweichen)
+⚔️ Kämpfe gegen Gegner & Wächter (Bosse werden bei halber HP wild) · 🌬️ flieg durch Wind-Strömungen für einen Gleit-Schub
+C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilfe</div>
     <div class="prow"><button class="cl" id="helpClose">Schließen (Esc / H)</button></div>
   </div></div>
   <div id="reelHint">🎬 Showreel · Klick oder Taste = selbst steuern</div>
@@ -358,7 +361,7 @@ J — Angriff   ·   K — Windstoß   ·   B — Bombe   ·   Q — Dash (Auswe
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v110 · bomb + auto-sprint';
+    const BUILD = 'v111 · polish';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -564,6 +567,7 @@ J — Angriff   ·   K — Windstoß   ·   B — Bombe   ·   Q — Dash (Auswe
     const enemyHitMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const bossEyeMat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
     const enemyWarnMat = new THREE.MeshBasicMaterial({ color: 0xfff2a8 }); // bright wind-up flash — telegraphs an incoming hit
+    const enemySwarmEyeMat = new THREE.MeshBasicMaterial({ color: 0xffaa3c }); // swarmers: amber eye so the fast tier reads at a glance
     function makeEnemy(theme, boss, sz) {
       const g = new THREE.Group();
       const tint = boss ? 0x241226 : theme === 'tech' ? 0x3a4a64 : theme === 'volcano' ? 0x3a201c : theme === 'snow' ? 0x3a4658 : theme === 'desert' ? 0x5a4632 : 0x33324a;
@@ -1455,7 +1459,9 @@ J — Angriff   ·   K — Windstoß   ·   B — Bombe   ·   Q — Dash (Auswe
       const steps = [
         '🎮 WASD / Pfeile: laufen · Maus oder Wischen: Kamera',
         '📦 Sammle Pakete und liefere sie an die Häuser mit Ring ✅',
+        '⚔️ J: Angriff (3er-Combo) · Q: Ausweichen · K: Windstoß · B: Bombe',
         '🪐 Halte SPACE, ziele auf einen anderen Planeten → abheben!',
+        '🌬️ Flieg durch Wind-Strömungen für einen Gleit-Schub zur nächsten Insel',
         '🧠 M: Galaxie-Karte · E: Projekt-Info',
       ];
       steps.forEach((s, i) => setTimeout(() => { if (started) toast(s, 3600); }, 1200 + i * 4000));
@@ -1851,6 +1857,14 @@ J — Angriff   ·   K — Windstoß   ·   B — Bombe   ·   Q — Dash (Auswe
       const g = ctx.createGain(); g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
       o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.32);
     }
+    function boom() { // bomb explosion: a low thump + a filtered crack
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.4);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.34, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.45); o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.47);
+      const n = ctx.createOscillator(); n.type = 'sawtooth'; n.frequency.setValueAtTime(360, t); n.frequency.exponentialRampToValueAtTime(60, t + 0.25);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; const ng = ctx.createGain(); ng.gain.setValueAtTime(0.18, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      n.connect(lp); lp.connect(ng); ng.connect(audio.master); n.start(t); n.stop(t + 0.32);
+    }
     function connectSound() { // a gentle rising blip when a new node joins the network
       if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
       [523, 784].forEach((f, i) => { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
@@ -2137,7 +2151,7 @@ J — Angriff   ·   K — Windstoß   ·   B — Bombe   ·   Q — Dash (Auswe
         _up.copy(e.dir); _r.crossVectors(_up, e.fwd).normalize(); _m.makeBasis(_r, _up, e.fwd); e.g.quaternion.setFromRotationMatrix(_m);
         e.g.children[0].rotation.y += dt * 2; // spin the body
         if (e.g.userData.ring) { e.g.userData.ring.rotation.z += dt * (e.enraged ? 4.2 : 1.6); if (e.enraged) e.g.userData.ring.material.color.setHex(0xff4d6d); }
-        if (e.g.userData.eye) e.g.userData.eye.material = e.hitT > 0 ? enemyHitMat : (e.warn > 0.5 ? enemyWarnMat : (e.boss ? bossEyeMat : enemyEyeMat));
+        if (e.g.userData.eye) e.g.userData.eye.material = e.hitT > 0 ? enemyHitMat : (e.warn > 0.5 ? enemyWarnMat : (e.boss ? bossEyeMat : e.swarm ? enemySwarmEyeMat : enemyEyeMat));
         if (e.pl === cur && mode === 'ground' && hurtT <= 0 && e.hitT <= 0) { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 1.55) hurtPlayer(_ew); }
       }
       // memory fragments: bob/spin, and collect on touch
@@ -2148,7 +2162,7 @@ J — Angriff   ·   K — Windstoß   ·   B — Bombe   ·   Q — Dash (Auswe
       // bombs: tick the fuse (LED blinks faster), then burst into a radial AoE shock that damages every nearby foe
       for (let bi = bombs.length - 1; bi >= 0; bi--) { const bo = bombs[bi]; if (!bo.pl.group.visible) continue;
         bo.t -= dt; const led = bo.g.userData.led; if (led) { const blink = Math.sin(bo.t * (bo.t < 0.4 ? 40 : 14)); led.material.opacity = 0.4 + 0.6 * (blink > 0 ? 1 : 0.2); led.scale.setScalar(1 + (bo.t < 0.4 ? 0.5 : 0.2) * Math.max(0, blink)); }
-        if (bo.t <= 0) { const bc = new THREE.Vector3().copy(bo.pl.center).add(bo.g.position); burst(bc, 0xffd166); burst(bc, 0xff8a5a); shock(bc, bo.dir, 0xffd166); shake = Math.max(shake, 0.4); hitStop = Math.max(hitStop, 0.06);
+        if (bo.t <= 0) { const bc = new THREE.Vector3().copy(bo.pl.center).add(bo.g.position); burst(bc, 0xffd166); burst(bc, 0xff8a5a); shock(bc, bo.dir, 0xffd166); shake = Math.max(shake, 0.4); hitStop = Math.max(hitStop, 0.06); boom();
           for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.pl !== bo.pl) continue; tmp.copy(bo.pl.center).add(e.g.position); if (tmp.distanceTo(bc) < 4.6) { e.dir.addScaledVector(tmp.sub(bc).normalize(), 0.45).normalize(); hitEnemy(e, i, 0.0); } } // knock outward + damage
           bo.pl.group.remove(bo.g); bombs.splice(bi, 1); } }
       // bounce pads: squash recovery + ring spin
