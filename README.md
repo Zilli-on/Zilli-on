@@ -12,6 +12,8 @@ Building **local-first developer tools** for AI assistants.
 
 ## Demo
 
+▶ **Play live:** once GitHub Pages is enabled (Settings → Pages → Source: GitHub Actions), the demos publish automatically — landing page at the Pages root, with **Tiny Planet** at `/demo/planet.html`. Or clone and open the HTML files locally.
+
 - **[Tiny Planet](demo/planet.html)** — an atmospheric **action-adventure across tiny floating planets** (Zelda-style exploring × Super-Mario-Galaxy hopping × Windblown-ish island combat). Single self-contained HTML file (WebGL + Three.js). Inspired by `messenger.abeto.co`.
   - ⚔️ **Adventure loop**: land → explore → fight enemies (melee `J` with a **3-hit combo** whose finisher hits harder, wind-blast `K`, dodge-dash `Q`) — foes range from small fast **swarmers** to grunts to guardians → clear/liberate the world → collect **memory fragments** that whisper a lost world's story → travel on. Occasional **guardian mini-bosses** that wind up and **dash-strike** (then leave a punish window) with their own **health bar**; 5-heart health with respawn. Combat reads fairly — foes **telegraph** an incoming hit (they puff up and flash) so the dash has a real window — with impact **hit-stop and screen-shake** for punch, and **adaptive music** that tightens when enemies close in.
   - 🪐 **Galaxy hopping**: charge-jump with gravity flight + trajectory aim-preview between procedurally generated planets; an "infinite" cluster that grows as you explore (jump into the void to discover new worlds) with Minecraft-style distance culling
@@ -23,7 +25,8 @@ Building **local-first developer tools** for AI assistants.
   - 🏅 **Progression that sticks**: persistent best scores plus unlockable achievements (Combo-Meister, Entdecker, Kurier, Daten-Logistiker) and a "data-brain reactivated" badge, all shown on the start menu
   - 🎬 **Showreel** + **attract mode** (auto-fly after ~30s idle, ideal as a kiosk) and 📷 **photo mode** (C) with cinematic letterbox framing for clean shots; in-game help overlay (`H` / ❔); first-time onboarding; dynamic top-down camera that tilts while aiming a jump
   - 😄 Avatar **emoji expressions** (press `F` / on-screen button; auto-pops on deliveries & landings) — a charm nod to `messenger.abeto.co`; plus a polished loading screen
-  - 💎 Glassmorphic UI (Outfit / Space Grotesk); works on desktop **and** phone. Controls: `W/S` walk · `A/D` turn · `Shift` run · **hold `Space`** planet-jump · `M` map · `E` project · `C` photo · `F` emoji · `H` help
+  - 🌬️ **Wind currents**: drifting streams in the space between nearby islands give your glide a boost when you fly through them — ride them to chain hops across the cluster
+  - 💎 Glassmorphic UI (Outfit / Space Grotesk); works on desktop **and** phone. Controls: `W/S` walk · `A/D` turn · `Shift` run · **hold `Space`** planet-jump · `J` attack · `K` wind-blast · `B` bomb · `Q` dodge-dash · `M` map · `E` project · `C` photo · `F` emoji · `H` help. On phone: joystick (push fully to run), `HOP`, and ⚔️/💨/🌀/💣 buttons
 - **[Walkable 3D World](demo/index.html)** — a first-person tech-city you can walk around. `WASD` move · mouse look · `Shift` sprint · `Space` jump, plus touch controls on mobile.
 
 Both are single self-contained HTML files (Three.js via CDN) — open them locally, or use a render link since GitHub shows `.html` as source rather than running it.
