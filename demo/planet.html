@@ -358,7 +358,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v108 · boss enrage';
+    const BUILD = 'v109 · wind currents';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -925,6 +925,30 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     const pulseMat = new THREE.MeshBasicMaterial({ color: 0xb6ffe9, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
     const pulseMatHot = new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.98, blending: THREE.AdditiveBlending, depthWrite: false }); // related worlds: warmer, busier traffic
     let linkSeg = null, pulses = [], linkFlash = 0; // linkFlash: brief network-wide glow on delivery
+    // wind currents — drifting streams in space between near islands that boost your glide when you fly through them
+    const currGeo = new THREE.OctahedronGeometry(0.2, 0);
+    const currMat = new THREE.MeshBasicMaterial({ color: 0xbfefff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false });
+    let currents = [], windRides = 0; // windRides: QA counter for current-boost frames
+    function rebuildCurrents() {
+      for (const c of currents) for (const p of c.parts) scene.remove(p.mesh);
+      currents = []; const seen = new Set();
+      for (const p of planets) {
+        const others = planets.filter((q) => q !== p).sort((a, b) => p.center.distanceTo(a.center) - p.center.distanceTo(b.center)).slice(0, 2);
+        for (const q of others) {
+          const key = [planets.indexOf(p), planets.indexOf(q)].sort((a, b) => a - b).join('-'); if (seen.has(key)) continue;
+          const gap = p.center.distanceTo(q.center) - p.R - q.R; if (gap < 8 || gap > 62) continue; // only sensible spans
+          seen.add(key);
+          const dir = q.center.clone().sub(p.center).normalize();
+          const a = p.center.clone().addScaledVector(dir, p.R + 4); const len = a.distanceTo(q.center.clone().addScaledVector(dir, -(q.R + 4)));
+          const perpU = new THREE.Vector3(0, 1, 0).cross(dir); if (perpU.lengthSq() < 1e-3) perpU.set(1, 0, 0); perpU.normalize();
+          const perpV = dir.clone().cross(perpU).normalize(); const parts = [];
+          for (let i = 0; i < 10; i++) { const m = new THREE.Mesh(currGeo, currMat); m.frustumCulled = false; scene.add(m);
+            const off = perpU.clone().multiplyScalar((rnd() * 2 - 1) * 2.2).add(perpV.clone().multiplyScalar((rnd() * 2 - 1) * 2.2));
+            parts.push({ mesh: m, s: rnd(), off, spd: 7 + rnd() * 4 }); }
+          currents.push({ a, dir, len, parts });
+        }
+      }
+    }
     // a delivered packet visibly travels along a real synapse to the nearest world
     const packetGeo = new THREE.SphereGeometry(0.55, 12, 12);
     let dataPackets = [];
@@ -965,6 +989,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
       linkSeg = new THREE.LineSegments(g, linkMat); linkSeg.frustumCulled = false; scene.add(linkSeg);
+      rebuildCurrents();
     }
 
     // pull the real GitHub repos so each world is an actual project (top-level await; falls back if offline)
@@ -1309,6 +1334,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     window.__dbg.attack = () => attack();
     window.__dbg.forceAttack = () => { attackCd = 0; attack(); return { chainN, heavy: lastHeavy }; };
     window.__dbg.enemyTypes = () => { const e = enemies.filter((x) => x.pl === cur); return { total: e.length, swarm: e.filter((x) => x.swarm).length, grunt: e.filter((x) => !x.swarm && !x.boss).length, boss: e.filter((x) => x.boss).length }; };
+    window.__dbg.currents = () => ({ count: currents.length, parts: currents.reduce((s, c) => s + c.parts.length, 0), rides: windRides });
     window.__dbg.hitBoss = () => { for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.boss && e.pl === cur) { hitEnemy(e, i, 0); return e.hp; } } return null; };
     window.__dbg.bossDbg = () => { for (const e of enemies) { if (e.boss && e.pl === cur) { _ew.copy(cur.center).add(e.g.position); return { hp: e.hp, max: e.bossHpMax, enraged: !!e.enraged, dist: +_ew.distanceTo(player.position).toFixed(2), w: bossFillEl.style.width, rageClass: bossBarEl.classList.contains('rage') }; } } return null; };
     window.__dbg.enemyEyes = () => enemies.filter((e) => e.pl === cur).map((e) => ({ warn: +(e.warn || 0).toFixed(2), col: e.g.userData.eye ? e.g.userData.eye.material.color.getHexString() : null }));
@@ -2005,6 +2031,9 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       const windT = oceanUniforms.time.value;
       // trees sway in the wind (skip culled worlds)
       for (const w of windy) { if (!w.pl.group.visible) continue; _qA.setFromAxisAngle(_vx, Math.sin(windT * 1.5 + w.phase) * 0.05); w.obj.quaternion.copy(w.base).multiply(_qA); }
+      // wind currents drift along their stream (only the nearby ones, to stay cheap)
+      for (const c of currents) { if (player.position.distanceTo(c.a) > 130) { if (c.parts[0].mesh.visible) for (const p of c.parts) p.mesh.visible = false; continue; }
+        for (const p of c.parts) { p.mesh.visible = true; p.s += dt * p.spd / Math.max(c.len, 1); if (p.s > 1) p.s -= 1; p.mesh.position.copy(c.a).addScaledVector(c.dir, p.s * c.len).add(p.off); } }
       // nebula clouds breathe and follow the star opacity (space / night)
       for (const n of nebula) { n.material.opacity = n.userData.base * starMat.opacity * (0.75 + 0.25 * Math.sin(windT * 0.3 + n.userData.ph)); n.material.rotation += dt * 0.015; }
       // fireflies (fade in at night, gentle drift)
@@ -2150,9 +2179,13 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         // gravity ramps up the longer you fly -> no perpetual orbit (anti soft-lock)
         vel.addScaledVector(tmp, G * (0.9 + Math.max(0, airTime - 3) * 0.5) * dt);
         if (turn) vel.applyAxisAngle(up, turn);
-        if (vel.length() > 40) vel.setLength(40);
+        let inWind = false;
+        // ride wind currents: a strong push along the stream (whichever way you're headed) to glide between islands
+        for (const c of currents) { const ax = tmp2.copy(airPos).sub(c.a); const t = ax.dot(c.dir); if (t < -3 || t > c.len + 3) continue;
+          const perp2 = Math.max(0, ax.lengthSq() - t * t); if (perp2 < 16) { const sgn = vel.dot(c.dir) >= 0 ? 1 : -1; vel.addScaledVector(c.dir, sgn * 24 * dt); inWind = true; windRides++; } }
+        if (vel.length() > 44) vel.setLength(44);
         airPos.addScaledVector(vel, dt);
-        trailTimer -= dt; if (trailTimer <= 0) { trailTimer = 0.045; trailDot(airPos); }
+        trailTimer -= dt; if (trailTimer <= 0) { trailTimer = inWind ? 0.022 : 0.045; trailDot(airPos); } // denser trail while riding a current
         up.copy(airPos).sub(np.center).normalize();
         forward.copy(vel).addScaledVector(up, -vel.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0).addScaledVector(up, -up.x); forward.normalize();
         if (!airArmed && airPos.distanceTo(launchPlanet.center) > launchPlanet.R + 6) airArmed = true;
