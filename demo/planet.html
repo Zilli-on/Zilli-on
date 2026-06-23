@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v123 · avatar redesign';
+    const BUILD = 'v124 · baked AO';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -752,15 +752,26 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       const detail = Math.max(8, Math.min(lowPerf ? 20 : 30, Math.round(PR * (lowPerf ? 1.0 : 1.75)))); // rounder horizon silhouettes on capable devices
       const geo = new THREE.IcosahedronGeometry(PR, detail);
       { const p = geo.attributes.position, col = new Float32Array(p.count * 3), d = new THREE.Vector3();
+        const _aoU = new THREE.Vector3(), _aoT1 = new THREE.Vector3(), _aoT2 = new THREE.Vector3(), _aoN = new THREE.Vector3();
         for (let i = 0; i < p.count; i++) {
           d.set(p.getX(i), p.getY(i), p.getZ(i)).normalize();
-          const h = Math.max(terrain(d), -PR * 0.05); d.multiplyScalar(PR + h); p.setXYZ(i, d.x, d.y, d.z);
+          const h = Math.max(terrain(d), -PR * 0.05);
+          // baked ambient occlusion: hollows ringed by higher ground darken -> grounded "rendered" depth with no post pass
+          _aoU.set(0, 1, 0); if (Math.abs(d.y) > 0.9) _aoU.set(1, 0, 0);
+          _aoT1.crossVectors(d, _aoU).normalize(); _aoT2.crossVectors(d, _aoT1).normalize();
+          let occ = 0;
+          _aoN.copy(d).addScaledVector(_aoT1, 0.1).normalize(); occ += Math.max(0, terrain(_aoN) - h);
+          _aoN.copy(d).addScaledVector(_aoT1, -0.1).normalize(); occ += Math.max(0, terrain(_aoN) - h);
+          _aoN.copy(d).addScaledVector(_aoT2, 0.1).normalize(); occ += Math.max(0, terrain(_aoN) - h);
+          _aoN.copy(d).addScaledVector(_aoT2, -0.1).normalize(); occ += Math.max(0, terrain(_aoN) - h);
+          const ao = Math.max(0.62, 1 - (occ / (PR * 0.2)) * 0.55);
+          d.multiplyScalar(PR + h); p.setXYZ(i, d.x, d.y, d.z);
           if (h < 0) _cc.setHex(T.wet);
           else if (h < PR * 0.012) _cc.setHex(T.sand).lerp(_ct.setHex(T.foam), Math.max(0, 1 - h / (PR * 0.006)) * 0.5);
           else if (h < PR * 0.11) _cc.setHex(T.grass).lerp(_ct.setHex(T.grass2), h / (PR * 0.11) * 0.7);
           else if (h < PR * 0.17) _cc.setHex(T.grass2).lerp(_ct.setHex(T.rock), (h - PR * 0.11) / (PR * 0.06));
           else _cc.setHex(T.rock).lerp(_ct.setHex(T.snow), Math.min(1, (h - PR * 0.17) / (PR * 0.05)));
-          col[i*3] = _cc.r; col[i*3+1] = _cc.g; col[i*3+2] = _cc.b;
+          col[i*3] = _cc.r * ao; col[i*3+1] = _cc.g * ao; col[i*3+2] = _cc.b * ao;
         }
         geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals();
       }
