@@ -262,7 +262,7 @@
 <body>
   <div id="loader"><div class="ring"></div><div class="lt">Tiny <span>Planet</span></div><div class="ls">Lade Galaxie …</div></div>
   <div id="cinebarTop" class="cinebar"></div><div id="cinebarBot" class="cinebar"></div>
-  <div id="hud"><b id="hearts" class="hp">❤❤❤❤❤</b> · 📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · <b id="frags" class="fr">✦ 0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
+  <div id="hud"><b id="hearts" class="hp">❤❤❤❤❤</b> &nbsp; <b id="frags" class="fr">✦ 0</b><span id="hudx" style="display:none">📦<b id="carry">0</b> ✅<b id="cnt">0</b> 🪐<b id="world">0</b> ⏱<b id="timer">0:00</b></span></div>
   <div id="quest"><div class="qh">🧠 Mission</div><div class="qt" id="questTitle">…</div><div class="qp" id="questProg"></div></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
   <button id="mapBtn" title="Galaxie-Karte (M)">🗺️</button>
@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v132 · world variety';
+    const BUILD = 'v133 · clean HUD';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1462,13 +1462,12 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     function startGame(showreel) {
       if (playBtn.disabled || started) return;
       started = true; overlay.classList.add('hidden');
-      compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); cineBtn.classList.add('on'); setBtn.classList.add('on'); document.getElementById('helpBtn').classList.add('on');
+      radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); cineBtn.classList.add('on'); setBtn.classList.add('on'); document.getElementById('helpBtn').classList.add('on');
       if (isTouch) touchUI.classList.add('on');
-      initAudio(); showCard(cur.project); visitWorld(cur); lastInput = performance.now();
+      initAudio(); visitWorld(cur); lastInput = performance.now();
       if (showreel) { auto = true; autoT = 4; autoStart = performance.now(); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); }
       else {
-        questEl.classList.add('on'); renderQuest();
-        toast('🧠 Das Datenhirn ist eingeschlafen — reaktiviere als Kurier seine Synapsen!', 4200);
+        renderQuest();
         if (!localStorage.getItem('tp_seen')) { coachSeq(); localStorage.setItem('tp_seen', '1'); }
       }
     }
@@ -1559,11 +1558,13 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       { t: 'Datenhirn erwecken', d: 'Liefere insgesamt 15 Pakete',         goal: (s) => s.delivered >= 15, p: (s) => Math.min(s.delivered, 15) + '/15',        done: '🌟 Das Datenhirn ist erwacht!' },
     ];
     let questIdx = 0, questsDone = false;
+    let questTimer = 0;
     function renderQuest() {
-      if (questsDone) { questTitleEl.textContent = '🧠 Datenhirn erwacht'; questProgEl.textContent = 'Alle Synapsen aktiv ✓'; return; }
-      const q = QUESTS[questIdx];
-      questTitleEl.textContent = (questIdx + 1) + '/' + QUESTS.length + ' · ' + q.t;
-      questProgEl.textContent = q.d + '  ·  ' + q.p({ delivered, worlds: worldsRun.size });
+      if (questsDone) { questTitleEl.textContent = '🧠 Datenhirn erwacht'; questProgEl.textContent = 'Alle Synapsen aktiv ✓'; }
+      else { const q = QUESTS[questIdx];
+        questTitleEl.textContent = (questIdx + 1) + '/' + QUESTS.length + ' · ' + q.t;
+        questProgEl.textContent = q.d + '  ·  ' + q.p({ delivered, worlds: worldsRun.size }); }
+      questEl.classList.add('on'); questTimer = 6; // show briefly, then auto-fade (keeps the HUD clean)
     }
     function updateQuests() {
       if (questsDone) return;
@@ -1685,7 +1686,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     function travelTo(p) {
       cur = p; mode = 'ground'; vel.set(0, 0, 0); height = 0; vUp = 0;
       pos.copy(landingDir(p)).multiplyScalar(p.R); refreshFrame(); placePlayer();
-      burst(player.position, 0xffffff); showCard(p.project); landSound(); setSky(p.project.theme); visitWorld(p); maybeExpand(); closeMap();
+      burst(player.position, 0xffffff); toast('🪐 ' + p.project.name, 1500); landSound(); setSky(p.project.theme); visitWorld(p); maybeExpand(); closeMap();
     }
     function drawMap() {
       const S = mapCanvas.width; mctx.clearRect(0, 0, S, S);
@@ -2301,8 +2302,8 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
           cur = np; pos.copy(up).multiplyScalar(cur.R); refreshFrame();
           mode = 'ground'; height = 0; vUp = 0; vel.set(0, 0, 0); canJump = true;
           hp = maxHp; hurtT = 0; renderHearts(); // fresh health on each new world
-          burst(player.position, 0xffffff); shock(player.position, up, 0xffffff); shake = 0.32; toast(cur.rich ? 'Zuhause! 🏠' : 'Neuer Planet! 🪐', 1400); popEmoji(cur.rich ? '🏠' : '👋');
-          showCard(cur.project); landSound(); setSky(cur.project.theme); visitWorld(cur);
+          burst(player.position, 0xffffff); shock(player.position, up, 0xffffff); shake = 0.32; toast((cur.rich ? '🏠 ' : '🪐 ') + cur.project.name, 1500); popEmoji(cur.rich ? '🏠' : '👋');
+          landSound(); setSky(cur.project.theme); visitWorld(cur);
           maybeExpand();
         }
       }
@@ -2345,7 +2346,8 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         if (started && mode === 'ground') { for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (e.boss) { if (d < 16) boss = 1; } else if (d < 11) near++; } }
         const tgt = Math.min(1, near * 0.38 + boss * 0.6); audio.tension = tgt;
         if (audio.tensionGain) audio.tensionGain.gain.setTargetAtTime(tgt * 0.14, audio.ctx.currentTime, 0.4); }
-      projHint.classList.toggle('on', started && mode === 'ground' && !projOpen && !mapOpen && !cardEl.classList.contains('on')); // never overlap the project/memory card
+      if (questTimer > 0) { questTimer -= dt; if (questTimer <= 0) questEl.classList.remove('on'); }
+      projHint.classList.remove('on'); // E-hint hidden by default to keep the screen clean (help overlay lists it)
       if (mapOpen) drawMap();
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
       if (cardTimer > 0) { cardTimer -= dt; if (cardTimer <= 0) cardEl.classList.remove('on'); }
