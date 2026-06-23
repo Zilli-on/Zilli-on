@@ -158,6 +158,9 @@
     #bossBar .bn { font: 700 12px/1 'Space Grotesk', sans-serif; letter-spacing: 0.1em; color: #ffd166; text-shadow: 0 1px 5px rgba(0,0,0,0.55); margin-bottom: 5px; }
     #bossBar .bt { height: 12px; background: rgba(255,255,255,0.5); border: 1px solid var(--stroke); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow); }
     #bossFill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff8a5a, #ff4d6d); box-shadow: 0 0 12px rgba(255,90,90,0.8); transition: width 0.18s ease; }
+    #bossBar.rage .bn { color: #ff6b81; }
+    #bossBar.rage #bossFill { background: linear-gradient(90deg, #ff4d6d, #ff2d55); box-shadow: 0 0 16px rgba(255,45,85,0.95); }
+    #bossBar.rage .bn::after { content: ' 🔥'; }
 
     /* ---------- project info card ---------- */
     #card { position: fixed; left: 50%; bottom: 46px; translate: -50% 8px; z-index: 6; max-width: 340px; text-align: center;
@@ -355,7 +358,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v107 · swarmers';
+    const BUILD = 'v108 · boss enrage';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1175,6 +1178,8 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       const pdir = tmp2.copy(player.position).sub(cur.center).normalize(); // knock the enemy away along the surface
       e.dir.addScaledVector(tmp3.copy(e.dir).sub(pdir), knock).normalize();
       e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)); if (e.fwd.lengthSq() < 1e-4) e.fwd.set(1, 0, 0); e.fwd.normalize();
+      if (e.boss && !e.enraged && e.hp > 0 && e.hp <= (e.bossHpMax || 6) / 2) { // phase 2: the guardian enrages at half health
+        e.enraged = true; e.lungeCd = 0.6; toast('🔥 Der Wächter wird wild!', 2200); shock(_ew, e.dir, 0xff4d6d); shake = Math.max(shake, 0.42); whoosh(); }
       if (e.hp <= 0) { burst(_ew, 0xffd166); shock(_ew, e.dir, 0xff8a5a); shake = Math.max(shake, 0.34); hitStop = Math.max(hitStop, 0.07); const pl = e.pl; pl.group.remove(e.g); enemies.splice(i, 1); defeated++;
         const fg = makeFragment(); const fd = e.dir.clone(); fg.position.copy(fd).multiplyScalar(pl.walkR(fd) + 0.7); pl.group.add(fg);
         fragments.push({ g: fg, dir: fd, pl, t: rnd() * 6 });
@@ -1220,7 +1225,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     function updateBossBar() { // show a guardian's health while engaged so the boss fight reads
       let b = null;
       if (started && mode === 'ground') { for (const e of enemies) { if (e.boss && e.pl === cur) { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 16) { b = e; break; } } } }
-      if (b) { bossBarEl.classList.add('on'); bossFillEl.style.width = Math.max(0, b.hp / (b.bossHpMax || 6) * 100) + '%'; }
+      if (b) { bossBarEl.classList.add('on'); bossBarEl.classList.toggle('rage', !!b.enraged); bossFillEl.style.width = Math.max(0, b.hp / (b.bossHpMax || 6) * 100) + '%'; }
       else bossBarEl.classList.remove('on'); }
     // memory fragments — collectible soul-shards that whisper a lost world's story
     const fragsEl = document.getElementById('frags');
@@ -1305,7 +1310,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     window.__dbg.forceAttack = () => { attackCd = 0; attack(); return { chainN, heavy: lastHeavy }; };
     window.__dbg.enemyTypes = () => { const e = enemies.filter((x) => x.pl === cur); return { total: e.length, swarm: e.filter((x) => x.swarm).length, grunt: e.filter((x) => !x.swarm && !x.boss).length, boss: e.filter((x) => x.boss).length }; };
     window.__dbg.hitBoss = () => { for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.boss && e.pl === cur) { hitEnemy(e, i, 0); return e.hp; } } return null; };
-    window.__dbg.bossDbg = () => { for (const e of enemies) { if (e.boss && e.pl === cur) { _ew.copy(cur.center).add(e.g.position); return { hp: e.hp, max: e.bossHpMax, dist: +_ew.distanceTo(player.position).toFixed(2), w: bossFillEl.style.width }; } } return null; };
+    window.__dbg.bossDbg = () => { for (const e of enemies) { if (e.boss && e.pl === cur) { _ew.copy(cur.center).add(e.g.position); return { hp: e.hp, max: e.bossHpMax, enraged: !!e.enraged, dist: +_ew.distanceTo(player.position).toFixed(2), w: bossFillEl.style.width, rageClass: bossBarEl.classList.contains('rage') }; } } return null; };
     window.__dbg.enemyEyes = () => enemies.filter((e) => e.pl === cur).map((e) => ({ warn: +(e.warn || 0).toFixed(2), col: e.g.userData.eye ? e.g.userData.eye.material.color.getHexString() : null }));
     window.__dbg.nearEnemy = (dist = 2.0) => { let best = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; } } if (!best) return false; const ed = best.dir.clone(); const t = new THREE.Vector3(0, 1, 0).cross(ed); if (t.lengthSq() < 1e-3) t.set(1, 0, 0); t.normalize(); const ang = dist / cur.R; pos.copy(ed).applyAxisAngle(t, ang).normalize().multiplyScalar(cur.R); refreshFrame(); const pdir = pos.clone().normalize(); forward.copy(ed).sub(pdir); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); placePlayer(); return true; };
     window.__dbg.attackDiag = () => { const r = []; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length(); to.normalize(); r.push({ d: +d.toFixed(2), dot: +to.dot(forward).toFixed(2), hp: e.hp }); } return { mode, attackCd: +attackCd.toFixed(2), fLen: +forward.length().toFixed(2), list: r }; };
@@ -2058,8 +2063,8 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         let windup = false;
         if (e.hitT <= 0) { // staggered foes hold still (readable combat); otherwise wander/chase
           if (e.lungeT > 0) { // boss: committed lunge — drive fast along the locked heading; dash through it to dodge
-            e.lungeT -= dt; e.dir.addScaledVector(e.fwd, 5.0 * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
-            if (e.lungeT <= 0) { e.lungeCd = 2.6; e.hitT = Math.max(e.hitT, 0.5); } // brief recovery: hold still + vulnerable so a dodged lunge can be punished
+            e.lungeT -= dt; e.dir.addScaledVector(e.fwd, (e.enraged ? 6.2 : 5.0) * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
+            if (e.lungeT <= 0) { e.lungeCd = e.enraged ? 1.3 : 2.6; e.hitT = Math.max(e.hitT, e.enraged ? 0.32 : 0.5); } // brief recovery: hold still + vulnerable so a dodged lunge can be punished (shorter when enraged)
           } else if (e.lungeWind > 0) { // boss: wind-up — hold + face the player while the telegraph flashes, then commit
             e.lungeWind -= dt; windup = true;
             if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) e.fwd.normalize(); }
@@ -2069,9 +2074,9 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
             if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); if (pdir.dot(e.dir) > 0.86) { // player within ~30° on the surface → chase
                 e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) { e.fwd.normalize(); chasing = true; } } }
             if (!chasing) e.fwd.applyAxisAngle(e.dir, Math.sin(e.t * 0.5) * 0.8 * dt);
-            const sp = chasing ? (e.boss ? 1.2 : e.swarm ? 2.5 : 1.7) : (e.swarm ? 1.0 : 0.7); e.dir.addScaledVector(e.fwd, sp * dt).normalize();
+            const sp = chasing ? (e.boss ? (e.enraged ? 1.9 : 1.2) : e.swarm ? 2.5 : 1.7) : (e.swarm ? 1.0 : 0.7); e.dir.addScaledVector(e.fwd, sp * dt).normalize();
             // boss: lock on at mid range, then begin a telegraphed lunge
-            if (e.boss && chasing && e.lungeCd <= 0 && e.pl === cur && mode === 'ground') { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 3.2) e.lungeWind = 0.45; }
+            if (e.boss && chasing && e.lungeCd <= 0 && e.pl === cur && mode === 'ground') { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < (e.enraged ? 3.8 : 3.2)) e.lungeWind = e.enraged ? 0.3 : 0.45; }
           }
           e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
           if (e.pl.terrain(e.dir) < e.pl.R * 0.02) { e.fwd.applyAxisAngle(e.dir, Math.PI * 0.8); e.dir.addScaledVector(e.fwd, 1.4 * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize(); }
@@ -2082,10 +2087,10 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         e.warn = (e.warn || 0) + (wt - (e.warn || 0)) * Math.min(1, dt * 8);
         const bob = e.hitT > 0 ? 0 : Math.abs(Math.sin(e.t * 3)) * 0.18 + e.warn * (0.1 + Math.abs(Math.sin(e.t * 15)) * 0.14);
         e.g.position.copy(e.dir).multiplyScalar(e.pl.walkR(e.dir) + 0.2 + bob);
-        e.g.scale.setScalar(1 + e.warn * 0.22);
+        e.g.scale.setScalar((e.enraged ? 1.15 : 1) + e.warn * 0.22);
         _up.copy(e.dir); _r.crossVectors(_up, e.fwd).normalize(); _m.makeBasis(_r, _up, e.fwd); e.g.quaternion.setFromRotationMatrix(_m);
         e.g.children[0].rotation.y += dt * 2; // spin the body
-        if (e.g.userData.ring) e.g.userData.ring.rotation.z += dt * 1.6;
+        if (e.g.userData.ring) { e.g.userData.ring.rotation.z += dt * (e.enraged ? 4.2 : 1.6); if (e.enraged) e.g.userData.ring.material.color.setHex(0xff4d6d); }
         if (e.g.userData.eye) e.g.userData.eye.material = e.hitT > 0 ? enemyHitMat : (e.warn > 0.5 ? enemyWarnMat : (e.boss ? bossEyeMat : enemyEyeMat));
         if (e.pl === cur && mode === 'ground' && hurtT <= 0 && e.hitT <= 0) { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 1.55) hurtPlayer(_ew); }
       }
