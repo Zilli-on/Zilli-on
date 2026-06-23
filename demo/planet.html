@@ -361,7 +361,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v111 · polish';
+    const BUILD = 'v112 · wind polish';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -954,9 +954,9 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
           const a = p.center.clone().addScaledVector(dir, p.R + 4); const len = a.distanceTo(q.center.clone().addScaledVector(dir, -(q.R + 4)));
           const perpU = new THREE.Vector3(0, 1, 0).cross(dir); if (perpU.lengthSq() < 1e-3) perpU.set(1, 0, 0); perpU.normalize();
           const perpV = dir.clone().cross(perpU).normalize(); const parts = [];
-          for (let i = 0; i < 10; i++) { const m = new THREE.Mesh(currGeo, currMat); m.frustumCulled = false; scene.add(m);
-            const off = perpU.clone().multiplyScalar((rnd() * 2 - 1) * 2.2).add(perpV.clone().multiplyScalar((rnd() * 2 - 1) * 2.2));
-            parts.push({ mesh: m, s: rnd(), off, spd: 7 + rnd() * 4 }); }
+          for (let i = 0; i < 12; i++) { const m = new THREE.Mesh(currGeo, currMat); m.frustumCulled = false; scene.add(m);
+            const off = perpU.clone().multiplyScalar((rnd() * 2 - 1) * 1.4).add(perpV.clone().multiplyScalar((rnd() * 2 - 1) * 1.4)); // tighter spread → reads as a directed stream, matching the boost tube
+            parts.push({ mesh: m, s: rnd(), off, spd: 7 + rnd() * 4, ph: rnd() * 6.28 }); }
           currents.push({ a, dir, len, parts });
         }
       }
@@ -2064,7 +2064,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       for (const w of windy) { if (!w.pl.group.visible) continue; _qA.setFromAxisAngle(_vx, Math.sin(windT * 1.5 + w.phase) * 0.05); w.obj.quaternion.copy(w.base).multiply(_qA); }
       // wind currents drift along their stream (only the nearby ones, to stay cheap)
       for (const c of currents) { if (player.position.distanceTo(c.a) > 130) { if (c.parts[0].mesh.visible) for (const p of c.parts) p.mesh.visible = false; continue; }
-        for (const p of c.parts) { p.mesh.visible = true; p.s += dt * p.spd / Math.max(c.len, 1); if (p.s > 1) p.s -= 1; p.mesh.position.copy(c.a).addScaledVector(c.dir, p.s * c.len).add(p.off); } }
+        for (const p of c.parts) { p.mesh.visible = true; p.s += dt * p.spd / Math.max(c.len, 1); if (p.s > 1) p.s -= 1; p.mesh.position.copy(c.a).addScaledVector(c.dir, p.s * c.len).add(p.off); p.mesh.scale.setScalar(0.55 + 0.7 * Math.sin(p.s * Math.PI)); } } // grow mid-stream, taper at the ends
       // nebula clouds breathe and follow the star opacity (space / night)
       for (const n of nebula) { n.material.opacity = n.userData.base * starMat.opacity * (0.75 + 0.25 * Math.sin(windT * 0.3 + n.userData.ph)); n.material.rotation += dt * 0.015; }
       // fireflies (fade in at night, gentle drift)
