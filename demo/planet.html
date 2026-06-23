@@ -366,7 +366,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v115 · meta + favicon';
+    const BUILD = 'v116 · grounding + ring';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -765,7 +765,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         new THREE.MeshBasicMaterial({ color: atmCol, transparent: true, opacity: 0.16, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false })));
       // occasional planetary ring
       if (rnd() < 0.32) {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(PR * 1.7, PR * 0.13, 2, 56), toonMat({ color: atmCol, transparent: true, opacity: 0.8 }));
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(PR * 1.7, PR * 0.09, 10, 72), toonMat({ color: atmCol, transparent: true, opacity: 0.8 }));
         ring.rotation.x = Math.PI / 2 + (rnd() - 0.5) * 0.7; ring.rotation.y = (rnd() - 0.5) * 0.5; group.add(ring);
       }
       const label = makeLabel(project.name); label.position.set(0, PR + 4.5, 0); label.scale.set(PR * 0.85, PR * 0.21, 1); group.add(label);
@@ -778,7 +778,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         const deco = isTree
           ? (th === 'desert' ? makeCactus() : th === 'volcano' ? makeDeadTree() : th === 'snow' ? makeTree(0xdfeefc) : makeTree())
           : roll < 0.74 ? makeRock() : makeHouse();
-        deco.scale.setScalar(0.8 + rnd() * 0.5); orientOnSphere(deco, dir, landR(dir)); group.add(deco);
+        deco.scale.setScalar(0.8 + rnd() * 0.5); orientOnSphere(deco, dir, landR(dir) - PR * 0.012); group.add(deco); // sink slightly so bases stay rooted on the faceted mesh, never floating
         if (isTree) windy.push({ obj: deco, base: deco.quaternion.clone(), phase: rnd() * 6.28, pl });
       }
       // critters (biome-specific)
@@ -843,7 +843,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       const oN = rich ? 3 : 1; let n = 0, att2 = 0;
       while (n < oN && att2 < 300) {
         att2++; const dir = randDir(); if (terrain(dir) < PR * 0.05) continue;
-        const h = makeHouse(); h.scale.setScalar(1.15); orientOnSphere(h, dir, landR(dir)); group.add(h);
+        const h = makeHouse(); h.scale.setScalar(1.15); orientOnSphere(h, dir, landR(dir) - PR * 0.012); group.add(h);
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.08, 8, 20), ringMat); ring.rotation.x = Math.PI / 2; ring.position.y = 2.5; h.add(ring);
         const beam = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.4, 4), beamMat.clone()); beam.position.y = 3.3; h.add(beam);
         dropoffs.push({ worldPos: center.clone().addScaledVector(dir, landR(dir) + 0.6), ring, beam, t: rnd() * 6, pl }); n++;
