@@ -365,9 +365,10 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
     import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v120 · PBR + IBL';
+    const BUILD = 'v121 · SMAA';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1935,6 +1936,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     composer.addPass(gradePass);
     let reduceMotion = localStorage.getItem('tp_motion') === '1'; // accessibility: cut grain / aberration / shake / god rays
     gradePass.uniforms.motion.value = reduceMotion ? 0 : 1;
+    if (!lowPerf) composer.addPass(new SMAAPass(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio())); // crisp edges (the composer's offscreen target isn't MSAA)
     composer.addPass(new OutputPass());
 
     // ---------- Loop ----------
