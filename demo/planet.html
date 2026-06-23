@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v124 · baked AO';
+    const BUILD = 'v125 · water glints';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -523,20 +523,21 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
 
     // shared toon-water material (works on any radius sphere, local-space waves)
     const oceanUniforms = { time: { value: 0 }, sunDir: { value: sunDir },
-      deep: { value: new THREE.Color(0x1f7ab0) }, shallow: { value: new THREE.Color(0x57c6e6) }, foam: { value: new THREE.Color(0xeafdff) } };
+      deep: { value: new THREE.Color(0x1f7ab0) }, shallow: { value: new THREE.Color(0x57c6e6) }, foam: { value: new THREE.Color(0xeafdff) }, sky: { value: new THREE.Color(0xbfe0ff) } };
     const oceanMaterial = new THREE.ShaderMaterial({ transparent: true, uniforms: oceanUniforms,
       vertexShader: `uniform float time; varying vec3 vN; varying vec3 vView; varying float vWave;
         void main(){ vec3 n = normalize(position);
           float w = sin(position.x*2.2 + time*1.3)*0.03 + sin(position.z*2.7 - time*1.1)*0.03 + sin(position.y*3.1 + time*0.7)*0.02;
           vWave = w; vec3 p = position + n*w; vec4 mv = modelViewMatrix*vec4(p,1.0);
           vN = normalize(normalMatrix*n); vView = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`,
-      fragmentShader: `uniform vec3 deep; uniform vec3 shallow; uniform vec3 foam; uniform vec3 sunDir; uniform float time;
+      fragmentShader: `uniform vec3 deep; uniform vec3 shallow; uniform vec3 foam; uniform vec3 sky; uniform vec3 sunDir; uniform float time;
         varying vec3 vN; varying vec3 vView; varying float vWave;
-        void main(){ float l = max(dot(vN, normalize((viewMatrix*vec4(sunDir,0.0)).xyz)),0.0);
-          float band = floor(l*3.0)/3.0; vec3 col = mix(deep, shallow, band*0.7+0.3);
-          float fres = pow(1.0 - max(dot(vN,vView),0.0), 3.0); col = mix(col, foam, fres*0.6);
+        void main(){ vec3 sunV = normalize((viewMatrix*vec4(sunDir,0.0)).xyz); float l = max(dot(vN, sunV),0.0);
+          vec3 col = mix(deep, shallow, l*0.6 + 0.25);                                  // smooth depth shading
+          float fres = pow(1.0 - max(dot(vN,vView),0.0), 3.0); col = mix(col, sky, fres*0.55); // reflect the sky at grazing angles (shifts with time of day)
+          vec3 h = normalize(sunV + vView); float spec = pow(max(dot(vN,h),0.0), 90.0); col += spec * 1.3; // sun specular glint
           float crest = smoothstep(0.06,0.085, vWave + sin(time*2.0)*0.005); col = mix(col, foam, crest*0.5);
-          gl_FragColor = vec4(col, 0.9); } ` });
+          gl_FragColor = vec4(col, 0.92); } ` });
 
     // ---------- mesh builders ----------
     function makeTree(leafCol) {
@@ -1995,6 +1996,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       if (hitStop > 0) { hitStop -= dt; dt *= 0.16; } // hit-stop: briefly slow time on a kill for impact
       if (started && elapsed > 3) { fpsT += dt; fpsN++; if (fpsT >= 2) { if (fpsN / fpsT < 38 && qual === 2) degrade(); fpsT = 0; fpsN = 0; } }
       oceanUniforms.time.value += dt;
+      oceanUniforms.sky.value.copy(skyMat.uniforms.mid.value); // water mirrors the current sky (warm at sunset, blue at noon)
       dayT = (dayT + dt / 150) % 1; updateDayNight(); // ~2.5 min full day
       updateShoot(dt);
       // Minecraft-style culling: only keep nearby worlds drawn & updated
