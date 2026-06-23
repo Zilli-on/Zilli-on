@@ -361,7 +361,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v112 · wind polish';
+    const BUILD = 'v113 · combat badges';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1210,6 +1210,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     }
     // ---------- Melee combat ----------
     const _ew = new THREE.Vector3(); let defeated = 0;
+    let bossKills = +(localStorage.getItem('tp_bosses') || 0), worldsFreed = +(localStorage.getItem('tp_freed') || 0); // persistent combat tallies for achievements
     function hitEnemy(e, i, knock = 0.12) {
       e.hp -= 1; e.hitT = 0.18; shake = Math.max(shake, 0.16);
       _ew.copy(cur.center).add(e.g.position); burst(_ew, 0xff8a5a); clang();
@@ -1222,10 +1223,12 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         const fg = makeFragment(); const fd = e.dir.clone(); fg.position.copy(fd).multiplyScalar(pl.walkR(fd) + 0.7); pl.group.add(fg);
         fragments.push({ g: fg, dir: fd, pl, t: rnd() * 6 });
         if (e.boss) { toast('🛡️ Wächter besiegt!', 2600); fanfare(); shock(_ew, fd, 0xffd166); shake = 0.5; hitStop = 0.12;
+          bossKills++; localStorage.setItem('tp_bosses', bossKills);
           for (let k = 0; k < 2; k++) { const a = tmp2.copy(fd).addScaledVector(e.fwd, k ? 0.22 : -0.22).normalize(); const bf = makeFragment(); bf.position.copy(a).multiplyScalar(pl.walkR(a) + 0.7); pl.group.add(bf); fragments.push({ g: bf, dir: a.clone(), pl, t: rnd() * 6 }); } }
         if (pl.hadEnemies && !pl.liberated && !enemies.some((x) => x.pl === pl)) { // world cleared → reward
-          pl.liberated = true; toast('🕊️ Welt befreit! Eine Erinnerung erwacht …', 2600); fanfare(); popEmoji('🕊️'); shock(_ew, fd, 0xbfa8ff);
+          pl.liberated = true; worldsFreed++; localStorage.setItem('tp_freed', worldsFreed); toast('🕊️ Welt befreit! Eine Erinnerung erwacht …', 2600); fanfare(); popEmoji('🕊️'); shock(_ew, fd, 0xbfa8ff);
           const bf = makeFragment(); bf.scale.setScalar(1.6); bf.position.copy(fd).multiplyScalar(pl.walkR(fd) + 1.1); pl.group.add(bf); fragments.push({ g: bf, dir: fd.clone(), pl, t: 0 }); }
+        updateAchievements({ delivered, worlds: worldsRun.size, combo, bosses: bossKills, freed: worldsFreed });
       }
     }
     function attack() {
@@ -1532,6 +1535,8 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       { id: 'world8',    label: '🧭 Entdecker',         test: (s) => s.worlds >= 8 },
       { id: 'deliver25', label: '📦 Kurier',            test: (s) => s.delivered >= 25 },
       { id: 'deliver50', label: '🚀 Daten-Logistiker',  test: (s) => s.delivered >= 50 },
+      { id: 'boss1',     label: '🛡️ Wächter-Bezwinger', test: (s) => (s.bosses || 0) >= 1 },
+      { id: 'free3',     label: '🕊️ Befreier',          test: (s) => (s.freed || 0) >= 3 },
     ];
     function updateAchievements(s) {
       for (const a of ACHIEVEMENTS) {
@@ -1729,7 +1734,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     document.getElementById('setResume').addEventListener('click', closeSettings);
     document.getElementById('setRestart').addEventListener('click', () => location.reload());
     document.getElementById('setReset').addEventListener('click', () => {
-      ['tp_score', 'tp_combo', 'tp_worlds', 'tp_mission', 'tp_seen', 'tp_frags', 'tp_memdone'].forEach((k) => localStorage.removeItem(k));
+      ['tp_score', 'tp_combo', 'tp_worlds', 'tp_mission', 'tp_seen', 'tp_frags', 'tp_memdone', 'tp_bosses', 'tp_freed'].forEach((k) => localStorage.removeItem(k));
       ACHIEVEMENTS.forEach((a) => localStorage.removeItem('tp_ach_' + a.id));
       document.getElementById('bestLine').textContent = ''; const al = document.getElementById('achLine'); if (al) al.textContent = '';
       toast('🗑 Fortschritt zurückgesetzt', 1800);
@@ -2039,7 +2044,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
           toast('🏁 Welt komplett eingesammelt!', 2200); chime(true); burst(player.position, 0x2dd4bf);
         }
         updateQuests();
-        updateAchievements({ delivered, worlds: worldsRun.size, combo });
+        updateAchievements({ delivered, worlds: worldsRun.size, combo, bosses: bossKills, freed: worldsFreed });
       }
       // showreel auto-travel through worlds
       if (auto && !finished) { autoT -= dt; if (autoT <= 0) { autoT = 6; const others = planets.filter((p) => p !== cur); if (others.length) travelTo(others[(Math.random() * others.length) | 0]); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); } }
