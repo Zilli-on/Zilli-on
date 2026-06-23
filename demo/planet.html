@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v133 · clean HUD';
+    const BUILD = 'v134 · combat punch';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1272,14 +1272,14 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     const _ew = new THREE.Vector3(); let defeated = 0;
     let bossKills = +(localStorage.getItem('tp_bosses') || 0), worldsFreed = +(localStorage.getItem('tp_freed') || 0); // persistent combat tallies for achievements
     function hitEnemy(e, i, knock = 0.12) {
-      e.hp -= 1; e.hitT = 0.18; shake = Math.max(shake, 0.16);
+      e.hp -= 1; e.hitT = 0.18; shake = Math.max(shake, 0.24); hitStop = Math.max(hitStop, 0.04); // every hit lands with a little punch
       _ew.copy(cur.center).add(e.g.position); burst(_ew, 0xff8a5a); clang();
       const pdir = tmp2.copy(player.position).sub(cur.center).normalize(); // knock the enemy away along the surface
       e.dir.addScaledVector(tmp3.copy(e.dir).sub(pdir), knock).normalize();
       e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)); if (e.fwd.lengthSq() < 1e-4) e.fwd.set(1, 0, 0); e.fwd.normalize();
       if (e.boss && !e.enraged && e.hp > 0 && e.hp <= (e.bossHpMax || 6) / 2) { // phase 2: the guardian enrages at half health
         e.enraged = true; e.lungeCd = 0.6; toast('🔥 Der Wächter wird wild!', 2200); shock(_ew, e.dir, 0xff4d6d); shake = Math.max(shake, 0.42); whoosh(); }
-      if (e.hp <= 0) { burst(_ew, 0xffd166); shock(_ew, e.dir, 0xff8a5a); shake = Math.max(shake, 0.34); hitStop = Math.max(hitStop, 0.07); const pl = e.pl; pl.group.remove(e.g); enemies.splice(i, 1); defeated++;
+      if (e.hp <= 0) { burst(_ew, 0xffd166); burst(_ew, 0xff8a5a); shock(_ew, e.dir, 0xff8a5a); shake = Math.max(shake, 0.5); hitStop = Math.max(hitStop, 0.12); fovKick = Math.max(fovKick, 0.5); const pl = e.pl; pl.group.remove(e.g); enemies.splice(i, 1); defeated++;
         const fg = makeFragment(); const fd = e.dir.clone(); fg.position.copy(fd).multiplyScalar(pl.walkR(fd) + 0.7); pl.group.add(fg);
         fragments.push({ g: fg, dir: fd, pl, t: rnd() * 6 });
         if (e.boss) { toast('🛡️ Wächter besiegt!', 2600); fanfare(); shock(_ew, fd, 0xffd166); shake = 0.5; hitStop = 0.12;
@@ -1295,7 +1295,8 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       if (mode !== 'ground' || attackCd > 0) return;
       chainN = chainT > 0 ? chainN + 1 : 1; const heavy = chainN >= 3; if (heavy) chainN = 0; chainT = 0.85; lastHeavy = heavy; // chain swings within the window; the 3rd is a finisher
       attackCd = heavy ? 0.55 : 0.42; attackT = heavy ? 0.36 : 0.28; swing();
-      if (heavy) { shake = Math.max(shake, 0.3); shock(player.position, up, 0xeaffff); swing(); } // heavy finisher: bigger sweep + a ground shock
+      if (height === 0) { pos.addScaledVector(forward, heavy ? 0.5 : 0.32); pos.setLength(cur.R); refreshFrame(); } // a small lunge into the swing gives it weight
+      if (heavy) { shake = Math.max(shake, 0.34); hitStop = Math.max(hitStop, 0.05); shock(player.position, up, 0xeaffff); swing(); } // heavy finisher: bigger sweep + a ground shock
       // aim-assist: snap to face the nearest foe in reach so the swing connects (Zelda-like)
       const reach = heavy ? 4.1 : 3.4;
       { let bx = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (d < reach + 0.2 && d < bd) { bd = d; bx = _ew.clone(); } }
@@ -1637,6 +1638,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     }
     let shake = 0; // brief camera shake on landing
     let hitStop = 0; // micro freeze-frame on a killing blow — combat punch
+    let fovKick = 0; // brief zoom-in punch on a kill
     let musicAcc = 0; // throttle for adaptive-music tension updates
     // glowing flight trail
     const trail = [], trailGeo = new THREE.SphereGeometry(0.22, 6, 6), trailMat = new THREE.MeshBasicMaterial({ color: 0x9ff7ec, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -2333,8 +2335,9 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         if (desired.distanceTo(np.center) < minR) desired.sub(np.center).setLength(minR).add(np.center);
         camera.position.lerp(desired, air ? 0.08 : 0.14);
         camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.3));
+        if (fovKick > 0) fovKick -= dt * fovKick * 6 + dt * 0.5; if (fovKick < 0) fovKick = 0;
         const wantFov = (air || ((keys.sprint || touchSprint) && mv !== 0)) ? 68 : 60;
-        camera.fov += (wantFov - camera.fov) * 0.1; camera.updateProjectionMatrix();
+        camera.fov += (wantFov - fovKick * 7 - camera.fov) * 0.18; camera.updateProjectionMatrix();
       }
       if (shake > 0) { shake -= dt; if (!reduceMotion) { const s = Math.max(0, shake) * 0.7; camera.position.x += (Math.random() - 0.5) * s; camera.position.y += (Math.random() - 0.5) * s; camera.position.z += (Math.random() - 0.5) * s; } }
       if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(window.__ovLook || tmp.set(0,0,0)); } // debug/QA overview hook
