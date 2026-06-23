@@ -139,7 +139,7 @@
     #cinebarTop { top: 0; } #cinebarBot { bottom: 0; }
     body.cine #cinebarTop, body.cine #cinebarBot { height: 7vh; }
     body.cine #cineBtn { display: block; opacity: 0.5; }
-    #mapBtn { left: 14px; top: 62px; padding: 8px 14px; font-size: 13px; display: none; }
+    #mapBtn { right: 182px; top: 56px; padding: 7px 11px; font-size: 16px; line-height: 1; display: none; }
     #mapBtn.on { display: block; }
     #muteBtn:hover, #mapBtn:hover { transform: translateY(-2px); filter: brightness(1.05); }
 
@@ -265,7 +265,7 @@
   <div id="hud"><b id="hearts" class="hp">❤❤❤❤❤</b> · 📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · <b id="frags" class="fr">✦ 0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
   <div id="quest"><div class="qh">🧠 Mission</div><div class="qt" id="questTitle">…</div><div class="qp" id="questProg"></div></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
-  <button id="mapBtn">🧠 Karte</button>
+  <button id="mapBtn" title="Galaxie-Karte (M)">🗺️</button>
   <button id="cineBtn" title="Foto-Modus (C)">📷</button>
   <button id="setBtn" title="Einstellungen (P)">⚙</button>
   <button id="helpBtn" title="Hilfe (H)">❔</button>
@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v129 · idle arms + scarf';
+    const BUILD = 'v130 · camera + UI + world size';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -741,7 +741,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
 
     function makePlanet(center, PR, rich, project) {
       project = project || (rich ? PROJECTS[0] : nextProject());
-      if (project.stars != null && !rich) PR = Math.max(6.5, Math.min(13, 7 + Math.sqrt(project.stars) * 1.2)); // real repos: size by GitHub stars
+      if (project.stars != null && !rich) PR = Math.max(4.5, Math.min(20, 5.5 + Math.sqrt(project.stars) * 1.9)); // real repos: size by GitHub stars (wide range: mini-moons → giants)
       const T = THEMES[project.theme] || THEMES.grass;
       const islands = []; const ni = 4 + ((rnd() * 4) | 0);
       for (let i = 0; i < ni; i++) islands.push({ c: randDir(), amp: PR * (0.10 + rnd() * 0.11), w: 0.16 + rnd() * 0.14 });
@@ -917,9 +917,9 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
 
     // separation-aware spawning of neighbour planets
     function spawnNeighbor(fromC) {
-      const PR = 6 + rnd() * 5;
-      for (let tries = 0; tries < 50; tries++) {
-        const c = fromC.clone().addScaledVector(randDir(), 34 + rnd() * 24);
+      const PR = 4.5 + rnd() * rnd() * 15; // 4.5 → ~19.5, weighted small (mini-moons common, giants rare)
+      for (let tries = 0; tries < 60; tries++) {
+        const c = fromC.clone().addScaledVector(randDir(), 30 + PR * 1.5 + rnd() * 30);
         if (planets.every((p) => c.distanceTo(p.center) > p.R + PR + 12)) return makePlanet(c, PR, false);
       }
       return null;
@@ -949,11 +949,9 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     }
     // jumping toward empty space discovers a brand-new world ahead (true exploration)
     function ensureFrontier(dir) {
-      const ahead = cur.center.clone().addScaledVector(dir, 46).addScaledVector(up, 8);
-      if (planets.every((p) => ahead.distanceTo(p.center) > p.R + 16)) {
-        const PR = 7 + rnd() * 4;
-        if (planets.every((p) => ahead.distanceTo(p.center) > p.R + PR + 10)) { makePlanet(ahead, PR, false); cullFar(); rebuildLinks(); }
-      }
+      const PR = 4.5 + rnd() * rnd() * 14; // varied frontier worlds (mini-moons → giants)
+      const ahead = cur.center.clone().addScaledVector(dir, cur.R + PR + 28).addScaledVector(up, 8);
+      if (planets.every((p) => ahead.distanceTo(p.center) > p.R + PR + 12)) { makePlanet(ahead, PR, false); cullFar(); rebuildLinks(); }
     }
     // glowing "synapse" links + travelling data-pulses between neighbouring worlds (the data-brain look)
     const linkMat = new THREE.LineBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -1444,8 +1442,8 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       case 'KeyA': case 'ArrowLeft': keys.l = false; break; case 'KeyD': case 'ArrowRight': keys.r = false; break;
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = false; break; case 'Space': releaseCharge(); break; } });
 
-    let camPitch = 1.48, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
-    let cinematic = false, cineA = 0, pitchEff = 1.48, paused = false;
+    let camPitch = 0.92, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
+    let cinematic = false, cineA = 0, pitchEff = 0.92, paused = false;
     const canvas = renderer.domElement;
     canvas.addEventListener('mousedown', (e) => { mouseDown = true; lastX = e.clientX; lastY = e.clientY; });
     addEventListener('mousemove', (e) => { if (!mouseDown) return; lastInput = performance.now(); dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.55, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
@@ -2320,13 +2318,13 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         const air = mode === 'air';
         let desired;
         if (air) { const behind = tmp.copy(forward).multiplyScalar(-1).applyAxisAngle(_r, -0.5); desired = tmp3.copy(player.position).addScaledVector(behind, 12).addScaledVector(up, 4); }
-        else { // top-down overview; auto-tilt flatter while charging a jump so the trajectory shows
+        else { // closer behind-the-shoulder third-person; auto-tilt flatter while charging a jump so the trajectory shows
           const aimPitch = charging ? 0.72 : camPitch; pitchEff += (aimPitch - pitchEff) * 0.1;
-          const RAD = charging ? 16 : 14; desired = tmp3.copy(player.position).addScaledVector(up, Math.sin(pitchEff) * RAD + 1).addScaledVector(forward, -Math.cos(pitchEff) * RAD); }
+          const RAD = charging ? 15 : 10; desired = tmp3.copy(player.position).addScaledVector(up, Math.sin(pitchEff) * RAD + 1).addScaledVector(forward, -Math.cos(pitchEff) * RAD); }
         const np = nearestPlanet(desired); const minR = np.R + 2.4;
         if (desired.distanceTo(np.center) < minR) desired.sub(np.center).setLength(minR).add(np.center);
-        camera.position.lerp(desired, air ? 0.08 : 0.12);
-        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 0.5));
+        camera.position.lerp(desired, air ? 0.08 : 0.14);
+        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.3));
         const wantFov = (air || ((keys.sprint || touchSprint) && mv !== 0)) ? 68 : 60;
         camera.fov += (wantFov - camera.fov) * 0.1; camera.updateProjectionMatrix();
       }
@@ -2340,7 +2338,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         if (started && mode === 'ground') { for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (e.boss) { if (d < 16) boss = 1; } else if (d < 11) near++; } }
         const tgt = Math.min(1, near * 0.38 + boss * 0.6); audio.tension = tgt;
         if (audio.tensionGain) audio.tensionGain.gain.setTargetAtTime(tgt * 0.14, audio.ctx.currentTime, 0.4); }
-      projHint.classList.toggle('on', started && mode === 'ground' && !projOpen && !mapOpen);
+      projHint.classList.toggle('on', started && mode === 'ground' && !projOpen && !mapOpen && !cardEl.classList.contains('on')); // never overlap the project/memory card
       if (mapOpen) drawMap();
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
       if (cardTimer > 0) { cardTimer -= dt; if (cardTimer <= 0) cardEl.classList.remove('on'); }
