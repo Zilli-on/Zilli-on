@@ -366,7 +366,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v117 · smoother planets';
+    const BUILD = 'v118 · rounder primitives';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -579,15 +579,15 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       const s = boss ? 1.9 : (sz || 1);
       const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.42 * s, 0), toonMat({ color: tint })); body.position.y = 0.95 * s; body.castShadow = true; g.add(body);
       const spike = new THREE.Mesh(new THREE.ConeGeometry(0.16 * s, 0.5 * s, 4), toonMat({ color: tint })); spike.position.y = (0.95 + 0.5) * s; g.add(spike);
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.13 * s, 12, 12), boss ? bossEyeMat : enemyEyeMat); eye.position.set(0, 0.95 * s, 0.34 * s); g.add(eye); g.userData.eye = eye;
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.13 * s, 16, 16), boss ? bossEyeMat : enemyEyeMat); eye.position.set(0, 0.95 * s, 0.34 * s); g.add(eye); g.userData.eye = eye;
       if (boss) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.07, 8, 24), new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })); ring.position.y = 0.95 * s; ring.rotation.x = Math.PI / 2; g.add(ring); g.userData.ring = ring; }
       return g;
     }
     // throwable bomb — a fused charge that bursts into an AoE shock (great against swarmer packs)
     function makeBomb() {
       const g = new THREE.Group();
-      const core = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), toonMat({ color: 0x222633 })); core.position.y = 0.34; core.castShadow = true; g.add(core);
-      const led = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff5a5a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); led.position.y = 0.66; g.add(led); g.userData.led = led;
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), toonMat({ color: 0x222633 })); core.position.y = 0.34; core.castShadow = true; g.add(core);
+      const led = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff5a5a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); led.position.y = 0.66; g.add(led); g.userData.led = led;
       return g;
     }
     // signature biome landmark — gives each world a memorable silhouette/identity
@@ -647,11 +647,11 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         const tail = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.5, 6), toonMat({ color: 0x9a8b4f })); tail.rotation.z = -Math.PI / 2; tail.position.set(-0.55, 0.22, 0); g.add(tail);
       } else if (theme === 'tech') { // hover drone
         const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.22, 0.4), toonMat({ color: 0x4a5568, emissive: 0x5eead4, emissiveIntensity: 0.4 })); body.position.y = 0.7; body.castShadow = true; g.add(body);
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshBasicMaterial({ color: 0x7ffcee })); eye.position.set(0, 0.7, 0.22); g.add(eye);
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 10), new THREE.MeshBasicMaterial({ color: 0x7ffcee })); eye.position.set(0, 0.7, 0.22); g.add(eye);
       } else { // bunny (grass/home/volcano)
         const cols = theme === 'volcano' ? [0x4a3a34, 0x5a4136] : [0xf2d9c0, 0xe8b894, 0xd9a679, 0xf5e6d0];
         const col = cols[(rnd() * cols.length) | 0];
-        const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), toonMat({ color: col })); body.scale.set(1, 0.85, 1.2); body.position.y = 0.4; body.castShadow = true; g.add(body);
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 10), toonMat({ color: col })); body.scale.set(1, 0.85, 1.2); body.position.y = 0.4; body.castShadow = true; g.add(body);
         for (const sx of [-1, 1]) { const ear = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.34, 5), toonMat({ color: col })); ear.position.set(sx * 0.16, 0.75, 0.18); g.add(ear); }
         const nose = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), toonMat({ color: 0x33312f })); nose.position.set(0, 0.42, 0.48); g.add(nose);
       }
@@ -938,7 +938,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     }
     // glowing "synapse" links + travelling data-pulses between neighbouring worlds (the data-brain look)
     const linkMat = new THREE.LineBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false });
-    const pulseGeo = new THREE.SphereGeometry(0.45, 8, 8);
+    const pulseGeo = new THREE.SphereGeometry(0.45, 12, 10);
     const pulseMat = new THREE.MeshBasicMaterial({ color: 0xb6ffe9, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
     const pulseMatHot = new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.98, blending: THREE.AdditiveBlending, depthWrite: false }); // related worlds: warmer, busier traffic
     let linkSeg = null, pulses = [], linkFlash = 0; // linkFlash: brief network-wide glow on delivery
@@ -1026,7 +1026,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       const spin = rnd() * 6.28; cl.userData = { axis: randDir(), speed: 0.02 + rnd() * 0.03, spin };
       orientOnSphere(cl, randDir(), R + 5.5 + rnd() * 2.5, spin); clouds.add(cl);
     }
-    const fishes = []; const fishGeo = new THREE.SphereGeometry(0.26, 8, 6); const fishMat = toonMat({ color: 0x6fb6dd });
+    const fishes = []; const fishGeo = new THREE.SphereGeometry(0.26, 10, 8); const fishMat = toonMat({ color: 0x6fb6dd });
     for (let i = 0; i < 7; i++) {
       let dir = randDir(); let tries = 0; while (terrain(dir) > -0.25 && tries++ < 120) dir = randDir(); if (terrain(dir) > -0.25) continue;
       const f = new THREE.Group();
