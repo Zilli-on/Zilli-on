@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v121 · SMAA';
+    const BUILD = 'v122 · filmic grade';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -490,8 +490,8 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       skyMat.uniforms.bottom.value.copy(_cA.setHex(a.bottom)).lerp(_cB.setHex(b.bottom), f);
       scene.fog.color.copy(skyMat.uniforms.bottom.value);
       sun.color.copy(_cA.setHex(a.sun)).lerp(_cB.setHex(b.sun), f);
-      sun.intensity = lerpKey(a, b, f, 'si');
-      hemi.intensity = lerpKey(a, b, f, 'hi');
+      sun.intensity = lerpKey(a, b, f, 'si') * 1.08; // crisper key light for form
+      hemi.intensity = lerpKey(a, b, f, 'hi') * 0.82; // IBL now carries ambient → trim sky fill so shadows read deeper
       renderer.toneMappingExposure = lerpKey(a, b, f, 'exp');
       starMat.opacity = lerpKey(a, b, f, 'star');
       if (skyTintAmt > 0) { skyMat.uniforms.top.value.lerp(_skyTint, skyTintAmt); skyMat.uniforms.mid.value.lerp(_skyTint, skyTintAmt * 0.55); skyMat.uniforms.bottom.value.lerp(_skyTint, skyTintAmt * 0.8); }
@@ -1919,7 +1919,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     if (!lowPerf) composer.addPass(godPass);
     // cinematic grade: saturation, filmic contrast, teal/orange split-tone, chromatic aberration, grain, vignette
     const gradePass = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, sat: { value: 1.16 }, time: { value: 0 }, motion: { value: 1 } },
+      uniforms: { tDiffuse: { value: null }, sat: { value: 1.2 }, time: { value: 0 }, motion: { value: 1 } },
       vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `uniform sampler2D tDiffuse; uniform float sat; uniform float time; uniform float motion; varying vec2 vUv;
         float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
@@ -1927,7 +1927,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
           float ca = (0.0016 + r2 * 0.01) * motion; // chromatic aberration grows toward edges (off when motion reduced)
           vec3 c; c.r = texture2D(tDiffuse, vUv + d*ca).r; c.g = texture2D(tDiffuse, vUv).g; c.b = texture2D(tDiffuse, vUv - d*ca).b;
           float l = dot(c, vec3(0.299,0.587,0.114)); c = mix(vec3(l), c, sat);                 // saturation
-          c = clamp((c - 0.5) * 1.06 + 0.5, 0.0, 1.0);                                          // gentle contrast
+          c = clamp((c - 0.5) * 1.11 + 0.5, 0.0, 1.0);                                          // filmic contrast
           c += (vec3(0.02,0.05,0.06)) * (1.0 - l) - (vec3(0.04,0.02,0.0)) * (l - 0.5);          // teal shadows / warm highlights
           float v = smoothstep(0.9, 0.28, r2 * 1.15); c *= mix(0.72, 1.0, v);                   // vignette
           c += (hash(vUv * vec2(1920.0,1080.0) + time) - 0.5) * 0.035 * motion;                 // film grain
