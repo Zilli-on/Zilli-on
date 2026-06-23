@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v128 · avatar life';
+    const BUILD = 'v129 · idle arms + scarf';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1133,7 +1133,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       // flowing scarf — a warm accent that trails and sways with movement (elegance + life)
       const scarfMat = toonMat({ color: 0xff7a5c, roughness: 0.62, metalness: 0.0, side: THREE.DoubleSide, emissive: 0x4a160c, emissiveIntensity: 0.25 });
       hero.scarf = [];
-      for (let i = 0; i < 6; i++) { const seg = new THREE.Mesh(new THREE.BoxGeometry(0.3 - i * 0.03, 0.2, 0.05), scarfMat); seg.castShadow = true; upper.add(seg); hero.scarf.push(seg); }
+      for (let i = 0; i < 8; i++) { const seg = new THREE.Mesh(new THREE.BoxGeometry(0.32 - i * 0.03, 0.2, 0.05), scarfMat); seg.castShadow = true; upper.add(seg); hero.scarf.push(seg); }
       // a small knot at the neck where the scarf ties on
       const knot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), scarfMat); knot.position.set(0, 2.42, 0.2); knot.scale.set(1.2, 1, 0.8); upper.add(knot);
       // soft contact shadow grounds the hero (reads well top-down)
@@ -1220,7 +1220,9 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         hero.armL.rotation.x = -0.4; hero.armR.rotation.x = -0.4;
       } else { // walk / run / idle
         hero.legL.rotation.x = sw; hero.legR.rotation.x = -sw;
-        hero.armL.rotation.x = -sw * 0.85; hero.armR.rotation.x = sw * 0.85;
+        const idle = moving ? 0 : Math.sin(t * 1.6) * 0.06; // relaxed arm sway when standing
+        hero.armL.rotation.x = moving ? -sw * 0.85 : idle; hero.armR.rotation.x = moving ? sw * 0.85 : -idle;
+        hero.armL.rotation.z = moving ? 0 : 0.09; hero.armR.rotation.z = moving ? 0 : -0.09; // arms rest slightly out
       }
       // invulnerability blink after taking a hit
       if (hurtT > 0) { hurtT -= dt; avatar.visible = Math.floor(hurtT * 14) % 2 === 0; } else if (!avatar.visible) avatar.visible = true;
