@@ -230,12 +230,12 @@
       background: rgba(255,255,255,0.22); border: 1.5px solid var(--stroke); backdrop-filter: blur(6px); touch-action: none; user-select: none; box-shadow: var(--shadow); }
     #thumb { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #aef7ec, #2dd4bf); box-shadow: 0 8px 22px rgba(15,118,110,0.5); }
-    #jumpBtn, #sprintBtn, #emojiBtn, #atkBtn, #dashBtn, #gustBtn { position: fixed; z-index: 6; border-radius: 50%; border: 1.5px solid var(--stroke); color: var(--teal);
+    #jumpBtn, #bombBtn, #emojiBtn, #atkBtn, #dashBtn, #gustBtn { position: fixed; z-index: 6; border-radius: 50%; border: 1.5px solid var(--stroke); color: var(--teal);
       font-weight: 800; background: rgba(255,255,255,0.30); backdrop-filter: blur(6px); touch-action: none; user-select: none; box-shadow: var(--shadow); }
     #jumpBtn { right: 26px; bottom: 40px; width: 96px; height: 96px; font-size: 14px; }
     #jumpBtn:active { background: rgba(94,234,212,0.55); }
-    #sprintBtn { right: 134px; bottom: 56px; width: 68px; height: 68px; font-size: 12px; color: var(--ink-soft); }
-    #sprintBtn.active { background: rgba(94,234,212,0.6); color: #04302b; }
+    #bombBtn { right: 134px; bottom: 56px; width: 62px; height: 62px; font-size: 24px; }
+    #bombBtn:active { background: rgba(255,209,102,0.6); }
     #emojiBtn { right: 140px; bottom: 134px; width: 56px; height: 56px; font-size: 22px; }
     #emojiBtn:active { background: rgba(94,234,212,0.55); }
     #atkBtn { right: 40px; bottom: 148px; width: 72px; height: 72px; font-size: 26px; }
@@ -277,7 +277,7 @@ A / D — drehen   ·   Maus / Wischen — Kamera
 Shift — rennen
 Space (gedrückt halten) — Planet-Sprung
 M — Galaxie-Karte   ·   E — Projekt-Info
-J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilfe</div>
+J — Angriff   ·   K — Windstoß   ·   B — Bombe   ·   Q — Dash (Ausweichen)   ·   C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilfe</div>
     <div class="prow"><button class="cl" id="helpClose">Schließen (Esc / H)</button></div>
   </div></div>
   <div id="reelHint">🎬 Showreel · Klick oder Taste = selbst steuern</div>
@@ -311,7 +311,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
 
   <div id="touchUI">
     <div id="joystick"><div id="thumb"></div></div>
-    <button id="sprintBtn">RUN</button>
+    <button id="bombBtn">💣</button>
     <button id="jumpBtn">HOP</button>
     <button id="atkBtn">⚔️</button>
     <button id="dashBtn">💨</button>
@@ -358,7 +358,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v109 · wind currents';
+    const BUILD = 'v110 · bomb + auto-sprint';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -574,6 +574,13 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       if (boss) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.07, 8, 24), new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })); ring.position.y = 0.95 * s; ring.rotation.x = Math.PI / 2; g.add(ring); g.userData.ring = ring; }
       return g;
     }
+    // throwable bomb — a fused charge that bursts into an AoE shock (great against swarmer packs)
+    function makeBomb() {
+      const g = new THREE.Group();
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), toonMat({ color: 0x222633 })); core.position.y = 0.34; core.castShadow = true; g.add(core);
+      const led = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff5a5a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); led.position.y = 0.66; g.add(led); g.userData.led = led;
+      return g;
+    }
     // signature biome landmark — gives each world a memorable silhouette/identity
     function makeLandmark(theme) {
       const g = new THREE.Group(); let spin = 0;
@@ -658,7 +665,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       }
     }
     const _cc = new THREE.Color(), _ct = new THREE.Color();
-    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [], fragments = [], pads = [], landmarks = [], shrines = [];
+    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [], fragments = [], pads = [], landmarks = [], shrines = [], bombs = [];
 
     // theme palettes per world type
     const THEMES = {
@@ -899,6 +906,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       for (let i = pads.length - 1; i >= 0; i--) if (pads[i].pl === p) pads.splice(i, 1);
       for (let i = landmarks.length - 1; i >= 0; i--) if (landmarks[i].pl === p) landmarks.splice(i, 1);
       for (let i = shrines.length - 1; i >= 0; i--) if (shrines[i].pl === p) shrines.splice(i, 1);
+      for (let i = bombs.length - 1; i >= 0; i--) if (bombs[i].pl === p) bombs.splice(i, 1);
       for (let i = windy.length - 1; i >= 0; i--) if (windy[i].pl === p) windy.splice(i, 1);
       for (let i = birds.length - 1; i >= 0; i--) if (birds[i].pl === p) { scene.remove(birds[i].mesh); birds.splice(i, 1); }
       const idx = planets.indexOf(p); if (idx >= 0) planets.splice(idx, 1);
@@ -1169,6 +1177,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       // melee: swing arms forward + flash the slash arc
       if (attackCd > 0) attackCd -= dt;
       if (gustCd > 0) gustCd -= dt;
+      if (bombCd > 0) bombCd -= dt;
       if (chainT > 0) chainT -= dt;
       if (attackT > 0) { attackT -= dt; const k = Math.max(0, attackT / 0.28); const sweep = -2.2 + (1 - k) * 3.2;
         hero.armR.rotation.x = sweep; hero.armL.rotation.x = sweep * 0.6;
@@ -1243,6 +1252,13 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     function dash() { // quick forward dodge with brief i-frames
       if (mode !== 'ground' || dashCd > 0 || !started) return;
       dashCd = 0.8; dashT = 0.2; hurtT = Math.max(hurtT, 0.34); squash = 0.16; swing(); shock(player.position, up, 0xbfe4ff);
+    }
+    let bombCd = 0; // bomb cooldown
+    function bomb() { // drop a fused bomb that bursts into a radial AoE shock
+      if (mode !== 'ground' || bombCd > 0 || !started) return;
+      bombCd = 2.6; whoosh();
+      const d = pos.clone().normalize(); const g = makeBomb(); cur.group.add(g); orientOnSphere(g, d, cur.walkR(d));
+      bombs.push({ g, dir: d.clone(), pl: cur, t: 1.1 });
     }
     const heartsEl = document.getElementById('hearts');
     function renderHearts() { heartsEl.textContent = '❤'.repeat(Math.max(0, hp)) + '♡'.repeat(Math.max(0, maxHp - hp)); }
@@ -1323,6 +1339,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     window.__dbg.hurt = () => { hurtT = 0; hurtPlayer(player.position.clone()); };
     window.__dbg.dash = () => { const p0 = player.position.clone(); dash(); return { dashT, dashCd }; };
     window.__dbg.gust = () => { gust(); return gustCd; };
+    window.__dbg.bomb = () => { bombCd = 0; bomb(); return bombs.filter((b) => b.pl === cur).length; };
     window.__dbg.toPad = () => { const p = pads.find((x) => x.pl === cur); if (!p) return false; pos.copy(p.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
     window.__dbg.ph = () => ({ height: +height.toFixed(2), vUp: +vUp.toFixed(2), pads: pads.filter((p) => p.pl === cur).length });
     window.__dbg.addFrag = () => { collectFragment(player.position.clone()); return { frags, beatIdx, memoryCardOn: cardEl.classList.contains('on') && cardName.textContent.indexOf('🜂') === 0 }; };
@@ -1354,6 +1371,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
       case 'KeyF': if (started) popEmoji(EMOJIS[emoIdx++ % EMOJIS.length]); break;
       case 'KeyJ': if (started) attack(); break;
       case 'KeyK': if (started) gust(); break;
+      case 'KeyB': if (started) bomb(); break;
       case 'KeyQ': if (started) dash(); break; } });
     const EMOJIS = ['👋', '😄', '🎉', '✨', '🚀', '🪐', '🧠']; let emoIdx = 0;
     addEventListener('keyup', (e) => { switch (e.code) {
@@ -1398,14 +1416,14 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     addEventListener('pointerdown', userTakeControl); addEventListener('keydown', userTakeControl);
     document.getElementById('winBtn').addEventListener('click', () => { winEl.classList.remove('on'); finished = false; }); // finale → keep exploring the endless galaxy
     if (isTouch) document.getElementById('keys').innerHTML =
-      '<span class="key"><b>Joystick</b> Laufen/Drehen</span><span class="key"><b>Wischen</b> Kamera</span><span class="key"><b>RUN</b> Rennen</span><span class="key"><b>HOP</b> Hüpfen</span>';
+      '<span class="key"><b>Joystick</b> Laufen/Drehen (ganz drücken = Rennen)</span><span class="key"><b>Wischen</b> Kamera</span><span class="key"><b>⚔️/💨/🌀/💣</b> Kämpfen</span><span class="key"><b>HOP</b> Hüpfen</span>';
 
-    const touchMove = { x: 0, y: 0 };
+    const touchMove = { x: 0, y: 0 }; let touchSprint = false; // auto-sprint when the joystick is pushed near full
     const joy = document.getElementById('joystick'), thumb = document.getElementById('thumb');
     let joyId = null, jcx = 0, jcy = 0; const JR = 50;
     joy.addEventListener('touchstart', (e) => { const t = e.changedTouches[0]; joyId = t.identifier; const b = joy.getBoundingClientRect(); jcx = b.left + b.width/2; jcy = b.top + b.height/2; e.preventDefault(); }, { passive: false });
-    joy.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === joyId) { let dx = t.clientX - jcx, dy = t.clientY - jcy; const len = Math.hypot(dx, dy) || 1, cl = Math.min(len, JR); dx = dx/len*cl; dy = dy/len*cl; thumb.style.transform = `translate(${dx}px,${dy}px)`; touchMove.x = dx/JR; touchMove.y = -dy/JR; e.preventDefault(); } }, { passive: false });
-    const joyEnd = (e) => { for (const t of e.changedTouches) if (t.identifier === joyId) { joyId = null; touchMove.x = touchMove.y = 0; thumb.style.transform = 'translate(0,0)'; } };
+    joy.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === joyId) { let dx = t.clientX - jcx, dy = t.clientY - jcy; const len = Math.hypot(dx, dy) || 1, cl = Math.min(len, JR); dx = dx/len*cl; dy = dy/len*cl; thumb.style.transform = `translate(${dx}px,${dy}px)`; touchMove.x = dx/JR; touchMove.y = -dy/JR; touchSprint = (cl / JR) > 0.82; e.preventDefault(); } }, { passive: false });
+    const joyEnd = (e) => { for (const t of e.changedTouches) if (t.identifier === joyId) { joyId = null; touchMove.x = touchMove.y = 0; touchSprint = false; thumb.style.transform = 'translate(0,0)'; } };
     joy.addEventListener('touchend', joyEnd); joy.addEventListener('touchcancel', joyEnd);
 
     let lookId = null;
@@ -1414,8 +1432,7 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
     const lookEnd = (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) lookId = null; };
     canvas.addEventListener('touchend', lookEnd); canvas.addEventListener('touchcancel', lookEnd);
 
-    const sprintBtn = document.getElementById('sprintBtn'); let touchSprint = false;
-    sprintBtn.addEventListener('touchstart', (e) => { e.preventDefault(); touchSprint = !touchSprint; sprintBtn.classList.toggle('active', touchSprint); }, { passive: false });
+    document.getElementById('bombBtn').addEventListener('touchstart', (e) => { e.preventDefault(); bomb(); }, { passive: false });
     document.getElementById('emojiBtn').addEventListener('touchstart', (e) => { e.preventDefault(); popEmoji(EMOJIS[emoIdx++ % EMOJIS.length]); }, { passive: false });
     document.getElementById('atkBtn').addEventListener('touchstart', (e) => { e.preventDefault(); attack(); }, { passive: false });
     document.getElementById('dashBtn').addEventListener('touchstart', (e) => { e.preventDefault(); dash(); }, { passive: false });
@@ -2128,6 +2145,12 @@ J — Angriff   ·   K — Windstoß   ·   Q — Dash (Ausweichen)   ·   C —
         f.t += dt; f.g.rotation.y += dt * 1.8; f.g.position.copy(f.dir).multiplyScalar(f.pl.walkR(f.dir) + 0.7 + Math.sin(f.t * 2) * 0.15);
         if (f.pl === cur && mode === 'ground') { _ew.copy(cur.center).add(f.g.position); if (_ew.distanceTo(player.position) < 1.7) { collectFragment(_ew); f.pl.group.remove(f.g); fragments.splice(i, 1); } }
       }
+      // bombs: tick the fuse (LED blinks faster), then burst into a radial AoE shock that damages every nearby foe
+      for (let bi = bombs.length - 1; bi >= 0; bi--) { const bo = bombs[bi]; if (!bo.pl.group.visible) continue;
+        bo.t -= dt; const led = bo.g.userData.led; if (led) { const blink = Math.sin(bo.t * (bo.t < 0.4 ? 40 : 14)); led.material.opacity = 0.4 + 0.6 * (blink > 0 ? 1 : 0.2); led.scale.setScalar(1 + (bo.t < 0.4 ? 0.5 : 0.2) * Math.max(0, blink)); }
+        if (bo.t <= 0) { const bc = new THREE.Vector3().copy(bo.pl.center).add(bo.g.position); burst(bc, 0xffd166); burst(bc, 0xff8a5a); shock(bc, bo.dir, 0xffd166); shake = Math.max(shake, 0.4); hitStop = Math.max(hitStop, 0.06);
+          for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.pl !== bo.pl) continue; tmp.copy(bo.pl.center).add(e.g.position); if (tmp.distanceTo(bc) < 4.6) { e.dir.addScaledVector(tmp.sub(bc).normalize(), 0.45).normalize(); hitEnemy(e, i, 0.0); } } // knock outward + damage
+          bo.pl.group.remove(bo.g); bombs.splice(bi, 1); } }
       // bounce pads: squash recovery + ring spin
       for (const pad of pads) { if (!pad.pl.group.visible) continue; if (pad.t > 0) pad.t -= dt; const sq = pad.t > 0 ? pad.t / 0.3 : 0;
         const cap = pad.g.userData.cap; cap.scale.set(1 + sq * 0.3, 1 - sq * 0.5, 1 + sq * 0.3); }
