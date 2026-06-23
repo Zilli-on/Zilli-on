@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v122 · filmic grade';
+    const BUILD = 'v123 · avatar redesign';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1063,45 +1063,56 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     // ---- Custom procedural avatar: a friendly "data courier" explorer ----
     // Built from primitives + procedural animation — a unique look that fits the
     // data-brain theme, with no external model dependency (no CDN load failures).
-    const suitMat = toonMat({ color: 0xeef3fc });
-    const headMat = toonMat({ color: 0xf6f9ff });
-    const limbMat = toonMat({ color: 0x32405e });
-    const accentMat = toonMat({ color: 0x3b82c4 });
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0x8ff5e8 }); // visor / antenna node — catches bloom
+    // PBR explorer-suit palette (lit by IBL): white suit, dark under-suit, teal accents, glossy emissive visor
+    const suitMat = toonMat({ color: 0xeef4ff, roughness: 0.5, metalness: 0.08 });
+    const headMat = toonMat({ color: 0xfafcff, roughness: 0.26, metalness: 0.1 });   // glossy helmet
+    const limbMat = toonMat({ color: 0x2b3553, roughness: 0.55, metalness: 0.25 });  // dark under-suit
+    const accentMat = toonMat({ color: 0x16b8a6, roughness: 0.4, metalness: 0.2, emissive: 0x0b5d54, emissiveIntensity: 0.35 }); // teal trim
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0x8ff5e8 }); // data nodes — pure glow, catches bloom
+    const visorMat = new THREE.MeshStandardMaterial({ color: 0x06231f, emissive: 0x3df0d8, emissiveIntensity: 1.5, roughness: 0.12, metalness: 0.5 }); // sleek glowing visor
     const hero = {};
     {
       // legs pivot at the hip and swing for the walk cycle
       const leg = (sx) => {
         const g = new THREE.Group(); g.position.set(sx, 1.02, 0);
-        const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.66, 4, 10), limbMat); l.position.y = -0.42; l.castShadow = true; g.add(l);
-        const foot = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.16, 0.5), accentMat); foot.position.set(0, -0.86, 0.12); foot.castShadow = true; g.add(foot);
+        const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.155, 0.6, 5, 12), limbMat); l.position.y = -0.4; l.castShadow = true; g.add(l);
+        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), accentMat); knee.position.y = -0.5; g.add(knee);
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.52), accentMat); boot.position.set(0, -0.85, 0.12); boot.castShadow = true; g.add(boot);
         avatar.add(g); return g;
       };
-      hero.legL = leg(-0.26); hero.legR = leg(0.26);
+      hero.legL = leg(-0.24); hero.legR = leg(0.24);
       // upper body bobs while walking; the planted legs stay on the ground
       const upper = new THREE.Group(); avatar.add(upper); hero.upper = upper;
-      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.72, 6, 14), suitMat); torso.position.y = 1.66; torso.castShadow = true; upper.add(torso);
-      const sash = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.5, 0.78), accentMat); sash.position.y = 1.34; sash.castShadow = true; upper.add(sash);
-      const core = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 16), glowMat); core.position.set(0, 1.62, 0.42); upper.add(core); hero.core = core; // glowing data-core on the chest
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 20, 18), headMat); head.position.y = 2.74; head.castShadow = true; upper.add(head); hero.head = head;
-      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.26, 0.14), glowMat); visor.position.set(0, 2.78, 0.31); upper.add(visor); hero.visor = visor;
-      // arms pivot at the shoulder and swing opposite the legs
+      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.74, 8, 16), suitMat); torso.position.y = 1.66; torso.scale.set(1, 1, 0.88); torso.castShadow = true; upper.add(torso);
+      const chestPlate = new THREE.Mesh(new THREE.CapsuleGeometry(0.31, 0.52, 6, 12), limbMat); chestPlate.position.set(0, 1.78, 0.14); chestPlate.scale.set(1, 1, 0.55); upper.add(chestPlate);
+      const belt = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.16, 0.7), accentMat); belt.position.y = 1.22; belt.castShadow = true; upper.add(belt);
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), glowMat); core.position.set(0, 1.76, 0.32); upper.add(core); hero.core = core; // glowing data-core on the chest
+      // pauldrons for an explorer-suit silhouette
+      for (const sx of [-0.5, 0.5]) { const pd = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 12), accentMat); pd.position.set(sx, 2.18, 0); pd.scale.set(1.05, 0.78, 1.05); pd.castShadow = true; upper.add(pd); }
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.2, 12), limbMat); neck.position.y = 2.44; upper.add(neck);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 28, 22), headMat); head.position.y = 2.76; head.castShadow = true; upper.add(head); hero.head = head;
+      // sleek glowing visor — a curved band across the front of the helmet
+      const visor = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.34, 6, 14), visorMat); visor.rotation.z = Math.PI / 2; visor.scale.set(1, 1, 0.55); visor.position.set(0, 2.8, 0.31); upper.add(visor); hero.visor = visor;
+      // arms pivot at the shoulder and swing opposite the legs (two-tone: suit upper, dark forearm, teal glove)
       const arm = (sx) => {
         const g = new THREE.Group(); g.position.set(sx, 2.18, 0);
-        const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.56, 4, 10), suitMat); a.position.y = -0.32; a.castShadow = true; g.add(a);
-        const hand = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12), limbMat); hand.position.y = -0.66; g.add(hand);
+        const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.125, 0.4, 5, 12), suitMat); a.position.y = -0.26; a.castShadow = true; g.add(a);
+        const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.115, 0.3, 5, 12), limbMat); fore.position.y = -0.56; fore.castShadow = true; g.add(fore);
+        const hand = new THREE.Mesh(new THREE.SphereGeometry(0.145, 14, 12), accentMat); hand.position.y = -0.78; g.add(hand);
         upper.add(g); return g;
       };
       hero.armL = arm(-0.52); hero.armR = arm(0.52);
       // melee slash arc (shown briefly on attack)
       const slash = new THREE.Mesh(new THREE.RingGeometry(1.3, 2.1, 18, 1, -0.95, 1.9), new THREE.MeshBasicMaterial({ color: 0xeaffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
       slash.rotation.x = -Math.PI / 2; slash.position.set(0, 1.25, 0.4); avatar.add(slash); hero.slash = slash;
-      // antenna with a pulsing data-node orb
-      const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.34, 6), limbMat); stalk.position.set(0, 3.16, -0.04); upper.add(stalk);
-      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 14), glowMat); orb.position.set(0, 3.38, -0.04); upper.add(orb); hero.orb = orb;
-      // little jetpack — reads as an explorer/courier and motivates the flight
-      const pack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.64, 0.3), accentMat); pack.position.set(0, 1.74, -0.46); pack.castShadow = true; upper.add(pack);
-      for (const sx of [-0.14, 0.14]) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 10), glowMat); d.position.set(sx, 1.5, -0.6); upper.add(d); }
+      // antenna with a pulsing data-node orb (offset to the side for character)
+      const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.32, 8), limbMat); stalk.position.set(0.17, 3.04, -0.05); stalk.rotation.z = -0.22; upper.add(stalk);
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 14), glowMat); orb.position.set(0.22, 3.24, -0.06); upper.add(orb); hero.orb = orb;
+      // sleeker jetpack with a trim band + glowing nozzles
+      const pack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.66, 0.26), limbMat); pack.position.set(0, 1.8, -0.45); pack.castShadow = true; upper.add(pack);
+      const packTrim = new THREE.Mesh(new THREE.BoxGeometry(0.53, 0.18, 0.28), accentMat); packTrim.position.set(0, 1.99, -0.45); upper.add(packTrim);
+      for (const sx of [-0.16, 0.16]) { const noz = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.095, 0.18, 12), limbMat); noz.position.set(sx, 1.45, -0.5); noz.castShadow = true; upper.add(noz);
+        const d = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), glowMat); d.position.set(sx, 1.37, -0.51); upper.add(d); }
       // soft contact shadow grounds the hero (reads well top-down)
       const blob = new THREE.Mesh(new THREE.CircleGeometry(1.15, 24), new THREE.MeshBasicMaterial({ color: 0x06231f, alphaMap: nebTex, transparent: true, opacity: 0.34, depthWrite: false }));
       blob.rotation.x = -Math.PI / 2; blob.position.y = 0.05; avatar.add(blob); hero.blob = blob;
