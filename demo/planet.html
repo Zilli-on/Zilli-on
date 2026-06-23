@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v130 · camera + UI + world size';
+    const BUILD = 'v131 · smooth movement';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1152,6 +1152,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
 
     let modelReady = true;                          // the procedural avatar is ready instantly
     let gaitPhase = 0, gaitSpeed = 0, squash = 0;   // walk-cycle + squash/stretch state
+    let mvSmooth = 0, turnSmooth = 0;               // eased movement + turn so start/stop isn't jerky
     // Play is available immediately.
     const playBtn = document.getElementById('playBtn');
     playBtn.disabled = false; playBtn.textContent = '▶ Planet betreten';
@@ -1204,7 +1205,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       const t = oceanUniforms.time.value;
       const onGround = mode === 'ground' && height === 0;
       const running = keys.sprint || touchSprint;
-      const moving = onGround && mv !== 0;
+      const moving = onGround && Math.abs(mvSmooth) > 0.06;
       const target = moving ? (running ? 15 : 10) : 0;
       gaitSpeed += (target - gaitSpeed) * Math.min(1, dt * 8);
       gaitPhase += gaitSpeed * dt;
@@ -2260,13 +2261,16 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       } else { chargeBar.classList.remove('on'); aimLine.visible = false; aimRing.visible = false; }
       if (started && mode === 'ground' && !cinematic) {
         const speed = (keys.sprint || touchSprint ? 6.8 : 3.7), turnSpeed = 2.3;
-        let turn = (Number(keys.l) - Number(keys.r)) * turnSpeed * dt - touchMove.x * turnSpeed * dt - dragTurn;
+        const turnIn = (Number(keys.l) - Number(keys.r)) - touchMove.x; // keyboard/touch turn intent
+        turnSmooth += (turnIn - turnSmooth) * Math.min(1, dt * 12); // ease turning so it doesn't snap
+        let turn = turnSmooth * turnSpeed * dt - dragTurn;
         dragTurn = 0;
-        if (turn) forward.applyAxisAngle(up, turn);
+        if (Math.abs(turn) > 1e-5) forward.applyAxisAngle(up, turn);
         mv = Math.max(-1, Math.min(1, (Number(keys.f) - Number(keys.b)) + touchMove.y));
+        mvSmooth += (mv - mvSmooth) * Math.min(1, dt * 9); // ease accel/decel
         if (dashCd > 0) dashCd -= dt;
         if (dashT > 0) { dashT -= dt; pos.addScaledVector(forward, 17 * dt); pos.setLength(cur.R); refreshFrame(); puff(player.position, up); }
-        else if (mv !== 0) { pos.addScaledVector(forward, mv * speed * dt); pos.setLength(cur.R); refreshFrame(); }
+        else if (Math.abs(mvSmooth) > 0.01) { pos.addScaledVector(forward, mvSmooth * speed * dt); pos.setLength(cur.R); refreshFrame(); }
         if (height === 0 && vUp <= 0) { for (const pad of pads) { if (pad.pl !== cur) continue; _ew.copy(cur.center).add(pad.g.position); if (_ew.distanceTo(player.position) < 1.5) { vUp = 13; canJump = false; squash = 0.3; pad.t = 0.3; boing(); break; } } }
         if (height > 0 || vUp > 0) { const wasFalling = vUp < -2; vUp -= G * dt; height += vUp * dt; if (height <= 0) { height = 0; vUp = 0; canJump = true; if (wasFalling) { puff(player.position, up); puff(player.position, up); squash = -0.22; step(); } } } // landing dust + impact squash
         if (mv !== 0 && height === 0) { stepTimer -= dt; if (stepTimer <= 0) { stepTimer = (keys.sprint || touchSprint) ? 0.22 : 0.34; puff(player.position, up); step(); } } else stepTimer = 0;
