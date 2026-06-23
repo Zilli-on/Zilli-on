@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v131 · smooth movement';
+    const BUILD = 'v132 · world variety';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -742,7 +742,10 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     function makePlanet(center, PR, rich, project) {
       project = project || (rich ? PROJECTS[0] : nextProject());
       if (project.stars != null && !rich) PR = Math.max(4.5, Math.min(20, 5.5 + Math.sqrt(project.stars) * 1.9)); // real repos: size by GitHub stars (wide range: mini-moons → giants)
-      const T = THEMES[project.theme] || THEMES.grass;
+      const T0 = THEMES[project.theme] || THEMES.grass;
+      // per-world palette shift: every planet gets a unique tint within its biome family (no two look identical)
+      const hShift = (rnd() - 0.5) * 0.09, sShift = (rnd() - 0.5) * 0.14, lShift = (rnd() - 0.5) * 0.12;
+      const T = {}; for (const k in T0) { if (typeof T0[k] === 'number') { const c = new THREE.Color(T0[k]); c.offsetHSL(hShift, sShift, lShift); T[k] = c.getHex(); } else T[k] = T0[k]; }
       const islands = []; const ni = 4 + ((rnd() * 4) | 0);
       for (let i = 0; i < ni; i++) islands.push({ c: randDir(), amp: PR * (0.10 + rnd() * 0.11), w: 0.16 + rnd() * 0.14 });
       const base = -PR * 0.085, cap = PR * 0.2;
@@ -779,11 +782,11 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       const mesh = new THREE.Mesh(geo, toonMat({ vertexColors: true })); mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
       if (T.water) { const oseg = PR > 9 ? 96 : 48; group.add(new THREE.Mesh(new THREE.SphereGeometry(PR - 0.12, oseg, Math.round(oseg * 0.6)), oceanMaterial)); }
       // soft themed atmosphere halo
-      const atmCol = { home: 0x9fd8ff, grass: 0x9fd8ff, desert: 0xffe0a8, snow: 0xcfe8ff, volcano: 0xff8a5a, tech: 0x86fff0 }[project.theme] || 0x9fd8ff;
+      const atmCol = (() => { const base = { home: 0x9fd8ff, grass: 0x9fd8ff, desert: 0xffe0a8, snow: 0xcfe8ff, volcano: 0xff8a5a, tech: 0x86fff0 }[project.theme] || 0x9fd8ff; const c = new THREE.Color(base); c.offsetHSL(hShift, 0, lShift * 0.5); return c.getHex(); })(); // halo tinted to match the world's palette shift
       group.add(new THREE.Mesh(new THREE.SphereGeometry(PR * 1.16, 28, 18),
         new THREE.MeshBasicMaterial({ color: atmCol, transparent: true, opacity: 0.16, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false })));
       // occasional planetary ring
-      if (rnd() < 0.32) {
+      if (rnd() < 0.42) {
         const ring = new THREE.Mesh(new THREE.TorusGeometry(PR * 1.7, PR * 0.09, 10, 72), toonMat({ color: atmCol, transparent: true, opacity: 0.8 }));
         ring.rotation.x = Math.PI / 2 + (rnd() - 0.5) * 0.7; ring.rotation.y = (rnd() - 0.5) * 0.5; group.add(ring);
       }
