@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v125 · water glints';
+    const BUILD = 'v126 · avatar face';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1081,7 +1081,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     const limbMat = toonMat({ color: 0x2b3553, roughness: 0.55, metalness: 0.25 });  // dark under-suit
     const accentMat = toonMat({ color: 0x16b8a6, roughness: 0.4, metalness: 0.2, emissive: 0x0b5d54, emissiveIntensity: 0.35 }); // teal trim
     const glowMat = new THREE.MeshBasicMaterial({ color: 0x8ff5e8 }); // data nodes — pure glow, catches bloom
-    const visorMat = new THREE.MeshStandardMaterial({ color: 0x06231f, emissive: 0x3df0d8, emissiveIntensity: 1.5, roughness: 0.12, metalness: 0.5 }); // sleek glowing visor
+    const visorMat = new THREE.MeshStandardMaterial({ color: 0x06231f, emissive: 0x46f3da, emissiveIntensity: 2.1, roughness: 0.1, metalness: 0.5 }); // sleek glowing visor — the character's face/identity
     const hero = {};
     {
       // legs pivot at the hip and swing for the walk cycle
@@ -1095,16 +1095,21 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       hero.legL = leg(-0.24); hero.legR = leg(0.24);
       // upper body bobs while walking; the planted legs stay on the ground
       const upper = new THREE.Group(); avatar.add(upper); hero.upper = upper;
-      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.74, 8, 16), suitMat); torso.position.y = 1.66; torso.scale.set(1, 1, 0.88); torso.castShadow = true; upper.add(torso);
-      const chestPlate = new THREE.Mesh(new THREE.CapsuleGeometry(0.31, 0.52, 6, 12), limbMat); chestPlate.position.set(0, 1.78, 0.14); chestPlate.scale.set(1, 1, 0.55); upper.add(chestPlate);
-      const belt = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.16, 0.7), accentMat); belt.position.y = 1.22; belt.castShadow = true; upper.add(belt);
-      const core = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), glowMat); core.position.set(0, 1.76, 0.32); upper.add(core); hero.core = core; // glowing data-core on the chest
+      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.78, 8, 16), suitMat); torso.position.y = 1.68; torso.scale.set(0.94, 1, 0.84); torso.castShadow = true; upper.add(torso);
+      const chestPlate = new THREE.Mesh(new THREE.CapsuleGeometry(0.29, 0.5, 6, 12), limbMat); chestPlate.position.set(0, 1.8, 0.13); chestPlate.scale.set(0.92, 1, 0.5); upper.add(chestPlate);
+      const collar = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.06, 0.12), accentMat); collar.position.set(0, 2.06, 0.26); upper.add(collar); // teal trim line breaks up the chest
+      const belt = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.16, 0.68), accentMat); belt.position.y = 1.24; belt.castShadow = true; upper.add(belt);
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.14, 18, 18), glowMat); core.position.set(0, 1.74, 0.32); upper.add(core); hero.core = core; // glowing data-core on the chest
       // pauldrons for an explorer-suit silhouette
       for (const sx of [-0.5, 0.5]) { const pd = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 12), accentMat); pd.position.set(sx, 2.18, 0); pd.scale.set(1.05, 0.78, 1.05); pd.castShadow = true; upper.add(pd); }
       const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.2, 12), limbMat); neck.position.y = 2.44; upper.add(neck);
       const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 28, 22), headMat); head.position.y = 2.76; head.castShadow = true; upper.add(head); hero.head = head;
-      // sleek glowing visor — a curved band across the front of the helmet
-      const visor = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.34, 6, 14), visorMat); visor.rotation.z = Math.PI / 2; visor.scale.set(1, 1, 0.55); visor.position.set(0, 2.8, 0.31); upper.add(visor); hero.visor = visor;
+      // a dark "brow" frames the visor so the helmet reads as a face
+      const brow = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.4, 5, 12), limbMat); brow.rotation.z = Math.PI / 2; brow.scale.set(1, 1, 0.45); brow.position.set(0, 2.92, 0.26); upper.add(brow);
+      // sleek glowing visor — a wide curved band that clearly reads as the face
+      const visor = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.42, 8, 16), visorMat); visor.rotation.z = Math.PI / 2; visor.scale.set(1, 1.1, 0.5); visor.position.set(0, 2.76, 0.3); upper.add(visor); hero.visor = visor;
+      // swept-back helmet crest — gives a strong silhouette from the top/back (the main gameplay view)
+      const crest = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.36, 0.2), accentMat); crest.position.set(0, 3.04, -0.06); crest.rotation.x = 0.5; crest.castShadow = true; upper.add(crest);
       // arms pivot at the shoulder and swing opposite the legs (two-tone: suit upper, dark forearm, teal glove)
       const arm = (sx) => {
         const g = new THREE.Group(); g.position.set(sx, 2.18, 0);
