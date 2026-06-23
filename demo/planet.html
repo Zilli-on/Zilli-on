@@ -368,7 +368,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v134 · combat punch';
+    const BUILD = 'v135 · no giant labels';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -790,8 +790,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         const ring = new THREE.Mesh(new THREE.TorusGeometry(PR * 1.7, PR * 0.09, 10, 72), toonMat({ color: atmCol, transparent: true, opacity: 0.8 }));
         ring.rotation.x = Math.PI / 2 + (rnd() - 0.5) * 0.7; ring.rotation.y = (rnd() - 0.5) * 0.5; group.add(ring);
       }
-      const label = makeLabel(project.name); label.position.set(0, PR + 4.5, 0); label.scale.set(PR * 0.85, PR * 0.21, 1); group.add(label);
-      const pl = { center: center.clone(), R: PR, terrain, landR, walkR, group, rich, project, label };
+      const pl = { center: center.clone(), R: PR, terrain, landR, walkR, group, rich, project }; // no floating name-label: names show on arrival, in the map & the E panel (keeps the view clean)
       // decorations
       const dN = Math.round(PR * 6);
       for (let i = 0; i < dN; i++) {
@@ -1468,7 +1467,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       initAudio(); visitWorld(cur); lastInput = performance.now();
       if (showreel) { auto = true; autoT = 4; autoStart = performance.now(); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); }
       else {
-        renderQuest();
+        flashQuest();
         if (!localStorage.getItem('tp_seen')) { coachSeq(); localStorage.setItem('tp_seen', '1'); }
       }
     }
@@ -1560,13 +1559,13 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     ];
     let questIdx = 0, questsDone = false;
     let questTimer = 0;
-    function renderQuest() {
+    function renderQuest() { // updates the text silently (called every frame for live progress)
       if (questsDone) { questTitleEl.textContent = '🧠 Datenhirn erwacht'; questProgEl.textContent = 'Alle Synapsen aktiv ✓'; }
       else { const q = QUESTS[questIdx];
         questTitleEl.textContent = (questIdx + 1) + '/' + QUESTS.length + ' · ' + q.t;
         questProgEl.textContent = q.d + '  ·  ' + q.p({ delivered, worlds: worldsRun.size }); }
-      questEl.classList.add('on'); questTimer = 6; // show briefly, then auto-fade (keeps the HUD clean)
     }
+    function flashQuest() { renderQuest(); questEl.classList.add('on'); questTimer = 6; } // show briefly, then auto-fade (keeps the HUD clean)
     function updateQuests() {
       if (questsDone) return;
       const s = { delivered, worlds: worldsRun.size };
@@ -1576,7 +1575,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         questIdx++; advanced = true;
       }
       if (advanced) {
-        questEl.classList.remove('flash'); void questEl.offsetWidth; questEl.classList.add('flash');
+        questEl.classList.remove('flash'); void questEl.offsetWidth; questEl.classList.add('flash'); flashQuest();
         if (questIdx >= QUESTS.length) { questsDone = true; finale(); }
       }
       renderQuest();
