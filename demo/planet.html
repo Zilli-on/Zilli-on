@@ -326,15 +326,14 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     <div class="menu-card">
       <div class="tagline">Zillion · Projekt-Galaxie</div>
       <h1>Tiny <span>Planet</span></h1>
-      <p class="lead">Das <b>Datenhirn ist eingeschlafen</b> — als Daten-Kurier reaktivierst du seine Synapsen. Sammle Pakete 📦, liefere sie an die Häuser mit dem türkisen Ring ✅ und <b>halte die Sprungtaste</b>, um von Welt zu Welt zu springen. Jede Welt ist ein Projekt, alle verbunden wie ein Gehirn. 🪐🧠</p>
+      <p class="lead">Ein <b>Action-Adventure</b> auf winzigen, schwebenden Planeten: <b>erkunde</b>, <b>kämpfe</b> gegen Gegner und Wächter, <b>gleite</b> auf Wind-Strömungen von Insel zu Insel und sammle <b>Erinnerungs-Splitter</b>, die die Geschichte einer verlorenen Welt erzählen. Jede Welt ist ein Projekt — verbunden wie ein eingeschlafenes <b>Datenhirn</b>, das du wieder erweckst. 🪐⚔️🧠</p>
       <div class="keys" id="keys">
         <span class="key"><b>W / S</b> Laufen</span>
-        <span class="key"><b>A / D</b> Drehen</span>
-        <span class="key"><b>Maus</b> Kamera</span>
-        <span class="key"><b>Shift</b> Rennen</span>
+        <span class="key"><b>A / D</b> Drehen · <b>Shift</b> Rennen</span>
         <span class="key"><b>Space halten</b> Planet-Sprung</span>
-        <span class="key"><b>M</b> Karte</span>
-        <span class="key"><b>E</b> Projekt-Info</span>
+        <span class="key"><b>J</b> Angriff · <b>Q</b> Ausweichen</span>
+        <span class="key"><b>K</b> Windstoß · <b>B</b> Bombe</span>
+        <span class="key"><b>M</b> Karte · <b>E</b> Projekt</span>
       </div>
       <p id="bestLine"></p>
       <p id="achLine"></p>
@@ -361,7 +360,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v113 · combat badges';
+    const BUILD = 'v114 · menu refresh';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
