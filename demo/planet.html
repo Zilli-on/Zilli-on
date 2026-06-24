@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Zillion · Tiny Planet (WebGL Demo)</title>
+  <meta name="description" content="An atmospheric action-adventure across tiny floating planets — explore, fight telegraphed foes & mini-bosses, glide on wind currents, and gather memory fragments. A single self-contained WebGL/Three.js demo." />
+  <meta name="theme-color" content="#0c1418" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🪐%3C/text%3E%3C/svg%3E" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Tiny Planet — a tiny-planet action-adventure" />
+  <meta property="og:description" content="Explore, fight, glide on wind currents and gather memory fragments across tiny floating planets. Single self-contained WebGL/Three.js demo." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
@@ -30,6 +36,14 @@
       transition: opacity .5s ease;
     }
     #overlay.hidden { opacity: 0; pointer-events: none; }
+    #loader { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+      background: radial-gradient(circle at 50% 38%, #0e3a44, #061018); color: #eafffb; transition: opacity .6s ease; }
+    #loader.hidden { opacity: 0; pointer-events: none; }
+    #loader .ring { width: 46px; height: 46px; border-radius: 50%; border: 3px solid rgba(143,245,232,0.22); border-top-color: #5eead4; animation: lspin .8s linear infinite; }
+    #loader .lt { font-family: "Space Grotesk", system-ui, sans-serif; font-size: clamp(26px, 6vw, 42px); font-weight: 700; }
+    #loader .lt span { color: #5eead4; }
+    #loader .ls { font-size: 13px; font-weight: 600; color: #8fd9cf; letter-spacing: .02em; }
+    @keyframes lspin { to { transform: rotate(360deg); } }
     .menu-card { max-width: 540px; width: 100%; text-align: center; padding: 34px 30px 30px; display: flex; flex-direction: column; align-items: center; gap: 14px;
       background: rgba(255,255,255,0.66); border: 1px solid var(--stroke); border-radius: 28px;
       box-shadow: 0 30px 80px rgba(8,40,45,0.35), inset 0 1px 0 rgba(255,255,255,0.7);
@@ -74,6 +88,8 @@
     }
     #hud { display: none; } #hud.on { display: flex; }
     #hud b { color: var(--teal); font-variant-numeric: tabular-nums; }
+    #hud b.hp { color: #ff6b81; letter-spacing: 1px; }
+    #hud b.fr { color: #bfa8ff; }
     #quest {
       position: fixed; left: 14px; top: 104px; z-index: 5; max-width: 250px; pointer-events: none;
       padding: 9px 14px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--stroke);
@@ -117,13 +133,13 @@
     #cineBtn { right: 56px; top: 56px; padding: 7px 11px; font-size: 16px; line-height: 1; display: none; }
     #cineBtn.on { display: block; }
     body.cine #hud, body.cine #mapBtn, body.cine #muteBtn, body.cine #compass, body.cine #radar, body.cine #card,
-    body.cine #projHint, body.cine #chargeBar, body.cine #touchUI, body.cine .badge, body.cine #toast, body.cine #quest, body.cine #combo { display: none !important; }
+    body.cine #projHint, body.cine #chargeBar, body.cine #touchUI, body.cine .badge, body.cine #toast, body.cine #quest, body.cine #combo, body.cine #bossBar { display: none !important; }
     /* cinematic letterbox bars (photo mode + showreel) */
     .cinebar { position: fixed; left: 0; right: 0; height: 0; background: #000; z-index: 8; pointer-events: none; transition: height .45s cubic-bezier(.2,.9,.3,1); }
     #cinebarTop { top: 0; } #cinebarBot { bottom: 0; }
     body.cine #cinebarTop, body.cine #cinebarBot { height: 7vh; }
     body.cine #cineBtn { display: block; opacity: 0.5; }
-    #mapBtn { left: 14px; top: 62px; padding: 8px 14px; font-size: 13px; display: none; }
+    #mapBtn { right: 182px; top: 56px; padding: 7px 11px; font-size: 16px; line-height: 1; display: none; }
     #mapBtn.on { display: block; }
     #muteBtn:hover, #mapBtn:hover { transform: translateY(-2px); filter: brightness(1.05); }
 
@@ -143,6 +159,14 @@
       background: rgba(255,255,255,0.55); border: 1px solid var(--stroke); border-radius: 10px; overflow: hidden; display: none; box-shadow: var(--shadow); }
     #chargeBar.on { display: block; }
     #chargeFill { height: 100%; width: 0%; background: linear-gradient(90deg, #7df0dd, #14b8a6); box-shadow: 0 0 12px rgba(45,212,191,0.8); }
+    #bossBar { position: fixed; left: 50%; top: 104px; translate: -50% 0; z-index: 6; width: min(52vw, 340px); display: none; text-align: center; pointer-events: none; }
+    #bossBar.on { display: block; }
+    #bossBar .bn { font: 700 12px/1 'Space Grotesk', sans-serif; letter-spacing: 0.1em; color: #ffd166; text-shadow: 0 1px 5px rgba(0,0,0,0.55); margin-bottom: 5px; }
+    #bossBar .bt { height: 12px; background: rgba(255,255,255,0.5); border: 1px solid var(--stroke); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow); }
+    #bossFill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff8a5a, #ff4d6d); box-shadow: 0 0 12px rgba(255,90,90,0.8); transition: width 0.18s ease; }
+    #bossBar.rage .bn { color: #ff6b81; }
+    #bossBar.rage #bossFill { background: linear-gradient(90deg, #ff4d6d, #ff2d55); box-shadow: 0 0 16px rgba(255,45,85,0.95); }
+    #bossBar.rage .bn::after { content: ' 🔥'; }
 
     /* ---------- project info card ---------- */
     #card { position: fixed; left: 50%; bottom: 46px; translate: -50% 8px; z-index: 6; max-width: 340px; text-align: center;
@@ -212,33 +236,45 @@
       background: rgba(255,255,255,0.22); border: 1.5px solid var(--stroke); backdrop-filter: blur(6px); touch-action: none; user-select: none; box-shadow: var(--shadow); }
     #thumb { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #aef7ec, #2dd4bf); box-shadow: 0 8px 22px rgba(15,118,110,0.5); }
-    #jumpBtn, #sprintBtn { position: fixed; z-index: 6; border-radius: 50%; border: 1.5px solid var(--stroke); color: var(--teal);
+    #jumpBtn, #bombBtn, #emojiBtn, #atkBtn, #dashBtn, #gustBtn, #lockBtn { position: fixed; z-index: 6; border-radius: 50%; border: 1.5px solid var(--stroke); color: var(--teal);
       font-weight: 800; background: rgba(255,255,255,0.30); backdrop-filter: blur(6px); touch-action: none; user-select: none; box-shadow: var(--shadow); }
     #jumpBtn { right: 26px; bottom: 40px; width: 96px; height: 96px; font-size: 14px; }
     #jumpBtn:active { background: rgba(94,234,212,0.55); }
-    #sprintBtn { right: 134px; bottom: 56px; width: 68px; height: 68px; font-size: 12px; color: var(--ink-soft); }
-    #sprintBtn.active { background: rgba(94,234,212,0.6); color: #04302b; }
+    #bombBtn { right: 134px; bottom: 56px; width: 62px; height: 62px; font-size: 24px; }
+    #bombBtn:active { background: rgba(255,209,102,0.6); }
+    #emojiBtn { right: 140px; bottom: 134px; width: 56px; height: 56px; font-size: 22px; }
+    #emojiBtn:active { background: rgba(94,234,212,0.55); }
+    #atkBtn { right: 40px; bottom: 148px; width: 72px; height: 72px; font-size: 26px; }
+    #atkBtn:active { background: rgba(255,138,90,0.6); }
+    #dashBtn { right: 120px; bottom: 210px; width: 56px; height: 56px; font-size: 22px; }
+    #dashBtn:active { background: rgba(143,228,255,0.6); }
+    #gustBtn { right: 40px; bottom: 232px; width: 56px; height: 56px; font-size: 22px; }
+    #lockBtn { left: 30px; bottom: 172px; width: 56px; height: 56px; font-size: 22px; }
+    #lockBtn.active { background: rgba(255,242,168,0.65); }
+    #gustBtn:active { background: rgba(143,228,255,0.6); }
 
     @media (max-width: 760px) {
       #card { bottom: 140px; max-width: 78vw; }
       #chargeBar { bottom: 150px; }
       #compass { top: 96px; }
+      #bossBar { top: 146px; width: min(64vw, 320px); }
     }
   </style>
 </head>
 <body>
+  <div id="loader"><div class="ring"></div><div class="lt">Tiny <span>Planet</span></div><div class="ls">Lade Galaxie …</div></div>
   <div id="cinebarTop" class="cinebar"></div><div id="cinebarBot" class="cinebar"></div>
-  <div id="hud">📦 <b id="carry">0</b> · ✅ <b id="cnt">0</b> · 🪐 <b id="world">0</b> · ⏱ <b id="timer">0:00</b></div>
+  <div id="hud"><b id="hearts" class="hp">❤❤❤❤❤</b> &nbsp; <b id="frags" class="fr">✦ 0</b><span id="hudx" style="display:none">📦<b id="carry">0</b> ✅<b id="cnt">0</b> 🪐<b id="world">0</b> ⏱<b id="timer">0:00</b></span></div>
   <div id="quest"><div class="qh">🧠 Mission</div><div class="qt" id="questTitle">…</div><div class="qp" id="questProg"></div></div>
   <button id="muteBtn" title="Ton an/aus">🔊</button>
-  <button id="mapBtn">🧠 Karte</button>
+  <button id="mapBtn" title="Galaxie-Karte (M)">🗺️</button>
   <button id="cineBtn" title="Foto-Modus (C)">📷</button>
   <button id="setBtn" title="Einstellungen (P)">⚙</button>
   <button id="helpBtn" title="Hilfe (H)">❔</button>
   <div id="settings"><div class="proj-card">
     <div class="pn">⚙ Einstellungen</div>
     <div class="prow"><button class="cl" id="setMusic">🔊 Musik: an</button><button class="cl" id="setFx">✨ Effekte: an</button><button class="cl" id="setMotion">🌀 Bewegung: voll</button></div>
-    <div class="pb">WASD / Pfeile laufen · A/D drehen · Shift rennen · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto-Modus · H Hilfe</div>
+    <div class="pb">WASD laufen · A/D drehen · Shift rennen · <b>J Angriff</b> · <b>K Windstoß</b> · <b>B Bombe</b> · <b>Q Dash</b> · <b>Space halten</b> = Planet-Sprung · M Karte · E Projekt · C Foto · F Emoji · H Hilfe</div>
     <div class="prow"><button class="gh" id="setResume">▶ Weiter spielen</button><button class="cl" id="setRestart">↻ Neu starten</button><button class="cl" id="setReset">🗑 Fortschritt löschen</button></div>
   </div></div>
   <div id="help"><div class="proj-card">
@@ -250,7 +286,9 @@ A / D — drehen   ·   Maus / Wischen — Kamera
 Shift — rennen
 Space (gedrückt halten) — Planet-Sprung
 M — Galaxie-Karte   ·   E — Projekt-Info
-C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
+J — Angriff (3er-Combo, jeder 3. Schlag stärker)   ·   L — Anvisieren (Lock-on, dann umkreisen)   ·   K — Windstoß   ·   B — Bombe (Flächenschaden)   ·   Q — Dash (Ausweichen)
+⚔️ Kämpfe gegen Gegner & Wächter (Bosse werden bei halber HP wild) · 🌬️ flieg durch Wind-Strömungen für einen Gleit-Schub
+C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilfe</div>
     <div class="prow"><button class="cl" id="helpClose">Schließen (Esc / H)</button></div>
   </div></div>
   <div id="reelHint">🎬 Showreel · Klick oder Taste = selbst steuern</div>
@@ -260,6 +298,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     <canvas id="mapCanvas" width="520" height="520"></canvas>
     <div class="maprow"><button id="mapHome">🏠 Heimat</button><button id="mapClose">Schließen</button></div>
   </div>
+  <div id="bossBar"><div class="bn">🛡️ WÄCHTER</div><div class="bt"><div id="bossFill"></div></div></div>
   <div id="compass"><div class="arrow">⬆</div><div class="lbl">nächstes Paket</div></div>
   <canvas id="radar" width="116" height="116"></canvas>
   <div id="chargeBar"><div id="chargeFill"></div></div>
@@ -283,23 +322,28 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
 
   <div id="touchUI">
     <div id="joystick"><div id="thumb"></div></div>
-    <button id="sprintBtn">RUN</button>
+    <button id="bombBtn">💣</button>
     <button id="jumpBtn">HOP</button>
+    <button id="atkBtn">⚔️</button>
+    <button id="dashBtn">💨</button>
+    <button id="gustBtn">🌀</button>
+    <button id="lockBtn">🎯</button>
+    <button id="emojiBtn">😄</button>
   </div>
 
   <div id="overlay">
     <div class="menu-card">
       <div class="tagline">Zillion · Projekt-Galaxie</div>
       <h1>Tiny <span>Planet</span></h1>
-      <p class="lead">Das <b>Datenhirn ist eingeschlafen</b> — als Daten-Kurier reaktivierst du seine Synapsen. Sammle Pakete 📦, liefere sie an die Häuser mit dem türkisen Ring ✅ und <b>halte die Sprungtaste</b>, um von Welt zu Welt zu springen. Jede Welt ist ein Projekt, alle verbunden wie ein Gehirn. 🪐🧠</p>
+      <p class="lead">Ein <b>Action-Adventure</b> auf winzigen, schwebenden Planeten: <b>erkunde</b>, <b>kämpfe</b> gegen Gegner und Wächter, <b>gleite</b> auf Wind-Strömungen von Insel zu Insel und sammle <b>Erinnerungs-Splitter</b>, die die Geschichte einer verlorenen Welt erzählen. Jede Welt ist ein Projekt — verbunden wie ein eingeschlafenes <b>Datenhirn</b>, das du wieder erweckst. 🪐⚔️🧠</p>
       <div class="keys" id="keys">
         <span class="key"><b>W / S</b> Laufen</span>
-        <span class="key"><b>A / D</b> Drehen</span>
-        <span class="key"><b>Maus</b> Kamera</span>
-        <span class="key"><b>Shift</b> Rennen</span>
+        <span class="key"><b>A / D</b> Drehen · <b>Shift</b> Rennen</span>
         <span class="key"><b>Space halten</b> Planet-Sprung</span>
-        <span class="key"><b>M</b> Karte</span>
-        <span class="key"><b>E</b> Projekt-Info</span>
+        <span class="key"><b>J</b> Angriff · <b>Q</b> Ausweichen</span>
+        <span class="key"><b>K</b> Windstoß · <b>B</b> Bombe</span>
+        <span class="key"><b>L</b> Anvisieren (Lock-on)</span>
+        <span class="key"><b>M</b> Karte · <b>E</b> Projekt</span>
       </div>
       <p id="bestLine"></p>
       <p id="achLine"></p>
@@ -324,9 +368,11 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
     import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
     import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v81 · fix HUD overlap';
+    const BUILD = 'v137 · lock-on controls';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -338,7 +384,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
           document.body.appendChild(e); }
         e.textContent += msg + '\n';
       }
-      addEventListener('error', (ev) => show('⚠️ ' + (ev.message || ev.error) + (ev.filename ? '\n   @ ' + ev.filename + ':' + ev.lineno : '')));
+      addEventListener('error', (ev) => { show('⚠️ ' + (ev.message || ev.error) + (ev.filename ? '\n   @ ' + ev.filename + ':' + ev.lineno : '')); const ld = document.getElementById('loader'); if (ld) ld.classList.add('hidden'); });
       addEventListener('unhandledrejection', (ev) => show('⚠️ promise: ' + (ev.reason && ev.reason.message ? ev.reason.message : ev.reason)));
     })();
 
@@ -355,16 +401,21 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0xbfe3ff, 70, 290); // distance fog -> far worlds fade into the sky (depth)
+    // image-based lighting: a PMREM environment so PBR materials pick up soft, realistic ambient reflections (the core of the high-end look)
+    { const pmrem = new THREE.PMREMGenerator(renderer); scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; }
     const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
 
     // ---------- Toon gradient (cel bands) ----------
     const gradient = (() => {
-      const c = new Uint8Array([70, 140, 205, 255]);
+      const c = new Uint8Array([55, 110, 165, 210, 255]); // 5-step ramp: softer toon banding, more form/depth
       const t = new THREE.DataTexture(c, c.length, 1, THREE.RedFormat);
       t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true;
       return t;
     })();
-    function toonMat(opts) { return new THREE.MeshToonMaterial(Object.assign({ gradientMap: gradient }, opts)); }
+    // PBR material factory (drop-in for the old toon factory): physically-based shading lit by the IBL environment for a high-end look
+    function toonMat(opts) { const o = Object.assign({}, opts); delete o.gradientMap;
+      if (o.roughness === undefined) o.roughness = 0.82; if (o.metalness === undefined) o.metalness = 0.0; if (o.envMapIntensity === undefined) o.envMapIntensity = 0.65;
+      return new THREE.MeshStandardMaterial(o); }
 
     // ---------- Sky dome (animated by the day/night cycle) ----------
     const skyMat = new THREE.ShaderMaterial({
@@ -410,10 +461,10 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     sun.shadow.mapSize.set(lowPerf ? 1024 : 2048, lowPerf ? 1024 : 2048);
     sun.shadow.camera.near = 1; sun.shadow.camera.far = 200;
     sun.shadow.camera.left = -30; sun.shadow.camera.right = 30; sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30;
-    sun.shadow.bias = -0.0005;
+    sun.shadow.bias = -0.0005; sun.shadow.radius = lowPerf ? 2 : 4; // softer, less hard-edged contact shadows
     scene.add(sun);
     const sunDir = sun.position.clone().normalize();
-    const rim = new THREE.DirectionalLight(0xbfe9ff, 0.9); rim.position.set(-40, 15, -35); scene.add(rim); // fake rim light
+    const rim = new THREE.DirectionalLight(0xbfe9ff, 1.05); rim.position.set(-40, 18, -35); scene.add(rim); // cool rim light for edge separation / depth
 
     // ---------- Day/night cycle ----------
     // keyframes around the clock: [0..1) -> sky top/mid/bottom, sun colour+intensity, hemi intensity, exposure, star opacity
@@ -443,8 +494,8 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       skyMat.uniforms.bottom.value.copy(_cA.setHex(a.bottom)).lerp(_cB.setHex(b.bottom), f);
       scene.fog.color.copy(skyMat.uniforms.bottom.value);
       sun.color.copy(_cA.setHex(a.sun)).lerp(_cB.setHex(b.sun), f);
-      sun.intensity = lerpKey(a, b, f, 'si');
-      hemi.intensity = lerpKey(a, b, f, 'hi');
+      sun.intensity = lerpKey(a, b, f, 'si') * 1.08; // crisper key light for form
+      hemi.intensity = lerpKey(a, b, f, 'hi') * 0.82; // IBL now carries ambient → trim sky fill so shadows read deeper
       renderer.toneMappingExposure = lerpKey(a, b, f, 'exp');
       starMat.opacity = lerpKey(a, b, f, 'star');
       if (skyTintAmt > 0) { skyMat.uniforms.top.value.lerp(_skyTint, skyTintAmt); skyMat.uniforms.mid.value.lerp(_skyTint, skyTintAmt * 0.55); skyMat.uniforms.bottom.value.lerp(_skyTint, skyTintAmt * 0.8); }
@@ -476,20 +527,21 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
 
     // shared toon-water material (works on any radius sphere, local-space waves)
     const oceanUniforms = { time: { value: 0 }, sunDir: { value: sunDir },
-      deep: { value: new THREE.Color(0x1f7ab0) }, shallow: { value: new THREE.Color(0x57c6e6) }, foam: { value: new THREE.Color(0xeafdff) } };
+      deep: { value: new THREE.Color(0x1f7ab0) }, shallow: { value: new THREE.Color(0x57c6e6) }, foam: { value: new THREE.Color(0xeafdff) }, sky: { value: new THREE.Color(0xbfe0ff) } };
     const oceanMaterial = new THREE.ShaderMaterial({ transparent: true, uniforms: oceanUniforms,
       vertexShader: `uniform float time; varying vec3 vN; varying vec3 vView; varying float vWave;
         void main(){ vec3 n = normalize(position);
           float w = sin(position.x*2.2 + time*1.3)*0.03 + sin(position.z*2.7 - time*1.1)*0.03 + sin(position.y*3.1 + time*0.7)*0.02;
           vWave = w; vec3 p = position + n*w; vec4 mv = modelViewMatrix*vec4(p,1.0);
           vN = normalize(normalMatrix*n); vView = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`,
-      fragmentShader: `uniform vec3 deep; uniform vec3 shallow; uniform vec3 foam; uniform vec3 sunDir; uniform float time;
+      fragmentShader: `uniform vec3 deep; uniform vec3 shallow; uniform vec3 foam; uniform vec3 sky; uniform vec3 sunDir; uniform float time;
         varying vec3 vN; varying vec3 vView; varying float vWave;
-        void main(){ float l = max(dot(vN, normalize((viewMatrix*vec4(sunDir,0.0)).xyz)),0.0);
-          float band = floor(l*3.0)/3.0; vec3 col = mix(deep, shallow, band*0.7+0.3);
-          float fres = pow(1.0 - max(dot(vN,vView),0.0), 3.0); col = mix(col, foam, fres*0.6);
+        void main(){ vec3 sunV = normalize((viewMatrix*vec4(sunDir,0.0)).xyz); float l = max(dot(vN, sunV),0.0);
+          vec3 col = mix(deep, shallow, l*0.6 + 0.25);                                  // smooth depth shading
+          float fres = pow(1.0 - max(dot(vN,vView),0.0), 3.0); col = mix(col, sky, fres*0.55); // reflect the sky at grazing angles (shifts with time of day)
+          vec3 h = normalize(sunV + vView); float spec = pow(max(dot(vN,h),0.0), 90.0); col += spec * 1.3; // sun specular glint
           float crest = smoothstep(0.06,0.085, vWave + sin(time*2.0)*0.005); col = mix(col, foam, crest*0.5);
-          gl_FragColor = vec4(col, 0.9); } ` });
+          gl_FragColor = vec4(col, 0.92); } ` });
 
     // ---------- mesh builders ----------
     function makeTree(leafCol) {
@@ -527,6 +579,75 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       return g;
     }
     function makeRock() { const g = new THREE.Group(); const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.35 + rnd()*0.4, 0), toonMat({ color: 0x9aa0a6 })); m.position.y = 0.25; m.castShadow = true; m.receiveShadow = true; g.add(m); return g; }
+    // hostile little wisp/drone — a glowing-eyed foe (per-theme tint)
+    const enemyEyeMat = new THREE.MeshBasicMaterial({ color: 0xff5a5a });
+    const enemyHitMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const bossEyeMat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
+    const enemyWarnMat = new THREE.MeshBasicMaterial({ color: 0xfff2a8 }); // bright wind-up flash — telegraphs an incoming hit
+    const enemySwarmEyeMat = new THREE.MeshBasicMaterial({ color: 0xffaa3c }); // swarmers: amber eye so the fast tier reads at a glance
+    function makeEnemy(theme, boss, sz) {
+      const g = new THREE.Group();
+      const tint = boss ? 0x241226 : theme === 'tech' ? 0x3a4a64 : theme === 'volcano' ? 0x3a201c : theme === 'snow' ? 0x3a4658 : theme === 'desert' ? 0x5a4632 : 0x33324a;
+      const s = boss ? 1.9 : (sz || 1);
+      const body = new THREE.Mesh(new THREE.OctahedronGeometry(0.42 * s, 0), toonMat({ color: tint })); body.position.y = 0.95 * s; body.castShadow = true; g.add(body);
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.16 * s, 0.5 * s, 4), toonMat({ color: tint })); spike.position.y = (0.95 + 0.5) * s; g.add(spike);
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.13 * s, 16, 16), boss ? bossEyeMat : enemyEyeMat); eye.position.set(0, 0.95 * s, 0.34 * s); g.add(eye); g.userData.eye = eye;
+      if (boss) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.07, 8, 24), new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })); ring.position.y = 0.95 * s; ring.rotation.x = Math.PI / 2; g.add(ring); g.userData.ring = ring; }
+      return g;
+    }
+    // throwable bomb — a fused charge that bursts into an AoE shock (great against swarmer packs)
+    function makeBomb() {
+      const g = new THREE.Group();
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), toonMat({ color: 0x222633 })); core.position.y = 0.34; core.castShadow = true; g.add(core);
+      const led = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff5a5a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); led.position.y = 0.66; g.add(led); g.userData.led = led;
+      return g;
+    }
+    // signature biome landmark — gives each world a memorable silhouette/identity
+    function makeLandmark(theme) {
+      const g = new THREE.Group(); let spin = 0;
+      if (theme === 'tech') { // Clockwork — a great rotating gear
+        const gear = new THREE.Group();
+        const ringM = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.32, 10, 24), toonMat({ color: 0x6b7a99, emissive: 0x1b2540, emissiveIntensity: 0.4 })); gear.add(ringM);
+        for (let i = 0; i < 10; i++) { const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.4), toonMat({ color: 0x6b7a99 })); const a = i / 10 * Math.PI * 2; tooth.position.set(Math.cos(a) * 1.85, Math.sin(a) * 1.85, 0); tooth.rotation.z = a; gear.add(tooth); }
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.5, 8), toonMat({ color: 0x8ff5e8, emissive: 0x2bd9c0, emissiveIntensity: 0.5 })); hub.rotation.x = Math.PI / 2; gear.add(hub);
+        gear.position.y = 2.4; gear.castShadow = true; g.add(gear); spin = 0.5; g.userData.spinObj = gear;
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 2.4, 6), toonMat({ color: 0x4a5568 })); post.position.y = 1.0; post.castShadow = true; g.add(post);
+      } else if (theme === 'volcano') { // Ash core — a broken ember obelisk
+        const ob = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.7, 3.2, 5), toonMat({ color: 0x2a1714, emissive: 0xff5a2a, emissiveIntensity: 0.25 })); ob.position.y = 1.6; ob.castShadow = true; g.add(ob);
+        const tip = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), new THREE.MeshBasicMaterial({ color: 0xff7a3a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })); tip.position.y = 3.4; g.add(tip); g.userData.glow = tip;
+      } else if (theme === 'snow') { // crystalline ice spire
+        const sp = new THREE.Mesh(new THREE.ConeGeometry(0.7, 3.4, 5), toonMat({ color: 0xcfe9ff, emissive: 0x6fa8d6, emissiveIntensity: 0.3 })); sp.position.y = 1.7; sp.castShadow = true; g.add(sp);
+        const c2 = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1.6, 5), toonMat({ color: 0xeaf6ff })); c2.position.set(0.5, 1.0, 0.2); c2.rotation.z = -0.3; g.add(c2);
+      } else if (theme === 'desert') { // weathered sandstone pillar
+        for (let i = 0; i < 3; i++) { const blk = new THREE.Mesh(new THREE.BoxGeometry(1.1 - i * 0.2, 1.0, 1.1 - i * 0.2), toonMat({ color: i % 2 ? 0xcaa96c : 0xd8b483 })); blk.position.y = 0.5 + i * 1.0; blk.rotation.y = i * 0.3; blk.castShadow = true; g.add(blk); }
+      } else { // grass/home → Mushroom moon: a giant glowing mushroom
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 2.4, 8), toonMat({ color: 0xf0e8d8 })); stem.position.y = 1.2; stem.castShadow = true; g.add(stem);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(1.6, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), toonMat({ color: 0xc56cff, emissive: 0x5a2a8a, emissiveIntensity: 0.35 })); cap.position.y = 2.4; cap.scale.y = 0.8; cap.castShadow = true; g.add(cap); g.userData.glow = cap;
+        for (let i = 0; i < 5; i++) { const dot = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xeac6ff })); const a = i / 5 * 6.28; dot.position.set(Math.cos(a) * 0.9, 2.7, Math.sin(a) * 0.9); g.add(dot); }
+      }
+      g.userData.spin = spin; return g;
+    }
+    // shrine puzzle — light all runes to open a sealed memory shrine
+    const runeDimMat = new THREE.MeshBasicMaterial({ color: 0x3a4a6a });
+    const runeLitMat = new THREE.MeshBasicMaterial({ color: 0x8ff5e8 });
+    function makeRune() { const g = new THREE.Group();
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.8, 6), toonMat({ color: 0x2a3550 })); post.position.y = 0.4; post.castShadow = true; g.add(post);
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), runeDimMat); gem.position.y = 0.95; g.add(gem); g.userData.gem = gem; return g; }
+    function makeShrine() { const g = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 0.5, 6), toonMat({ color: 0x3a3550 })); base.position.y = 0.25; base.castShadow = true; g.add(base);
+      const seal = new THREE.Mesh(new THREE.OctahedronGeometry(0.6, 0), new THREE.MeshBasicMaterial({ color: 0x6a6a8a, transparent: true, opacity: 0.85, depthWrite: false })); seal.position.y = 1.2; g.add(seal); g.userData.seal = seal; return g; }
+    // bounce pad — a springy glowing mushroom that launches the player high
+    function makePad() {
+      const g = new THREE.Group();
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.5, 8), toonMat({ color: 0xeaf0fb })); stem.position.y = 0.25; stem.castShadow = true; g.add(stem);
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.7, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), toonMat({ color: 0xff6b9d, emissive: 0x5e1a3a, emissiveIntensity: 0.4 })); cap.position.y = 0.5; cap.castShadow = true; g.add(cap);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.06, 8, 22), new THREE.MeshBasicMaterial({ color: 0xffd1e6, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); ring.position.y = 0.52; ring.rotation.x = Math.PI / 2; g.add(ring);
+      g.userData.cap = cap; return g;
+    }
+    // memory fragment — a glowing soul-shard dropped by defeated foes
+    const fragGeo = new THREE.OctahedronGeometry(0.34, 0);
+    const fragMat = new THREE.MeshBasicMaterial({ color: 0xbfa8ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+    function makeFragment() { const g = new THREE.Mesh(fragGeo, fragMat); g.castShadow = false; return g; }
     function makeCritter(theme) {
       const g = new THREE.Group();
       if (theme === 'snow') { // penguin
@@ -538,11 +659,11 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         const tail = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.5, 6), toonMat({ color: 0x9a8b4f })); tail.rotation.z = -Math.PI / 2; tail.position.set(-0.55, 0.22, 0); g.add(tail);
       } else if (theme === 'tech') { // hover drone
         const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.22, 0.4), toonMat({ color: 0x4a5568, emissive: 0x5eead4, emissiveIntensity: 0.4 })); body.position.y = 0.7; body.castShadow = true; g.add(body);
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshBasicMaterial({ color: 0x7ffcee })); eye.position.set(0, 0.7, 0.22); g.add(eye);
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 10), new THREE.MeshBasicMaterial({ color: 0x7ffcee })); eye.position.set(0, 0.7, 0.22); g.add(eye);
       } else { // bunny (grass/home/volcano)
         const cols = theme === 'volcano' ? [0x4a3a34, 0x5a4136] : [0xf2d9c0, 0xe8b894, 0xd9a679, 0xf5e6d0];
         const col = cols[(rnd() * cols.length) | 0];
-        const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), toonMat({ color: col })); body.scale.set(1, 0.85, 1.2); body.position.y = 0.4; body.castShadow = true; g.add(body);
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 10), toonMat({ color: col })); body.scale.set(1, 0.85, 1.2); body.position.y = 0.4; body.castShadow = true; g.add(body);
         for (const sx of [-1, 1]) { const ear = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.34, 5), toonMat({ color: col })); ear.position.set(sx * 0.16, 0.75, 0.18); g.add(ear); }
         const nose = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), toonMat({ color: 0x33312f })); nose.position.set(0, 0.42, 0.48); g.add(nose);
       }
@@ -565,7 +686,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       }
     }
     const _cc = new THREE.Color(), _ct = new THREE.Color();
-    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [];
+    const planets = [], parcels = [], dropoffs = [], windy = [], critters = [], enemies = [], fragments = [], pads = [], landmarks = [], shrines = [], bombs = [];
 
     // theme palettes per world type
     const THEMES = {
@@ -624,8 +745,11 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
 
     function makePlanet(center, PR, rich, project) {
       project = project || (rich ? PROJECTS[0] : nextProject());
-      if (project.stars != null && !rich) PR = Math.max(6.5, Math.min(13, 7 + Math.sqrt(project.stars) * 1.2)); // real repos: size by GitHub stars
-      const T = THEMES[project.theme] || THEMES.grass;
+      if (project.stars != null && !rich) PR = Math.max(4.5, Math.min(20, 5.5 + Math.sqrt(project.stars) * 1.9)); // real repos: size by GitHub stars (wide range: mini-moons → giants)
+      const T0 = THEMES[project.theme] || THEMES.grass;
+      // per-world palette shift: every planet gets a unique tint within its biome family (no two look identical)
+      const hShift = (rnd() - 0.5) * 0.09, sShift = (rnd() - 0.5) * 0.14, lShift = (rnd() - 0.5) * 0.12;
+      const T = {}; for (const k in T0) { if (typeof T0[k] === 'number') { const c = new THREE.Color(T0[k]); c.offsetHSL(hShift, sShift, lShift); T[k] = c.getHex(); } else T[k] = T0[k]; }
       const islands = []; const ni = 4 + ((rnd() * 4) | 0);
       for (let i = 0; i < ni; i++) islands.push({ c: randDir(), amp: PR * (0.10 + rnd() * 0.11), w: 0.16 + rnd() * 0.14 });
       const base = -PR * 0.085, cap = PR * 0.2;
@@ -633,34 +757,44 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       const landR = (d) => PR + Math.max(terrain(d), -PR * 0.05);
       const walkR = (d) => PR + Math.max(terrain(d), 0);
       const group = new THREE.Group(); group.position.copy(center); scene.add(group);
-      const detail = Math.max(8, Math.min(22, Math.round(PR * (lowPerf ? 1.0 : 1.4))));
+      const detail = Math.max(8, Math.min(lowPerf ? 20 : 30, Math.round(PR * (lowPerf ? 1.0 : 1.75)))); // rounder horizon silhouettes on capable devices
       const geo = new THREE.IcosahedronGeometry(PR, detail);
       { const p = geo.attributes.position, col = new Float32Array(p.count * 3), d = new THREE.Vector3();
+        const _aoU = new THREE.Vector3(), _aoT1 = new THREE.Vector3(), _aoT2 = new THREE.Vector3(), _aoN = new THREE.Vector3();
         for (let i = 0; i < p.count; i++) {
           d.set(p.getX(i), p.getY(i), p.getZ(i)).normalize();
-          const h = Math.max(terrain(d), -PR * 0.05); d.multiplyScalar(PR + h); p.setXYZ(i, d.x, d.y, d.z);
+          const h = Math.max(terrain(d), -PR * 0.05);
+          // baked ambient occlusion: hollows ringed by higher ground darken -> grounded "rendered" depth with no post pass
+          _aoU.set(0, 1, 0); if (Math.abs(d.y) > 0.9) _aoU.set(1, 0, 0);
+          _aoT1.crossVectors(d, _aoU).normalize(); _aoT2.crossVectors(d, _aoT1).normalize();
+          let occ = 0;
+          _aoN.copy(d).addScaledVector(_aoT1, 0.1).normalize(); occ += Math.max(0, terrain(_aoN) - h);
+          _aoN.copy(d).addScaledVector(_aoT1, -0.1).normalize(); occ += Math.max(0, terrain(_aoN) - h);
+          _aoN.copy(d).addScaledVector(_aoT2, 0.1).normalize(); occ += Math.max(0, terrain(_aoN) - h);
+          _aoN.copy(d).addScaledVector(_aoT2, -0.1).normalize(); occ += Math.max(0, terrain(_aoN) - h);
+          const ao = Math.max(0.62, 1 - (occ / (PR * 0.2)) * 0.55);
+          d.multiplyScalar(PR + h); p.setXYZ(i, d.x, d.y, d.z);
           if (h < 0) _cc.setHex(T.wet);
           else if (h < PR * 0.012) _cc.setHex(T.sand).lerp(_ct.setHex(T.foam), Math.max(0, 1 - h / (PR * 0.006)) * 0.5);
           else if (h < PR * 0.11) _cc.setHex(T.grass).lerp(_ct.setHex(T.grass2), h / (PR * 0.11) * 0.7);
           else if (h < PR * 0.17) _cc.setHex(T.grass2).lerp(_ct.setHex(T.rock), (h - PR * 0.11) / (PR * 0.06));
           else _cc.setHex(T.rock).lerp(_ct.setHex(T.snow), Math.min(1, (h - PR * 0.17) / (PR * 0.05)));
-          col[i*3] = _cc.r; col[i*3+1] = _cc.g; col[i*3+2] = _cc.b;
+          col[i*3] = _cc.r * ao; col[i*3+1] = _cc.g * ao; col[i*3+2] = _cc.b * ao;
         }
         geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals();
       }
       const mesh = new THREE.Mesh(geo, toonMat({ vertexColors: true })); mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
       if (T.water) { const oseg = PR > 9 ? 96 : 48; group.add(new THREE.Mesh(new THREE.SphereGeometry(PR - 0.12, oseg, Math.round(oseg * 0.6)), oceanMaterial)); }
       // soft themed atmosphere halo
-      const atmCol = { home: 0x9fd8ff, grass: 0x9fd8ff, desert: 0xffe0a8, snow: 0xcfe8ff, volcano: 0xff8a5a, tech: 0x86fff0 }[project.theme] || 0x9fd8ff;
+      const atmCol = (() => { const base = { home: 0x9fd8ff, grass: 0x9fd8ff, desert: 0xffe0a8, snow: 0xcfe8ff, volcano: 0xff8a5a, tech: 0x86fff0 }[project.theme] || 0x9fd8ff; const c = new THREE.Color(base); c.offsetHSL(hShift, 0, lShift * 0.5); return c.getHex(); })(); // halo tinted to match the world's palette shift
       group.add(new THREE.Mesh(new THREE.SphereGeometry(PR * 1.16, 28, 18),
         new THREE.MeshBasicMaterial({ color: atmCol, transparent: true, opacity: 0.16, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false })));
       // occasional planetary ring
-      if (rnd() < 0.32) {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(PR * 1.7, PR * 0.13, 2, 56), toonMat({ color: atmCol, transparent: true, opacity: 0.8 }));
+      if (rnd() < 0.42) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(PR * 1.7, PR * 0.09, 10, 72), toonMat({ color: atmCol, transparent: true, opacity: 0.8 }));
         ring.rotation.x = Math.PI / 2 + (rnd() - 0.5) * 0.7; ring.rotation.y = (rnd() - 0.5) * 0.5; group.add(ring);
       }
-      const label = makeLabel(project.name); label.position.set(0, PR + 4.5, 0); label.scale.set(PR * 0.85, PR * 0.21, 1); group.add(label);
-      const pl = { center: center.clone(), R: PR, terrain, landR, walkR, group, rich, project, label };
+      const pl = { center: center.clone(), R: PR, terrain, landR, walkR, group, rich, project }; // no floating name-label: names show on arrival, in the map & the E panel (keeps the view clean)
       // decorations
       const dN = Math.round(PR * 6);
       for (let i = 0; i < dN; i++) {
@@ -669,7 +803,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         const deco = isTree
           ? (th === 'desert' ? makeCactus() : th === 'volcano' ? makeDeadTree() : th === 'snow' ? makeTree(0xdfeefc) : makeTree())
           : roll < 0.74 ? makeRock() : makeHouse();
-        deco.scale.setScalar(0.8 + rnd() * 0.5); orientOnSphere(deco, dir, landR(dir)); group.add(deco);
+        deco.scale.setScalar(0.8 + rnd() * 0.5); orientOnSphere(deco, dir, landR(dir) - PR * 0.012); group.add(deco); // sink slightly so bases stay rooted on the faceted mesh, never floating
         if (isTree) windy.push({ obj: deco, base: deco.quaternion.clone(), phase: rnd() * 6.28, pl });
       }
       // critters (biome-specific)
@@ -679,6 +813,44 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         const cr = makeCritter(project.theme); cr.scale.setScalar(0.7 + rnd() * 0.5);
         const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0); fwd.normalize();
         critters.push({ g: cr, dir, fwd, t: rnd() * 6, pl }); orientOnSphere(cr, dir, walkR(dir)); group.add(cr);
+      }
+      // enemies (not on the peaceful home hub)
+      const eN = rich ? 0 : (2 + ((rnd() * 2) | 0)); let ePlaced = 0;
+      for (let i = 0; i < eN; i++) {
+        let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < PR * 0.04; k++) dir = randDir(); if (terrain(dir) < PR * 0.04) continue;
+        const swarm = rnd() < 0.4; // some foes are small, fast 1-HP swarmers for combat variety
+        const eg = makeEnemy(project.theme, false, swarm ? 0.62 : 1);
+        const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0); fwd.normalize();
+        enemies.push({ g: eg, dir, fwd, t: rnd() * 6, pl, hp: swarm ? 1 : 2, hitT: 0, swarm }); orientOnSphere(eg, dir, walkR(dir)); group.add(eg); ePlaced++;
+      }
+      if (ePlaced > 0) { pl.hadEnemies = true; pl.liberated = false; }
+      // occasional guardian (mini-boss) on a third of the worlds
+      if (!rich && rnd() < 0.34) {
+        let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < PR * 0.05; k++) dir = randDir();
+        if (terrain(dir) >= PR * 0.05) { const bg = makeEnemy(project.theme, true);
+          const fwd = new THREE.Vector3(0, 1, 0).addScaledVector(dir, -dir.y); if (fwd.lengthSq() < 1e-3) fwd.set(1, 0, 0); fwd.normalize();
+          enemies.push({ g: bg, dir, fwd, t: rnd() * 6, pl, hp: 6, bossHpMax: 6, hitT: 0, boss: true, lungeT: 0, lungeWind: 0, lungeCd: 1.6 }); orientOnSphere(bg, dir, walkR(dir)); group.add(bg);
+          pl.hadEnemies = true; pl.liberated = false; }
+      }
+      // signature biome landmark (one per world, away from the spawn pole)
+      { let dir = new THREE.Vector3(-0.2, 0.9, -0.3).normalize(); for (let k = 0; k < 40 && terrain(dir) < PR * 0.05; k++) dir = randDir();
+        if (terrain(dir) >= PR * 0.04) { const lm = makeLandmark(project.theme); orientOnSphere(lm, dir, walkR(dir)); group.add(lm); landmarks.push({ g: lm, pl, t: rnd() * 6, spin: lm.userData.spin, glow: lm.userData.glow, spinObj: lm.userData.spinObj }); } }
+      // shrine puzzle on some worlds (light scattered runes to open it)
+      if (!rich && rnd() < 0.45) {
+        let sd = randDir(); for (let k = 0; k < 40 && terrain(sd) < PR * 0.05; k++) sd = randDir();
+        if (terrain(sd) >= PR * 0.05) {
+          const sh = makeShrine(); orientOnSphere(sh, sd, walkR(sd)); group.add(sh);
+          const runes = []; const rn = 3;
+          for (let i = 0; i < rn; i++) { let rd = randDir(); for (let k = 0; k < 40 && terrain(rd) < PR * 0.04; k++) rd = randDir(); if (terrain(rd) < PR * 0.04) continue;
+            const rg = makeRune(); orientOnSphere(rg, rd, walkR(rd)); group.add(rg); runes.push({ g: rg, dir: rd, lit: false }); }
+          if (runes.length) shrines.push({ g: sh, dir: sd, runes, pl, solved: false, t: 0 });
+        }
+      }
+      // bounce pads (playful traversal) on some worlds
+      const padN = rich ? 1 : (rnd() < 0.5 ? 1 : 0);
+      for (let i = 0; i < padN; i++) {
+        let dir = randDir(); for (let k = 0; k < 60 && terrain(dir) < PR * 0.04; k++) dir = randDir(); if (terrain(dir) < PR * 0.04) continue;
+        const pg = makePad(); orientOnSphere(pg, dir, walkR(dir)); group.add(pg); pads.push({ g: pg, dir, pl, t: 0 });
       }
       // birds (a small flock per world)
       addBirds(pl.center, PR, rich ? 10 : 4, pl);
@@ -696,7 +868,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       const oN = rich ? 3 : 1; let n = 0, att2 = 0;
       while (n < oN && att2 < 300) {
         att2++; const dir = randDir(); if (terrain(dir) < PR * 0.05) continue;
-        const h = makeHouse(); h.scale.setScalar(1.15); orientOnSphere(h, dir, landR(dir)); group.add(h);
+        const h = makeHouse(); h.scale.setScalar(1.15); orientOnSphere(h, dir, landR(dir) - PR * 0.012); group.add(h);
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.08, 8, 20), ringMat); ring.rotation.x = Math.PI / 2; ring.position.y = 2.5; h.add(ring);
         const beam = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.4, 4), beamMat.clone()); beam.position.y = 3.3; h.add(beam);
         dropoffs.push({ worldPos: center.clone().addScaledVector(dir, landR(dir) + 0.6), ring, beam, t: rnd() * 6, pl }); n++;
@@ -737,15 +909,23 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         const ring = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.06, 8, 32), new THREE.MeshBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
         ring.position.y = 2.6; ring.rotation.x = Math.PI / 2; mon.add(ring);
         orientOnSphere(mon, dir, landR(dir)); group.add(mon); pl.monument = crystal; pl.monumentRing = ring;
+        // memory garden — a constellation around the core that lights up one mote per collected fragment (a visible payoff for returning home)
+        const tU = new THREE.Vector3(0, 1, 0).cross(dir); if (tU.lengthSq() < 1e-3) tU.set(1, 0, 0); tU.normalize();
+        const tV = dir.clone().cross(tU).normalize(); const motes = []; const N = 24;
+        for (let i = 0; i < N; i++) { const ringIdx = i < 12 ? 0 : 1; const k = i % 12; const ang = (k / 12) * Math.PI * 2 + ringIdx * 0.26; const rad = ringIdx ? 4.4 : 3.0;
+          const d = dir.clone().addScaledVector(tU, Math.cos(ang) * rad / PR).addScaledVector(tV, Math.sin(ang) * rad / PR).normalize();
+          const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: 0xbfa8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+          m.position.copy(d).multiplyScalar(landR(d) + 0.75); group.add(m); motes.push({ mesh: m, dir: d, phase: rnd() * 6.28 }); }
+        pl.memMotes = motes;
       }
       planets.push(pl); return pl;
     }
 
     // separation-aware spawning of neighbour planets
     function spawnNeighbor(fromC) {
-      const PR = 6 + rnd() * 5;
-      for (let tries = 0; tries < 50; tries++) {
-        const c = fromC.clone().addScaledVector(randDir(), 34 + rnd() * 24);
+      const PR = 4.5 + rnd() * rnd() * 15; // 4.5 → ~19.5, weighted small (mini-moons common, giants rare)
+      for (let tries = 0; tries < 60; tries++) {
+        const c = fromC.clone().addScaledVector(randDir(), 30 + PR * 1.5 + rnd() * 30);
         if (planets.every((p) => c.distanceTo(p.center) > p.R + PR + 12)) return makePlanet(c, PR, false);
       }
       return null;
@@ -755,6 +935,12 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       for (let i = parcels.length - 1; i >= 0; i--) if (parcels[i].pl === p) parcels.splice(i, 1);
       for (let i = dropoffs.length - 1; i >= 0; i--) if (dropoffs[i].pl === p) dropoffs.splice(i, 1);
       for (let i = critters.length - 1; i >= 0; i--) if (critters[i].pl === p) critters.splice(i, 1);
+      for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].pl === p) enemies.splice(i, 1);
+      for (let i = fragments.length - 1; i >= 0; i--) if (fragments[i].pl === p) fragments.splice(i, 1);
+      for (let i = pads.length - 1; i >= 0; i--) if (pads[i].pl === p) pads.splice(i, 1);
+      for (let i = landmarks.length - 1; i >= 0; i--) if (landmarks[i].pl === p) landmarks.splice(i, 1);
+      for (let i = shrines.length - 1; i >= 0; i--) if (shrines[i].pl === p) shrines.splice(i, 1);
+      for (let i = bombs.length - 1; i >= 0; i--) if (bombs[i].pl === p) bombs.splice(i, 1);
       for (let i = windy.length - 1; i >= 0; i--) if (windy[i].pl === p) windy.splice(i, 1);
       for (let i = birds.length - 1; i >= 0; i--) if (birds[i].pl === p) { scene.remove(birds[i].mesh); birds.splice(i, 1); }
       const idx = planets.indexOf(p); if (idx >= 0) planets.splice(idx, 1);
@@ -769,18 +955,40 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     }
     // jumping toward empty space discovers a brand-new world ahead (true exploration)
     function ensureFrontier(dir) {
-      const ahead = cur.center.clone().addScaledVector(dir, 46).addScaledVector(up, 8);
-      if (planets.every((p) => ahead.distanceTo(p.center) > p.R + 16)) {
-        const PR = 7 + rnd() * 4;
-        if (planets.every((p) => ahead.distanceTo(p.center) > p.R + PR + 10)) { makePlanet(ahead, PR, false); cullFar(); rebuildLinks(); }
-      }
+      const PR = 4.5 + rnd() * rnd() * 14; // varied frontier worlds (mini-moons → giants)
+      const ahead = cur.center.clone().addScaledVector(dir, cur.R + PR + 28).addScaledVector(up, 8);
+      if (planets.every((p) => ahead.distanceTo(p.center) > p.R + PR + 12)) { makePlanet(ahead, PR, false); cullFar(); rebuildLinks(); }
     }
     // glowing "synapse" links + travelling data-pulses between neighbouring worlds (the data-brain look)
     const linkMat = new THREE.LineBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false });
-    const pulseGeo = new THREE.SphereGeometry(0.45, 8, 8);
+    const pulseGeo = new THREE.SphereGeometry(0.45, 12, 10);
     const pulseMat = new THREE.MeshBasicMaterial({ color: 0xb6ffe9, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
     const pulseMatHot = new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.98, blending: THREE.AdditiveBlending, depthWrite: false }); // related worlds: warmer, busier traffic
     let linkSeg = null, pulses = [], linkFlash = 0; // linkFlash: brief network-wide glow on delivery
+    // wind currents — drifting streams in space between near islands that boost your glide when you fly through them
+    const currGeo = new THREE.OctahedronGeometry(0.2, 0);
+    const currMat = new THREE.MeshBasicMaterial({ color: 0xbfefff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false });
+    let currents = [], windRides = 0; // windRides: QA counter for current-boost frames
+    function rebuildCurrents() {
+      for (const c of currents) for (const p of c.parts) scene.remove(p.mesh);
+      currents = []; const seen = new Set();
+      for (const p of planets) {
+        const others = planets.filter((q) => q !== p).sort((a, b) => p.center.distanceTo(a.center) - p.center.distanceTo(b.center)).slice(0, 2);
+        for (const q of others) {
+          const key = [planets.indexOf(p), planets.indexOf(q)].sort((a, b) => a - b).join('-'); if (seen.has(key)) continue;
+          const gap = p.center.distanceTo(q.center) - p.R - q.R; if (gap < 8 || gap > 62) continue; // only sensible spans
+          seen.add(key);
+          const dir = q.center.clone().sub(p.center).normalize();
+          const a = p.center.clone().addScaledVector(dir, p.R + 4); const len = a.distanceTo(q.center.clone().addScaledVector(dir, -(q.R + 4)));
+          const perpU = new THREE.Vector3(0, 1, 0).cross(dir); if (perpU.lengthSq() < 1e-3) perpU.set(1, 0, 0); perpU.normalize();
+          const perpV = dir.clone().cross(perpU).normalize(); const parts = [];
+          for (let i = 0; i < 12; i++) { const m = new THREE.Mesh(currGeo, currMat); m.frustumCulled = false; scene.add(m);
+            const off = perpU.clone().multiplyScalar((rnd() * 2 - 1) * 1.4).add(perpV.clone().multiplyScalar((rnd() * 2 - 1) * 1.4)); // tighter spread → reads as a directed stream, matching the boost tube
+            parts.push({ mesh: m, s: rnd(), off, spd: 7 + rnd() * 4, ph: rnd() * 6.28 }); }
+          currents.push({ a, dir, len, parts });
+        }
+      }
+    }
     // a delivered packet visibly travels along a real synapse to the nearest world
     const packetGeo = new THREE.SphereGeometry(0.55, 12, 12);
     let dataPackets = [];
@@ -821,6 +1029,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
       linkSeg = new THREE.LineSegments(g, linkMat); linkSeg.frustumCulled = false; scene.add(linkSeg);
+      rebuildCurrents();
     }
 
     // pull the real GitHub repos so each world is an actual project (top-level await; falls back if offline)
@@ -840,7 +1049,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       const spin = rnd() * 6.28; cl.userData = { axis: randDir(), speed: 0.02 + rnd() * 0.03, spin };
       orientOnSphere(cl, randDir(), R + 5.5 + rnd() * 2.5, spin); clouds.add(cl);
     }
-    const fishes = []; const fishGeo = new THREE.SphereGeometry(0.26, 8, 6); const fishMat = toonMat({ color: 0x6fb6dd });
+    const fishes = []; const fishGeo = new THREE.SphereGeometry(0.26, 10, 8); const fishMat = toonMat({ color: 0x6fb6dd });
     for (let i = 0; i < 7; i++) {
       let dir = randDir(); let tries = 0; while (terrain(dir) > -0.25 && tries++ < 120) dir = randDir(); if (terrain(dir) > -0.25) continue;
       const f = new THREE.Group();
@@ -870,45 +1079,73 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     // ---- Custom procedural avatar: a friendly "data courier" explorer ----
     // Built from primitives + procedural animation — a unique look that fits the
     // data-brain theme, with no external model dependency (no CDN load failures).
-    const suitMat = toonMat({ color: 0xeef3fc });
-    const headMat = toonMat({ color: 0xf6f9ff });
-    const limbMat = toonMat({ color: 0x32405e });
-    const accentMat = toonMat({ color: 0x3b82c4 });
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0x8ff5e8 }); // visor / antenna node — catches bloom
+    // PBR explorer-suit palette (lit by IBL): white suit, dark under-suit, teal accents, glossy emissive visor
+    const suitMat = toonMat({ color: 0xeef4ff, roughness: 0.5, metalness: 0.08 });
+    const headMat = toonMat({ color: 0xfafcff, roughness: 0.26, metalness: 0.1 });   // glossy helmet
+    const limbMat = toonMat({ color: 0x2b3553, roughness: 0.55, metalness: 0.25 });  // dark under-suit
+    const accentMat = toonMat({ color: 0x16b8a6, roughness: 0.4, metalness: 0.2, emissive: 0x0b5d54, emissiveIntensity: 0.35 }); // teal trim
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0x8ff5e8 }); // data nodes — pure glow, catches bloom
+    const visorMat = new THREE.MeshStandardMaterial({ color: 0x06231f, emissive: 0x46f3da, emissiveIntensity: 2.1, roughness: 0.1, metalness: 0.5 }); // sleek glowing visor — the character's face/identity
     const hero = {};
     {
       // legs pivot at the hip and swing for the walk cycle
       const leg = (sx) => {
-        const g = new THREE.Group(); g.position.set(sx, 1.02, 0);
-        const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.66, 4, 10), limbMat); l.position.y = -0.42; l.castShadow = true; g.add(l);
-        const foot = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.16, 0.5), accentMat); foot.position.set(0, -0.86, 0.12); foot.castShadow = true; g.add(foot);
+        const g = new THREE.Group(); g.position.set(sx, 1.18, 0);
+        const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.155, 0.78, 5, 12), limbMat); l.position.y = -0.5; l.castShadow = true; g.add(l);
+        const knee = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), accentMat); knee.position.y = -0.62; g.add(knee);
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.52), accentMat); boot.position.set(0, -1.04, 0.12); boot.castShadow = true; g.add(boot);
         avatar.add(g); return g;
       };
-      hero.legL = leg(-0.26); hero.legR = leg(0.26);
+      hero.legL = leg(-0.24); hero.legR = leg(0.24);
       // upper body bobs while walking; the planted legs stay on the ground
       const upper = new THREE.Group(); avatar.add(upper); hero.upper = upper;
-      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.72, 6, 14), suitMat); torso.position.y = 1.66; torso.castShadow = true; upper.add(torso);
-      const sash = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.5, 0.78), accentMat); sash.position.y = 1.34; sash.castShadow = true; upper.add(sash);
-      const core = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 16), glowMat); core.position.set(0, 1.62, 0.42); upper.add(core); hero.core = core; // glowing data-core on the chest
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 20, 18), headMat); head.position.y = 2.74; head.castShadow = true; upper.add(head); hero.head = head;
-      const visor = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.26, 0.14), glowMat); visor.position.set(0, 2.78, 0.31); upper.add(visor); hero.visor = visor;
-      // arms pivot at the shoulder and swing opposite the legs
+      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.78, 8, 16), suitMat); torso.position.y = 1.68; torso.scale.set(0.94, 1, 0.84); torso.castShadow = true; upper.add(torso); hero.torso = torso;
+      const chestPlate = new THREE.Mesh(new THREE.CapsuleGeometry(0.29, 0.5, 6, 12), limbMat); chestPlate.position.set(0, 1.8, 0.13); chestPlate.scale.set(0.92, 1, 0.5); upper.add(chestPlate);
+      const collar = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.06, 0.12), accentMat); collar.position.set(0, 2.06, 0.26); upper.add(collar); // teal trim line breaks up the chest
+      const belt = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.16, 0.68), accentMat); belt.position.y = 1.24; belt.castShadow = true; upper.add(belt);
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.14, 18, 18), glowMat); core.position.set(0, 1.74, 0.32); upper.add(core); hero.core = core; // glowing data-core on the chest
+      // pauldrons for an explorer-suit silhouette
+      for (const sx of [-0.5, 0.5]) { const pd = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 12), accentMat); pd.position.set(sx, 2.18, 0); pd.scale.set(1.05, 0.78, 1.05); pd.castShadow = true; upper.add(pd); }
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.2, 12), limbMat); neck.position.y = 2.44; upper.add(neck);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 28, 22), headMat); head.position.y = 2.76; head.castShadow = true; upper.add(head); hero.head = head;
+      // a dark "brow" frames the visor so the helmet reads as a face
+      const brow = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.4, 5, 12), limbMat); brow.rotation.z = Math.PI / 2; brow.scale.set(1, 1, 0.45); brow.position.set(0, 2.92, 0.26); upper.add(brow);
+      // sleek glowing visor — a wide curved band that clearly reads as the face
+      const visor = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.42, 8, 16), visorMat); visor.rotation.z = Math.PI / 2; visor.scale.set(1, 1.1, 0.5); visor.position.set(0, 2.76, 0.3); upper.add(visor); hero.visor = visor;
+      // swept-back helmet crest — gives a strong silhouette from the top/back (the main gameplay view)
+      const crest = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.36, 0.2), accentMat); crest.position.set(0, 3.04, -0.06); crest.rotation.x = 0.5; crest.castShadow = true; upper.add(crest);
+      // arms pivot at the shoulder and swing opposite the legs (two-tone: suit upper, dark forearm, teal glove)
       const arm = (sx) => {
         const g = new THREE.Group(); g.position.set(sx, 2.18, 0);
-        const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.56, 4, 10), suitMat); a.position.y = -0.32; a.castShadow = true; g.add(a);
-        const hand = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12), limbMat); hand.position.y = -0.66; g.add(hand);
+        const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.125, 0.4, 5, 12), suitMat); a.position.y = -0.26; a.castShadow = true; g.add(a);
+        const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.115, 0.3, 5, 12), limbMat); fore.position.y = -0.56; fore.castShadow = true; g.add(fore);
+        const hand = new THREE.Mesh(new THREE.SphereGeometry(0.145, 14, 12), accentMat); hand.position.y = -0.78; g.add(hand);
         upper.add(g); return g;
       };
       hero.armL = arm(-0.52); hero.armR = arm(0.52);
-      // antenna with a pulsing data-node orb
-      const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.34, 6), limbMat); stalk.position.set(0, 3.16, -0.04); upper.add(stalk);
-      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 14), glowMat); orb.position.set(0, 3.38, -0.04); upper.add(orb); hero.orb = orb;
-      // little jetpack — reads as an explorer/courier and motivates the flight
-      const pack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.64, 0.3), accentMat); pack.position.set(0, 1.74, -0.46); pack.castShadow = true; upper.add(pack);
-      for (const sx of [-0.14, 0.14]) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 10), glowMat); d.position.set(sx, 1.5, -0.6); upper.add(d); }
+      // melee slash arc (shown briefly on attack)
+      const slash = new THREE.Mesh(new THREE.RingGeometry(1.3, 2.1, 18, 1, -0.95, 1.9), new THREE.MeshBasicMaterial({ color: 0xeaffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+      slash.rotation.x = -Math.PI / 2; slash.position.set(0, 1.25, 0.4); avatar.add(slash); hero.slash = slash;
+      // antenna with a pulsing data-node orb (offset to the side for character)
+      const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.32, 8), limbMat); stalk.position.set(0.17, 3.04, -0.05); stalk.rotation.z = -0.22; upper.add(stalk);
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 14), glowMat); orb.position.set(0.22, 3.24, -0.06); upper.add(orb); hero.orb = orb;
+      // sleeker jetpack with a trim band + glowing nozzles
+      const pack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.66, 0.26), limbMat); pack.position.set(0, 1.8, -0.45); pack.castShadow = true; upper.add(pack);
+      const packTrim = new THREE.Mesh(new THREE.BoxGeometry(0.53, 0.18, 0.28), accentMat); packTrim.position.set(0, 1.99, -0.45); upper.add(packTrim);
+      for (const sx of [-0.16, 0.16]) { const noz = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.095, 0.18, 12), limbMat); noz.position.set(sx, 1.45, -0.5); noz.castShadow = true; upper.add(noz);
+        const d = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), glowMat); d.position.set(sx, 1.37, -0.51); upper.add(d); }
+      // flowing scarf — a warm accent that trails and sways with movement (elegance + life)
+      const scarfMat = toonMat({ color: 0xff7a5c, roughness: 0.62, metalness: 0.0, side: THREE.DoubleSide, emissive: 0x4a160c, emissiveIntensity: 0.25 });
+      hero.scarf = [];
+      for (let i = 0; i < 8; i++) { const seg = new THREE.Mesh(new THREE.BoxGeometry(0.32 - i * 0.03, 0.2, 0.05), scarfMat); seg.castShadow = true; upper.add(seg); hero.scarf.push(seg); }
+      // a small knot at the neck where the scarf ties on
+      const knot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), scarfMat); knot.position.set(0, 2.42, 0.2); knot.scale.set(1.2, 1, 0.8); upper.add(knot);
       // soft contact shadow grounds the hero (reads well top-down)
       const blob = new THREE.Mesh(new THREE.CircleGeometry(1.15, 24), new THREE.MeshBasicMaterial({ color: 0x06231f, alphaMap: nebTex, transparent: true, opacity: 0.34, depthWrite: false }));
       blob.rotation.x = -Math.PI / 2; blob.position.y = 0.05; avatar.add(blob); hero.blob = blob;
+      // emoji expression bubble above the head (charm, à la messenger.abeto.co)
+      const emo = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, opacity: 0, depthWrite: false, depthTest: false }));
+      emo.scale.set(1.9, 1.9, 1); emo.position.y = 3.8; emo.renderOrder = 999; avatar.add(emo); hero.emoji = emo;
     }
 
     // carried-parcel stack floating above the hero
@@ -921,6 +1158,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
 
     let modelReady = true;                          // the procedural avatar is ready instantly
     let gaitPhase = 0, gaitSpeed = 0, squash = 0;   // walk-cycle + squash/stretch state
+    let mvSmooth = 0, turnSmooth = 0, moveMag = 0;  // eased movement + turn so start/stop isn't jerky; moveMag drives the walk cycle (incl. strafing)
     // Play is available immediately.
     const playBtn = document.getElementById('playBtn');
     playBtn.disabled = false; playBtn.textContent = '▶ Planet betreten';
@@ -934,6 +1172,15 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     let height = 0, vUp = 0, canJump = true, stepTimer = 0;
     let mode = 'ground'; const vel = new THREE.Vector3(), airPos = new THREE.Vector3();
     let charging = false, charge = 0, airArmed = false, launchPlanet = null, airTime = 0;
+    let attackT = 0, attackCd = 0; // melee swing timer + cooldown
+    let chainN = 0, chainT = 0, lastHeavy = false; // 3-hit melee combo: every third swing is a heavier finisher
+    let hp = 5; const maxHp = 5; let hurtT = 0; // player health + invulnerability window
+    let dashT = 0, dashCd = 0; // dodge-dash burst + cooldown
+    let gustCd = 0; // wind-gust cooldown
+    let lockTarget = null; // Zelda-style Z-target lock-on
+    const _faceDir = new THREE.Vector3(), _strafe = new THREE.Vector3();
+    const lockRing = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.74, 28), new THREE.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+    lockRing.frustumCulled = false; lockRing.visible = false; scene.add(lockRing);
     const up = new THREE.Vector3();
     function refreshFrame() {
       up.copy(pos).normalize();
@@ -953,12 +1200,22 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       player.quaternion.setFromRotationMatrix(_m);
     }
     // procedural character animation: walk-cycle, flight pose, charge crouch, squash/stretch, data-node pulse
+    const _emoCache = {};
+    function emojiTex(ch) {
+      if (_emoCache[ch]) return _emoCache[ch];
+      const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+      g.font = '92px system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(ch, 64, 74);
+      const tx = new THREE.CanvasTexture(c); tx.minFilter = THREE.LinearFilter; _emoCache[ch] = tx; return tx;
+    }
+    let emojiLife = 0;
+    function popEmoji(ch) { if (!hero.emoji) return; hero.emoji.material.map = emojiTex(ch); hero.emoji.material.needsUpdate = true; emojiLife = 1.25; }
     function updateAvatar(dt, mv) {
       if (!modelReady) return;
       const t = oceanUniforms.time.value;
       const onGround = mode === 'ground' && height === 0;
       const running = keys.sprint || touchSprint;
-      const moving = onGround && mv !== 0;
+      const moving = onGround && moveMag > 0.06;
       const target = moving ? (running ? 15 : 10) : 0;
       gaitSpeed += (target - gaitSpeed) * Math.min(1, dt * 8);
       gaitPhase += gaitSpeed * dt;
@@ -972,15 +1229,38 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         hero.armL.rotation.x = -0.4; hero.armR.rotation.x = -0.4;
       } else { // walk / run / idle
         hero.legL.rotation.x = sw; hero.legR.rotation.x = -sw;
-        hero.armL.rotation.x = -sw * 0.85; hero.armR.rotation.x = sw * 0.85;
+        const idle = moving ? 0 : Math.sin(t * 1.6) * 0.06; // relaxed arm sway when standing
+        hero.armL.rotation.x = moving ? -sw * 0.85 : idle; hero.armR.rotation.x = moving ? sw * 0.85 : -idle;
+        hero.armL.rotation.z = moving ? 0 : 0.09; hero.armR.rotation.z = moving ? 0 : -0.09; // arms rest slightly out
       }
+      // invulnerability blink after taking a hit
+      if (hurtT > 0) { hurtT -= dt; avatar.visible = Math.floor(hurtT * 14) % 2 === 0; } else if (!avatar.visible) avatar.visible = true;
+      // melee: swing arms forward + flash the slash arc
+      if (attackCd > 0) attackCd -= dt;
+      if (gustCd > 0) gustCd -= dt;
+      if (bombCd > 0) bombCd -= dt;
+      if (chainT > 0) chainT -= dt;
+      if (attackT > 0) { attackT -= dt; const k = Math.max(0, attackT / 0.28); const sweep = -2.2 + (1 - k) * 3.2;
+        hero.armR.rotation.x = sweep; hero.armL.rotation.x = sweep * 0.6;
+        hero.slash.material.opacity = k * 0.9; hero.slash.scale.setScalar(0.6 + (1 - k) * 0.7); hero.slash.rotation.z = (1 - k) * 1.2 - 0.6; }
+      else if (hero.slash.material.opacity !== 0) hero.slash.material.opacity = 0;
       // squash & stretch from vertical motion + jump impulse (decays back to neutral)
       squash += (0 - squash) * Math.min(1, dt * 6);
       const vs = Math.max(-0.18, Math.min(0.22, vUp * 0.03)) + squash;
       avatar.scale.set(1 - vs * 0.5, 1 + vs, 1 - vs * 0.5);
       // upper-body bob + idle breathing + charge crouch
       const bob = moving ? Math.abs(Math.sin(gaitPhase)) * (running ? 0.16 : 0.09) : Math.sin(t * 2) * 0.04;
-      hero.upper.position.y = bob - (charging ? 0.16 : 0);
+      hero.upper.position.y = 0.16 + bob - (charging ? 0.16 : 0); // +0.16 base lift -> taller, less stubby stance on the longer legs
+      // idle breathing: a gentle torso swell when standing still (subtle sign of life)
+      if (hero.torso) { const br = moving ? 0 : Math.sin(t * 1.6) * 0.03; hero.torso.scale.set(0.94 * (1 + br * 0.4), 1 * (1 + br), 0.84 * (1 + br * 0.4)); }
+      // lean into a run (anticipation/weight); ease back to upright
+      const leanT = charging ? -0.12 : (moving ? (running ? 0.15 : 0.08) : 0);
+      hero.upper.rotation.x += (leanT - hero.upper.rotation.x) * Math.min(1, dt * 6);
+      // flowing scarf: trails back & down, sways with speed, streams out in flight
+      if (hero.scarf) { const flow = mode === 'air' ? 1.3 : (moving ? (running ? 0.85 : 0.5) : 0.12);
+        for (let i = 0; i < hero.scarf.length; i++) { const s = hero.scarf[i], f = (i + 1) / hero.scarf.length;
+          s.position.set(Math.sin(t * 6 + i * 0.7) * 0.07 * f * (0.35 + flow), 2.46 - f * (0.42 + flow * 0.18), -0.16 - f * (0.34 + flow * 0.7));
+          s.rotation.x = -0.45 - flow * 0.7 - f * 0.25; s.rotation.z = Math.sin(t * 5 + i * 0.6) * 0.14 * (0.3 + flow); } }
       // contact shadow shrinks & fades as the hero leaves the ground
       const lift = mode === 'air' ? 6 : height;
       hero.blob.material.opacity = Math.max(0, 0.34 * (1 - lift / 4));
@@ -990,6 +1270,129 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       const pulse = 0.5 + 0.5 * Math.sin(t * (4 + cb * 4));
       hero.orb.scale.setScalar(0.8 + pulse * (0.5 + cb * 0.45));
       hero.core.scale.setScalar(0.85 + pulse * (0.3 + cb * 0.35));
+      // emoji expression bubble: pop, rise and fade
+      if (emojiLife > 0) { emojiLife -= dt; const k = emojiLife / 1.25;
+        hero.emoji.material.opacity = Math.min(1, k * 2.2); hero.emoji.position.y = 3.7 + (1 - k) * 0.9; hero.emoji.scale.setScalar(1.7 + (1 - k) * 0.7); }
+      else if (hero.emoji.material.opacity !== 0) hero.emoji.material.opacity = 0;
+    }
+    // ---------- Melee combat ----------
+    const _ew = new THREE.Vector3(); let defeated = 0;
+    let bossKills = +(localStorage.getItem('tp_bosses') || 0), worldsFreed = +(localStorage.getItem('tp_freed') || 0); // persistent combat tallies for achievements
+    function hitEnemy(e, i, knock = 0.12) {
+      e.hp -= 1; e.hitT = 0.18; shake = Math.max(shake, 0.24); hitStop = Math.max(hitStop, 0.04); // every hit lands with a little punch
+      _ew.copy(cur.center).add(e.g.position); burst(_ew, 0xff8a5a); clang();
+      const pdir = tmp2.copy(player.position).sub(cur.center).normalize(); // knock the enemy away along the surface
+      e.dir.addScaledVector(tmp3.copy(e.dir).sub(pdir), knock).normalize();
+      e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)); if (e.fwd.lengthSq() < 1e-4) e.fwd.set(1, 0, 0); e.fwd.normalize();
+      if (e.boss && !e.enraged && e.hp > 0 && e.hp <= (e.bossHpMax || 6) / 2) { // phase 2: the guardian enrages at half health
+        e.enraged = true; e.lungeCd = 0.6; toast('🔥 Der Wächter wird wild!', 2200); shock(_ew, e.dir, 0xff4d6d); shake = Math.max(shake, 0.42); whoosh(); }
+      if (e.hp <= 0) { burst(_ew, 0xffd166); burst(_ew, 0xff8a5a); shock(_ew, e.dir, 0xff8a5a); shake = Math.max(shake, 0.5); hitStop = Math.max(hitStop, 0.12); fovKick = Math.max(fovKick, 0.5); const pl = e.pl; pl.group.remove(e.g); enemies.splice(i, 1); defeated++;
+        const fg = makeFragment(); const fd = e.dir.clone(); fg.position.copy(fd).multiplyScalar(pl.walkR(fd) + 0.7); pl.group.add(fg);
+        fragments.push({ g: fg, dir: fd, pl, t: rnd() * 6 });
+        if (e.boss) { toast('🛡️ Wächter besiegt!', 2600); fanfare(); shock(_ew, fd, 0xffd166); shake = 0.5; hitStop = 0.12;
+          bossKills++; localStorage.setItem('tp_bosses', bossKills);
+          for (let k = 0; k < 2; k++) { const a = tmp2.copy(fd).addScaledVector(e.fwd, k ? 0.22 : -0.22).normalize(); const bf = makeFragment(); bf.position.copy(a).multiplyScalar(pl.walkR(a) + 0.7); pl.group.add(bf); fragments.push({ g: bf, dir: a.clone(), pl, t: rnd() * 6 }); } }
+        if (pl.hadEnemies && !pl.liberated && !enemies.some((x) => x.pl === pl)) { // world cleared → reward
+          pl.liberated = true; worldsFreed++; localStorage.setItem('tp_freed', worldsFreed); toast('🕊️ Welt befreit! Eine Erinnerung erwacht …', 2600); fanfare(); popEmoji('🕊️'); shock(_ew, fd, 0xbfa8ff);
+          const bf = makeFragment(); bf.scale.setScalar(1.6); bf.position.copy(fd).multiplyScalar(pl.walkR(fd) + 1.1); pl.group.add(bf); fragments.push({ g: bf, dir: fd.clone(), pl, t: 0 }); }
+        updateAchievements({ delivered, worlds: worldsRun.size, combo, bosses: bossKills, freed: worldsFreed });
+      }
+    }
+    function attack() {
+      if (mode !== 'ground' || attackCd > 0) return;
+      chainN = chainT > 0 ? chainN + 1 : 1; const heavy = chainN >= 3; if (heavy) chainN = 0; chainT = 0.85; lastHeavy = heavy; // chain swings within the window; the 3rd is a finisher
+      attackCd = heavy ? 0.55 : 0.42; attackT = heavy ? 0.36 : 0.28; swing();
+      if (height === 0) { pos.addScaledVector(forward, heavy ? 0.5 : 0.32); pos.setLength(cur.R); refreshFrame(); } // a small lunge into the swing gives it weight
+      if (heavy) { shake = Math.max(shake, 0.34); hitStop = Math.max(hitStop, 0.05); shock(player.position, up, 0xeaffff); swing(); } // heavy finisher: bigger sweep + a ground shock
+      // aim-assist: face the locked target (or the nearest foe in reach) so the swing connects (Zelda-like)
+      const reach = heavy ? 4.1 : 3.4;
+      { let bx = null, bd = 1e9;
+        if (lockTarget && enemies.indexOf(lockTarget) >= 0 && lockTarget.pl === cur) { bx = _ew.copy(cur.center).add(lockTarget.g.position).clone(); }
+        else { for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (d < reach + 0.2 && d < bd) { bd = d; bx = _ew.clone(); } } }
+        if (bx) { forward.copy(bx).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() > 1e-4) forward.normalize(); } }
+      for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.pl !== cur) continue;
+        _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length();
+        if (d > reach) continue; to.normalize(); if (to.dot(forward) < (heavy ? -0.1 : 0.2)) continue; // within range + front arc (finisher hits wider)
+        if (heavy && e.hp > 1) e.hp -= 1; // finisher deals double damage (safe: hitEnemy handles the death/splice)
+        hitEnemy(e, i, heavy ? 0.3 : 0.12);
+      }
+    }
+    function gust() { // ranged wind blast — strong knockback + light damage in a frontal arc
+      if (mode !== 'ground' || gustCd > 0 || !started) return;
+      gustCd = 1.1; whoosh(); shock(player.position, up, 0x8fe4ff); puff(player.position, up); puff(player.position, up);
+      for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.pl !== cur) continue;
+        _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length();
+        if (d > 5.5) continue; to.normalize(); if (to.dot(forward) < 0.0) continue; // front hemisphere
+        hitEnemy(e, i, 0.5);
+      }
+    }
+    function dash() { // quick forward dodge with brief i-frames
+      if (mode !== 'ground' || dashCd > 0 || !started) return;
+      dashCd = 0.8; dashT = 0.2; hurtT = Math.max(hurtT, 0.34); squash = 0.16; swing(); shock(player.position, up, 0xbfe4ff);
+    }
+    function toggleLock() { // Z-target: lock onto the nearest foe (camera frames it, you circle-strafe & attacks aim at it)
+      if (!started || mode !== 'ground') return;
+      if (lockTarget) { lockTarget = null; return; }
+      let best = null, bd = 1e9;
+      for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (d < 17 && d < bd) { bd = d; best = e; } }
+      lockTarget = best; if (best) { chime(false); lockRing.material.color.setHex(0xfff2a8); }
+    }
+    let bombCd = 0; // bomb cooldown
+    function bomb() { // drop a fused bomb that bursts into a radial AoE shock
+      if (mode !== 'ground' || bombCd > 0 || !started) return;
+      bombCd = 2.6; whoosh();
+      const d = pos.clone().normalize(); const g = makeBomb(); cur.group.add(g); orientOnSphere(g, d, cur.walkR(d));
+      bombs.push({ g, dir: d.clone(), pl: cur, t: 1.1 });
+    }
+    const heartsEl = document.getElementById('hearts');
+    function renderHearts() { heartsEl.textContent = '❤'.repeat(Math.max(0, hp)) + '♡'.repeat(Math.max(0, maxHp - hp)); }
+    const bossBarEl = document.getElementById('bossBar'), bossFillEl = document.getElementById('bossFill');
+    function updateBossBar() { // show a guardian's health while engaged so the boss fight reads
+      let b = null;
+      if (started && mode === 'ground') { for (const e of enemies) { if (e.boss && e.pl === cur) { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 16) { b = e; break; } } } }
+      if (b) { bossBarEl.classList.add('on'); bossBarEl.classList.toggle('rage', !!b.enraged); bossFillEl.style.width = Math.max(0, b.hp / (b.bossHpMax || 6) * 100) + '%'; }
+      else bossBarEl.classList.remove('on'); }
+    // memory fragments — collectible soul-shards that whisper a lost world's story
+    const fragsEl = document.getElementById('frags');
+    let frags = 0, memIdx = 0;
+    const MEMORIES = [
+      '„… das Licht der Heimatsonne, bevor sie verlosch."',
+      '„Wir bauten Brücken aus Wind zwischen den Inseln."',
+      '„Ein Reisender ließ hier nur seinen Namen zurück."',
+      '„Die Maschinen träumten, als niemand mehr kam."',
+      '„Halte das Fragment ans Ohr — du hörst das Meer."',
+      '„Jede Welt erinnert sich an die, die sie betraten."',
+    ];
+    // longer story beats revealed as fragments accumulate (an emotional arc, not just a counter)
+    let beatIdx = 0;
+    const STORY = [
+      ['Ein Anfang', 'Du sammelst die ersten Splitter. In ihnen flackert eine Welt, die einmal aus vielen kleinen Inseln bestand — verbunden durch Brücken aus Wind.'],
+      ['Die Reisenden', 'Vor dir kamen andere. Kuriere, Träumer, Wächter. Ihre Stimmen liegen in den Splittern wie Staub auf altem Glas.'],
+      ['Das Verlöschen', 'Eine Erinnerung zeigt den Tag, an dem die Heimatsonne erlosch. Die Inseln trieben auseinander — und die Maschinen träumten weiter, ganz allein.'],
+      ['Das Echo', 'Je mehr du sammelst, desto deutlicher wird eine Bitte: „Trag uns weiter. Solange sich jemand erinnert, sind wir nicht verloren."'],
+      ['Wieder ganz', 'Die Splitter fügen sich. Für einen Atemzug leuchtet die verlorene Welt noch einmal vollständig — getragen von dir, dem letzten Reisenden.'],
+    ];
+    function showMemory(title, text) { cardName.textContent = '🜂 ' + title; cardDesc.textContent = text; cardLink.textContent = ''; cardLink.removeAttribute('href'); cardEl.classList.add('on'); cardTimer = 9; }
+    function collectFragment(at) {
+      frags++; fragsEl.textContent = '✦ ' + frags; chime(false); burst(at, 0xbfa8ff); popEmoji('✨');
+      if (beatIdx < STORY.length && frags >= (beatIdx + 1) * 4) { showMemory(STORY[beatIdx][0], STORY[beatIdx][1]); fanfare(); beatIdx++;
+        if (beatIdx === STORY.length) { localStorage.setItem('tp_memdone', '1'); shake = 0.5; // the arc completes — a culminating moment
+          const cols = [0xbfa8ff, 0x8ff5e8, 0xffd166]; for (let k = 0; k < 3; k++) burst(player.position, cols[k]); shock(player.position, up, 0xbfa8ff); } }
+      else toast('🜂 Erinnerung: ' + MEMORIES[memIdx++ % MEMORIES.length], 3200);
+      const best = Math.max(frags, parseInt(localStorage.getItem('tp_frags'), 10) || 0); localStorage.setItem('tp_frags', String(best));
+    }
+    function hurtPlayer(fromPos) {
+      if (hurtT > 0 || mode !== 'ground' || !started || finished) return;
+      hp -= 1; hurtT = 1.0; renderHearts(); shake = 0.42; hurtSound(); burst(player.position, 0xff6b81);
+      const away = tmp.copy(pos).sub(tmp2.copy(fromPos).sub(cur.center)); away.addScaledVector(up, -away.dot(up)); // knock back along the surface
+      if (away.lengthSq() > 1e-4) { away.normalize(); pos.addScaledVector(away, 1.6); const d = tmp3.copy(pos).normalize(); pos.copy(d).multiplyScalar(cur.walkR(d)); refreshFrame(); }
+      combo = 0; comboT = 0;
+      if (hp <= 0) respawnPlayer();
+    }
+    renderHearts();
+    function respawnPlayer() {
+      hp = maxHp; hurtT = 1.8; renderHearts(); toast('🌀 Erwischt! Zurück zum sicheren Punkt', 1900); popEmoji('💫');
+      const d = landingDir(cur); pos.copy(d).multiplyScalar(cur.walkR(d)); height = 0; vUp = 0; refreshFrame(); placePlayer(); shock(player.position, up, 0xff6b81);
     }
     // start charging a galaxy-jump (hold), or release it (tap = small hop, hold = leap into space)
     function startCharge() { if (mode === 'ground' && height === 0) { charging = true; charge = 0; } }
@@ -1016,20 +1419,54 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     window.__dbg.aimAt = (v) => { forward.copy(v).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); };
     window.__dbg.setDay = (t) => { dayT = t; updateDayNight(); };
     window.__dbg.packets = () => dataPackets.length;
+    window.__dbg.combat = () => ({ enemies: enemies.length, onCur: enemies.filter((e) => e.pl === cur).length, bossesOnCur: enemies.filter((e) => e.boss && e.pl === cur).length, defeated, hp, frags, fragsOnCur: fragments.filter((f) => f.pl === cur).length, curLiberated: !!cur.liberated, curHadEnemies: !!cur.hadEnemies });
+    window.__dbg.hurt = () => { hurtT = 0; hurtPlayer(player.position.clone()); };
+    window.__dbg.dash = () => { const p0 = player.position.clone(); dash(); return { dashT, dashCd }; };
+    window.__dbg.gust = () => { gust(); return gustCd; };
+    window.__dbg.bomb = () => { bombCd = 0; bomb(); return bombs.filter((b) => b.pl === cur).length; };
+    window.__dbg.toPad = () => { const p = pads.find((x) => x.pl === cur); if (!p) return false; pos.copy(p.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
+    window.__dbg.ph = () => ({ height: +height.toFixed(2), vUp: +vUp.toFixed(2), pads: pads.filter((p) => p.pl === cur).length });
+    window.__dbg.addFrag = () => { collectFragment(player.position.clone()); return { frags, beatIdx, memoryCardOn: cardEl.classList.contains('on') && cardName.textContent.indexOf('🜂') === 0 }; };
+    window.__dbg.memGarden = () => HOME.memMotes ? ({ frags, lit: HOME.memMotes.filter((m) => m.mesh.material.opacity > 0.1).length, total: HOME.memMotes.length }) : null;
+    window.__dbg.musicTension = () => audio ? +(audio.tension || 0).toFixed(2) : 'noAudio';
+    window.__dbg.shrine = () => { const s = shrines.find((x) => x.pl === cur); return s ? { total: s.runes.length, lit: s.runes.filter((r) => r.lit).length, solved: s.solved } : null; };
+    window.__dbg.tpRune = () => { const s = shrines.find((x) => x.pl === cur); if (!s) return false; const ru = s.runes.find((r) => !r.lit); if (!ru) return false; pos.copy(ru.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
+    window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
+    window.__dbg.attack = () => attack();
+    window.__dbg.lock = () => { toggleLock(); return { locked: !!lockTarget, reticle: lockRing.visible }; };
+    window.__dbg.forceAttack = () => { attackCd = 0; attack(); return { chainN, heavy: lastHeavy }; };
+    window.__dbg.enemyTypes = () => { const e = enemies.filter((x) => x.pl === cur); return { total: e.length, swarm: e.filter((x) => x.swarm).length, grunt: e.filter((x) => !x.swarm && !x.boss).length, boss: e.filter((x) => x.boss).length }; };
+    window.__dbg.currents = () => ({ count: currents.length, parts: currents.reduce((s, c) => s + c.parts.length, 0), rides: windRides });
+    window.__dbg.hitBoss = () => { for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.boss && e.pl === cur) { hitEnemy(e, i, 0); return e.hp; } } return null; };
+    window.__dbg.bossDbg = () => { for (const e of enemies) { if (e.boss && e.pl === cur) { _ew.copy(cur.center).add(e.g.position); return { hp: e.hp, max: e.bossHpMax, enraged: !!e.enraged, dist: +_ew.distanceTo(player.position).toFixed(2), w: bossFillEl.style.width, rageClass: bossBarEl.classList.contains('rage') }; } } return null; };
+    window.__dbg.enemyEyes = () => enemies.filter((e) => e.pl === cur).map((e) => ({ warn: +(e.warn || 0).toFixed(2), col: e.g.userData.eye ? e.g.userData.eye.material.color.getHexString() : null }));
+    window.__dbg.nearEnemy = (dist = 2.0) => { let best = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; } } if (!best) return false; const ed = best.dir.clone(); const t = new THREE.Vector3(0, 1, 0).cross(ed); if (t.lengthSq() < 1e-3) t.set(1, 0, 0); t.normalize(); const ang = dist / cur.R; pos.copy(ed).applyAxisAngle(t, ang).normalize().multiplyScalar(cur.R); refreshFrame(); const pdir = pos.clone().normalize(); forward.copy(ed).sub(pdir); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); placePlayer(); return true; };
+    window.__dbg.attackDiag = () => { const r = []; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length(); to.normalize(); r.push({ d: +d.toFixed(2), dot: +to.dot(forward).toFixed(2), hp: e.hp }); } return { mode, attackCd: +attackCd.toFixed(2), fLen: +forward.length().toFixed(2), list: r }; };
+    window.__dbg.fightNearest = () => { let best = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; } } if (!best) return false;
+      const ed = best.dir.clone(); const t = new THREE.Vector3(0, 1, 0).cross(ed); if (t.lengthSq() < 1e-3) t.set(1, 0, 0); t.normalize();
+      pos.copy(ed).addScaledVector(t, -0.16).normalize().multiplyScalar(cur.R); refreshFrame();
+      const pdir = pos.clone().normalize(); forward.copy(ed).sub(pdir).addScaledVector(up, -tmp.copy(ed).sub(pdir).dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0); forward.normalize(); placePlayer(); return true; };
 
     // ---------- Input ----------
     const keys = { f: false, b: false, l: false, r: false, sprint: false };
     addEventListener('keydown', (e) => { switch (e.code) {
       case 'KeyW': case 'ArrowUp': keys.f = true; break; case 'KeyS': case 'ArrowDown': keys.b = true; break;
       case 'KeyA': case 'ArrowLeft': keys.l = true; break; case 'KeyD': case 'ArrowRight': keys.r = true; break;
-      case 'ShiftLeft': case 'ShiftRight': keys.sprint = true; break; case 'Space': hop(); break; } });
+      case 'ShiftLeft': case 'ShiftRight': keys.sprint = true; break; case 'Space': hop(); break;
+      case 'KeyF': if (started) popEmoji(EMOJIS[emoIdx++ % EMOJIS.length]); break;
+      case 'KeyJ': if (started) attack(); break;
+      case 'KeyK': if (started) gust(); break;
+      case 'KeyB': if (started) bomb(); break;
+      case 'KeyL': case 'Tab': if (started) { e.preventDefault(); toggleLock(); } break;
+      case 'KeyQ': if (started) dash(); break; } });
+    const EMOJIS = ['👋', '😄', '🎉', '✨', '🚀', '🪐', '🧠']; let emoIdx = 0;
     addEventListener('keyup', (e) => { switch (e.code) {
       case 'KeyW': case 'ArrowUp': keys.f = false; break; case 'KeyS': case 'ArrowDown': keys.b = false; break;
       case 'KeyA': case 'ArrowLeft': keys.l = false; break; case 'KeyD': case 'ArrowRight': keys.r = false; break;
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = false; break; case 'Space': releaseCharge(); break; } });
 
-    let camPitch = 1.48, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
-    let cinematic = false, cineA = 0, pitchEff = 1.48, paused = false;
+    let camPitch = 0.92, dragTurn = 0, lastX = 0, lastY = 0, mouseDown = false;
+    let cinematic = false, cineA = 0, pitchEff = 0.92, paused = false;
     const canvas = renderer.domElement;
     canvas.addEventListener('mousedown', (e) => { mouseDown = true; lastX = e.clientX; lastY = e.clientY; });
     addEventListener('mousemove', (e) => { if (!mouseDown) return; lastInput = performance.now(); dragTurn += (e.clientX - lastX) * 0.005; camPitch = Math.max(-0.1, Math.min(1.55, camPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
@@ -1044,13 +1481,12 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     function startGame(showreel) {
       if (playBtn.disabled || started) return;
       started = true; overlay.classList.add('hidden');
-      compassEl.classList.add('on'); radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); cineBtn.classList.add('on'); setBtn.classList.add('on'); document.getElementById('helpBtn').classList.add('on');
+      radarEl.classList.add('on'); mapBtn.classList.add('on'); document.getElementById('hud').classList.add('on'); muteBtn.classList.add('on'); cineBtn.classList.add('on'); setBtn.classList.add('on'); document.getElementById('helpBtn').classList.add('on');
       if (isTouch) touchUI.classList.add('on');
-      initAudio(); showCard(cur.project); visitWorld(cur); lastInput = performance.now();
+      initAudio(); visitWorld(cur); lastInput = performance.now();
       if (showreel) { auto = true; autoT = 4; autoStart = performance.now(); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); }
       else {
-        questEl.classList.add('on'); renderQuest();
-        toast('🧠 Das Datenhirn ist eingeschlafen — reaktiviere als Kurier seine Synapsen!', 4200);
+        flashQuest();
         if (!localStorage.getItem('tp_seen')) { coachSeq(); localStorage.setItem('tp_seen', '1'); }
       }
     }
@@ -1065,14 +1501,14 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     addEventListener('pointerdown', userTakeControl); addEventListener('keydown', userTakeControl);
     document.getElementById('winBtn').addEventListener('click', () => { winEl.classList.remove('on'); finished = false; }); // finale → keep exploring the endless galaxy
     if (isTouch) document.getElementById('keys').innerHTML =
-      '<span class="key"><b>Joystick</b> Laufen/Drehen</span><span class="key"><b>Wischen</b> Kamera</span><span class="key"><b>RUN</b> Rennen</span><span class="key"><b>HOP</b> Hüpfen</span>';
+      '<span class="key"><b>Joystick</b> Laufen/Drehen (ganz drücken = Rennen)</span><span class="key"><b>Wischen</b> Kamera</span><span class="key"><b>⚔️/💨/🌀/💣</b> Kämpfen</span><span class="key"><b>HOP</b> Hüpfen</span>';
 
-    const touchMove = { x: 0, y: 0 };
+    const touchMove = { x: 0, y: 0 }; let touchSprint = false; // auto-sprint when the joystick is pushed near full
     const joy = document.getElementById('joystick'), thumb = document.getElementById('thumb');
     let joyId = null, jcx = 0, jcy = 0; const JR = 50;
     joy.addEventListener('touchstart', (e) => { const t = e.changedTouches[0]; joyId = t.identifier; const b = joy.getBoundingClientRect(); jcx = b.left + b.width/2; jcy = b.top + b.height/2; e.preventDefault(); }, { passive: false });
-    joy.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === joyId) { let dx = t.clientX - jcx, dy = t.clientY - jcy; const len = Math.hypot(dx, dy) || 1, cl = Math.min(len, JR); dx = dx/len*cl; dy = dy/len*cl; thumb.style.transform = `translate(${dx}px,${dy}px)`; touchMove.x = dx/JR; touchMove.y = -dy/JR; e.preventDefault(); } }, { passive: false });
-    const joyEnd = (e) => { for (const t of e.changedTouches) if (t.identifier === joyId) { joyId = null; touchMove.x = touchMove.y = 0; thumb.style.transform = 'translate(0,0)'; } };
+    joy.addEventListener('touchmove', (e) => { for (const t of e.changedTouches) if (t.identifier === joyId) { let dx = t.clientX - jcx, dy = t.clientY - jcy; const len = Math.hypot(dx, dy) || 1, cl = Math.min(len, JR); dx = dx/len*cl; dy = dy/len*cl; thumb.style.transform = `translate(${dx}px,${dy}px)`; touchMove.x = dx/JR; touchMove.y = -dy/JR; touchSprint = (cl / JR) > 0.82; e.preventDefault(); } }, { passive: false });
+    const joyEnd = (e) => { for (const t of e.changedTouches) if (t.identifier === joyId) { joyId = null; touchMove.x = touchMove.y = 0; touchSprint = false; thumb.style.transform = 'translate(0,0)'; } };
     joy.addEventListener('touchend', joyEnd); joy.addEventListener('touchcancel', joyEnd);
 
     let lookId = null;
@@ -1081,8 +1517,12 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     const lookEnd = (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) lookId = null; };
     canvas.addEventListener('touchend', lookEnd); canvas.addEventListener('touchcancel', lookEnd);
 
-    const sprintBtn = document.getElementById('sprintBtn'); let touchSprint = false;
-    sprintBtn.addEventListener('touchstart', (e) => { e.preventDefault(); touchSprint = !touchSprint; sprintBtn.classList.toggle('active', touchSprint); }, { passive: false });
+    document.getElementById('bombBtn').addEventListener('touchstart', (e) => { e.preventDefault(); bomb(); }, { passive: false });
+    document.getElementById('emojiBtn').addEventListener('touchstart', (e) => { e.preventDefault(); popEmoji(EMOJIS[emoIdx++ % EMOJIS.length]); }, { passive: false });
+    document.getElementById('atkBtn').addEventListener('touchstart', (e) => { e.preventDefault(); attack(); }, { passive: false });
+    document.getElementById('dashBtn').addEventListener('touchstart', (e) => { e.preventDefault(); dash(); }, { passive: false });
+    document.getElementById('gustBtn').addEventListener('touchstart', (e) => { e.preventDefault(); gust(); }, { passive: false });
+    document.getElementById('lockBtn').addEventListener('touchstart', (e) => { e.preventDefault(); toggleLock(); document.getElementById('lockBtn').classList.toggle('active', !!lockTarget); }, { passive: false });
     { const jb = document.getElementById('jumpBtn');
       jb.addEventListener('touchstart', (e) => { e.preventDefault(); startCharge(); }, { passive: false });
       jb.addEventListener('touchend', (e) => { e.preventDefault(); releaseCharge(); }, { passive: false }); }
@@ -1101,14 +1541,19 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       const steps = [
         '🎮 WASD / Pfeile: laufen · Maus oder Wischen: Kamera',
         '📦 Sammle Pakete und liefere sie an die Häuser mit Ring ✅',
+        '⚔️ J: Angriff (3er-Combo) · Q: Ausweichen · K: Windstoß · B: Bombe',
         '🪐 Halte SPACE, ziele auf einen anderen Planeten → abheben!',
+        '🌬️ Flieg durch Wind-Strömungen für einen Gleit-Schub zur nächsten Insel',
         '🧠 M: Galaxie-Karte · E: Projekt-Info',
       ];
       steps.forEach((s, i) => setTimeout(() => { if (started) toast(s, 3600); }, 1200 + i * 4000));
     }
     const fmt = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
     { const sc = parseInt(localStorage.getItem('tp_score'), 10) || 0, cb = parseInt(localStorage.getItem('tp_combo'), 10) || 0, wo = parseInt(localStorage.getItem('tp_worlds'), 10) || 0;
+      const fr = parseInt(localStorage.getItem('tp_frags'), 10) || 0;
       let txt = ''; if (sc || cb || wo) txt = '🏆 Rekorde: ' + sc + ' Pakete · Combo x' + cb + ' · ' + wo + ' Welten';
+      if (fr) txt += (txt ? ' · ' : '') + '🜂 ' + fr + ' Erinnerungen';
+      if (localStorage.getItem('tp_memdone')) txt += (txt ? ' · ' : '') + '🜂 Verlorene Welt erinnert ✓';
       if (localStorage.getItem('tp_mission')) txt += (txt ? ' · ' : '') + '🧠 Datenhirn reaktiviert ✓';
       if (txt) document.getElementById('bestLine').textContent = txt; }
     { const tg = document.querySelector('.tagline'); if (tg && GH_LIVE) { const stars = PROJECTS.reduce((s, p) => s + (p.stars || 0), 0);
@@ -1133,12 +1578,14 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       { t: 'Datenhirn erwecken', d: 'Liefere insgesamt 15 Pakete',         goal: (s) => s.delivered >= 15, p: (s) => Math.min(s.delivered, 15) + '/15',        done: '🌟 Das Datenhirn ist erwacht!' },
     ];
     let questIdx = 0, questsDone = false;
-    function renderQuest() {
-      if (questsDone) { questTitleEl.textContent = '🧠 Datenhirn erwacht'; questProgEl.textContent = 'Alle Synapsen aktiv ✓'; return; }
-      const q = QUESTS[questIdx];
-      questTitleEl.textContent = (questIdx + 1) + '/' + QUESTS.length + ' · ' + q.t;
-      questProgEl.textContent = q.d + '  ·  ' + q.p({ delivered, worlds: worldsRun.size });
+    let questTimer = 0;
+    function renderQuest() { // updates the text silently (called every frame for live progress)
+      if (questsDone) { questTitleEl.textContent = '🧠 Datenhirn erwacht'; questProgEl.textContent = 'Alle Synapsen aktiv ✓'; }
+      else { const q = QUESTS[questIdx];
+        questTitleEl.textContent = (questIdx + 1) + '/' + QUESTS.length + ' · ' + q.t;
+        questProgEl.textContent = q.d + '  ·  ' + q.p({ delivered, worlds: worldsRun.size }); }
     }
+    function flashQuest() { renderQuest(); questEl.classList.add('on'); questTimer = 6; } // show briefly, then auto-fade (keeps the HUD clean)
     function updateQuests() {
       if (questsDone) return;
       const s = { delivered, worlds: worldsRun.size };
@@ -1148,7 +1595,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         questIdx++; advanced = true;
       }
       if (advanced) {
-        questEl.classList.remove('flash'); void questEl.offsetWidth; questEl.classList.add('flash');
+        questEl.classList.remove('flash'); void questEl.offsetWidth; questEl.classList.add('flash'); flashQuest();
         if (questIdx >= QUESTS.length) { questsDone = true; finale(); }
       }
       renderQuest();
@@ -1169,6 +1616,8 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       { id: 'world8',    label: '🧭 Entdecker',         test: (s) => s.worlds >= 8 },
       { id: 'deliver25', label: '📦 Kurier',            test: (s) => s.delivered >= 25 },
       { id: 'deliver50', label: '🚀 Daten-Logistiker',  test: (s) => s.delivered >= 50 },
+      { id: 'boss1',     label: '🛡️ Wächter-Bezwinger', test: (s) => (s.bosses || 0) >= 1 },
+      { id: 'free3',     label: '🕊️ Befreier',          test: (s) => (s.freed || 0) >= 3 },
     ];
     function updateAchievements(s) {
       for (const a of ACHIEVEMENTS) {
@@ -1207,6 +1656,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       m.position.copy(at).addScaledVector(normal, 0.15); m.quaternion.setFromUnitVectors(_zAxis, normal); m.scale.setScalar(0.6); scene.add(m); shocks.push({ m, life: 0 });
     }
     let shake = 0; // brief camera shake on landing
+    let hitStop = 0; // micro freeze-frame on a killing blow — combat punch
+    let fovKick = 0; // brief zoom-in punch on a kill
+    let musicAcc = 0; // throttle for adaptive-music tension updates
     // glowing flight trail
     const trail = [], trailGeo = new THREE.SphereGeometry(0.22, 6, 6), trailMat = new THREE.MeshBasicMaterial({ color: 0x9ff7ec, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false });
     let trailTimer = 0;
@@ -1255,7 +1707,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     function travelTo(p) {
       cur = p; mode = 'ground'; vel.set(0, 0, 0); height = 0; vUp = 0;
       pos.copy(landingDir(p)).multiplyScalar(p.R); refreshFrame(); placePlayer();
-      burst(player.position, 0xffffff); showCard(p.project); landSound(); setSky(p.project.theme); visitWorld(p); maybeExpand(); closeMap();
+      burst(player.position, 0xffffff); toast('🪐 ' + p.project.name, 1500); landSound(); setSky(p.project.theme); visitWorld(p); maybeExpand(); closeMap();
     }
     function drawMap() {
       const S = mapCanvas.width; mctx.clearRect(0, 0, S, S);
@@ -1364,7 +1816,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     document.getElementById('setResume').addEventListener('click', closeSettings);
     document.getElementById('setRestart').addEventListener('click', () => location.reload());
     document.getElementById('setReset').addEventListener('click', () => {
-      ['tp_score', 'tp_combo', 'tp_worlds', 'tp_mission', 'tp_seen'].forEach((k) => localStorage.removeItem(k));
+      ['tp_score', 'tp_combo', 'tp_worlds', 'tp_mission', 'tp_seen', 'tp_frags', 'tp_memdone', 'tp_bosses', 'tp_freed'].forEach((k) => localStorage.removeItem(k));
       ACHIEVEMENTS.forEach((a) => localStorage.removeItem('tp_ach_' + a.id));
       document.getElementById('bestLine').textContent = ''; const al = document.getElementById('achLine'); if (al) al.textContent = '';
       toast('🗑 Fortschritt zurückgesetzt', 1800);
@@ -1407,6 +1859,10 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       const { ctx, master } = audio;
       const mg = ctx.createGain(); mg.gain.value = 0.0; mg.connect(master); mg.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 6);
       audio.music = mg;
+      // adaptive combat layer: a low drone (through master, so it respects mute) that swells when foes close in
+      const tg = ctx.createGain(); tg.gain.value = 0; const tlp = ctx.createBiquadFilter(); tlp.type = 'lowpass'; tlp.frequency.value = 360; tg.connect(tlp); tlp.connect(master);
+      [73.42, 110.0].forEach((f) => { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(tg); o.start(); });
+      audio.tensionGain = tg; audio.tension = 0;
       const chords = [[146.83, 185.00, 220.00], [196.00, 246.94, 293.66], [220.00, 277.18, 329.63], [164.81, 220.00, 246.94]];
       const BAR = 4.2; let bar = 0;
       const pad = (fs, t) => fs.forEach((f) => { const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
@@ -1419,6 +1875,8 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         if (!audio) return; const t0 = ctx.currentTime + 0.08; const ch = chords[bar % chords.length];
         pad(ch, t0);
         const arpN = 6; for (let i = 0; i < arpN; i++) pluck(ch[i % 3] * (i >= 3 ? 3 : 2), t0 + i * (BAR / arpN) + (bar % 2 ? 0.0 : 0.0));
+        if (audio.tension > 0.35) { const root = ch[0] / 2; const n = 8; for (let i = 0; i < n; i++) { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = root; // combat ostinato: a pulsing low bass while foes press in
+          const g = ctx.createGain(); const s = t0 + i * (BAR / n); g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(0.05 * audio.tension, s + 0.01); g.gain.exponentialRampToValueAtTime(0.001, s + 0.18); o.connect(g); g.connect(mg); o.start(s); o.stop(s + 0.2); } }
         bar++;
       }
       schedule(); audio.musicTimer = setInterval(schedule, BAR * 1000);
@@ -1463,6 +1921,37 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       const g = ctx.createGain(); g.gain.setValueAtTime(0.22, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
       o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.28);
     }
+    function swing() { // melee whoosh
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(700, t); o.frequency.exponentialRampToValueAtTime(180, t + 0.16);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0, t); g.gain.linearRampToValueAtTime(0.12, t + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.2);
+    }
+    function clang() { // hit impact
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      [320, 480].forEach((f, i) => { const o = ctx.createOscillator(); o.type = i ? 'square' : 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.5, t + 0.12);
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.16); o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.18); });
+    }
+    function hurtSound() { // player takes a hit
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(70, t + 0.22);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+      o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.28);
+    }
+    function boing() { // bounce-pad launch
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(640, t + 0.18);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.32);
+    }
+    function boom() { // bomb explosion: a low thump + a filtered crack
+      if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.4);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.34, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.45); o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.47);
+      const n = ctx.createOscillator(); n.type = 'sawtooth'; n.frequency.setValueAtTime(360, t); n.frequency.exponentialRampToValueAtTime(60, t + 0.25);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; const ng = ctx.createGain(); ng.gain.setValueAtTime(0.18, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      n.connect(lp); lp.connect(ng); ng.connect(audio.master); n.start(t); n.stop(t + 0.32);
+    }
     function connectSound() { // a gentle rising blip when a new node joins the network
       if (!audio || muted) return; const { ctx } = audio; const t = ctx.currentTime;
       [523, 784].forEach((f, i) => { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
@@ -1500,7 +1989,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     if (!lowPerf) composer.addPass(godPass);
     // cinematic grade: saturation, filmic contrast, teal/orange split-tone, chromatic aberration, grain, vignette
     const gradePass = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, sat: { value: 1.16 }, time: { value: 0 }, motion: { value: 1 } },
+      uniforms: { tDiffuse: { value: null }, sat: { value: 1.2 }, time: { value: 0 }, motion: { value: 1 } },
       vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `uniform sampler2D tDiffuse; uniform float sat; uniform float time; uniform float motion; varying vec2 vUv;
         float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
@@ -1508,7 +1997,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
           float ca = (0.0016 + r2 * 0.01) * motion; // chromatic aberration grows toward edges (off when motion reduced)
           vec3 c; c.r = texture2D(tDiffuse, vUv + d*ca).r; c.g = texture2D(tDiffuse, vUv).g; c.b = texture2D(tDiffuse, vUv - d*ca).b;
           float l = dot(c, vec3(0.299,0.587,0.114)); c = mix(vec3(l), c, sat);                 // saturation
-          c = clamp((c - 0.5) * 1.06 + 0.5, 0.0, 1.0);                                          // gentle contrast
+          c = clamp((c - 0.5) * 1.11 + 0.5, 0.0, 1.0);                                          // filmic contrast
           c += (vec3(0.02,0.05,0.06)) * (1.0 - l) - (vec3(0.04,0.02,0.0)) * (l - 0.5);          // teal shadows / warm highlights
           float v = smoothstep(0.9, 0.28, r2 * 1.15); c *= mix(0.72, 1.0, v);                   // vignette
           c += (hash(vUv * vec2(1920.0,1080.0) + time) - 0.5) * 0.035 * motion;                 // film grain
@@ -1517,6 +2006,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
     composer.addPass(gradePass);
     let reduceMotion = localStorage.getItem('tp_motion') === '1'; // accessibility: cut grain / aberration / shake / god rays
     gradePass.uniforms.motion.value = reduceMotion ? 0 : 1;
+    if (!lowPerf) composer.addPass(new SMAAPass(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio())); // crisp edges (the composer's offscreen target isn't MSAA)
     composer.addPass(new OutputPass());
 
     // ---------- Loop ----------
@@ -1550,8 +2040,10 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       requestAnimationFrame(animate);
       let dt = Math.min(clock.getDelta(), 0.05);
       if (paused) dt = 0; // settings/pause freezes the simulation
+      if (hitStop > 0) { hitStop -= dt; dt *= 0.16; } // hit-stop: briefly slow time on a kill for impact
       if (started && elapsed > 3) { fpsT += dt; fpsN++; if (fpsT >= 2) { if (fpsN / fpsT < 38 && qual === 2) degrade(); fpsT = 0; fpsN = 0; } }
       oceanUniforms.time.value += dt;
+      oceanUniforms.sky.value.copy(skyMat.uniforms.mid.value); // water mirrors the current sky (warm at sunset, blue at noon)
       dayT = (dayT + dt / 150) % 1; updateDayNight(); // ~2.5 min full day
       updateShoot(dt);
       // Minecraft-style culling: only keep nearby worlds drawn & updated
@@ -1578,6 +2070,12 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       // home core crystal: slow spin + pulse
       if (HOME.monument && HOME.group.visible) { const tt = oceanUniforms.time.value; HOME.monument.rotation.y += dt * 0.7; HOME.monumentRing.rotation.z += dt * 0.5;
         HOME.monument.scale.setScalar(1 + 0.12 * Math.sin(tt * 3) + linkFlash * 0.6); HOME.monumentRing.scale.setScalar(1 + linkFlash * 0.5); } // brain-core surges with network traffic
+      // memory garden: one mote glows per collected fragment — a visible record of the story you've gathered
+      if (HOME.memMotes && HOME.group.visible) { const tt = oceanUniforms.time.value; const lit = Math.min(frags, HOME.memMotes.length); const over = frags > HOME.memMotes.length;
+        for (let i = 0; i < HOME.memMotes.length; i++) { const mo = HOME.memMotes[i]; const on = i < lit;
+          const tgt = on ? (over ? 0.95 : 0.78) + 0.22 * Math.sin(tt * 2 + mo.phase) : 0;
+          const mat = mo.mesh.material; mat.opacity += (tgt - mat.opacity) * Math.min(1, dt * 4);
+          mo.mesh.rotation.y += dt * 1.2; mo.mesh.position.copy(mo.dir).multiplyScalar(HOME.landR(mo.dir) + 0.75 + (on ? 0.18 * Math.abs(Math.sin(tt * 1.5 + mo.phase)) : 0)); } }
 
       // pick up parcels (when not yet carrying the max few)
       for (const p of parcels) {
@@ -1603,6 +2101,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
           chime(delivered % 10 === 0);
           popEl.textContent = '+' + n + ' 📦' + (combo > 1 ? '   Combo x' + combo : '');
           popEl.classList.remove('show'); void popEl.offsetWidth; popEl.classList.add('show');
+          popEmoji(combo > 2 ? '🔥' : '🎉');
           if (delivered % 10 === 0) toast('🎉 ' + delivered + ' geliefert!', 1600);
           burst(o.worldPos, 0xffd166); linkFlash = 1; o.pop = 1; fireDataPacket(cur); // delivered packet ripples through the network; house pops
         }
@@ -1629,7 +2128,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
           toast('🏁 Welt komplett eingesammelt!', 2200); chime(true); burst(player.position, 0x2dd4bf);
         }
         updateQuests();
-        updateAchievements({ delivered, worlds: worldsRun.size, combo });
+        updateAchievements({ delivered, worlds: worldsRun.size, combo, bosses: bossKills, freed: worldsFreed });
       }
       // showreel auto-travel through worlds
       if (auto && !finished) { autoT -= dt; if (autoT <= 0) { autoT = 6; const others = planets.filter((p) => p !== cur); if (others.length) travelTo(others[(Math.random() * others.length) | 0]); cinematic = true; document.body.classList.add('cine'); reelHint.classList.add('on'); } }
@@ -1652,6 +2151,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       const windT = oceanUniforms.time.value;
       // trees sway in the wind (skip culled worlds)
       for (const w of windy) { if (!w.pl.group.visible) continue; _qA.setFromAxisAngle(_vx, Math.sin(windT * 1.5 + w.phase) * 0.05); w.obj.quaternion.copy(w.base).multiply(_qA); }
+      // wind currents drift along their stream (only the nearby ones, to stay cheap)
+      for (const c of currents) { if (player.position.distanceTo(c.a) > 130) { if (c.parts[0].mesh.visible) for (const p of c.parts) p.mesh.visible = false; continue; }
+        for (const p of c.parts) { p.mesh.visible = true; p.s += dt * p.spd / Math.max(c.len, 1); if (p.s > 1) p.s -= 1; p.mesh.position.copy(c.a).addScaledVector(c.dir, p.s * c.len).add(p.off); p.mesh.scale.setScalar(0.55 + 0.7 * Math.sin(p.s * Math.PI)); } } // grow mid-stream, taper at the ends
       // nebula clouds breathe and follow the star opacity (space / night)
       for (const n of nebula) { n.material.opacity = n.userData.base * starMat.opacity * (0.75 + 0.25 * Math.sin(windT * 0.3 + n.userData.ph)); n.material.rotation += dt * 0.015; }
       // fireflies (fade in at night, gentle drift)
@@ -1702,6 +2204,74 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         cr.g.position.copy(cr.dir).multiplyScalar(cr.pl.walkR(cr.dir) + hopH);
         _up.copy(cr.dir); _r.crossVectors(_up, cr.fwd).normalize(); _m.makeBasis(_r, _up, cr.fwd); cr.g.quaternion.setFromRotationMatrix(_m);
       }
+      // enemies: wander, and chase the player when on the same world
+      for (const e of enemies) {
+        if (!e.pl.group.visible) continue;
+        e.t += dt; if (e.hitT > 0) e.hitT -= dt;
+        let chasing = false;
+        let windup = false;
+        if (e.hitT <= 0) { // staggered foes hold still (readable combat); otherwise wander/chase
+          if (e.lungeT > 0) { // boss: committed lunge — drive fast along the locked heading; dash through it to dodge
+            e.lungeT -= dt; e.dir.addScaledVector(e.fwd, (e.enraged ? 6.2 : 5.0) * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
+            if (e.lungeT <= 0) { e.lungeCd = e.enraged ? 1.3 : 2.6; e.hitT = Math.max(e.hitT, e.enraged ? 0.32 : 0.5); } // brief recovery: hold still + vulnerable so a dodged lunge can be punished (shorter when enraged)
+          } else if (e.lungeWind > 0) { // boss: wind-up — hold + face the player while the telegraph flashes, then commit
+            e.lungeWind -= dt; windup = true;
+            if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) e.fwd.normalize(); }
+            if (e.lungeWind <= 0) { e.lungeT = 0.3; whoosh(); }
+          } else {
+            if (e.lungeCd > 0) e.lungeCd -= dt;
+            if (e.pl === cur && mode === 'ground') { const pdir = tmp.copy(player.position).sub(cur.center).normalize(); if (pdir.dot(e.dir) > 0.86) { // player within ~30° on the surface → chase
+                e.fwd.copy(pdir).addScaledVector(e.dir, -pdir.dot(e.dir)); if (e.fwd.lengthSq() > 1e-4) { e.fwd.normalize(); chasing = true; } } }
+            if (!chasing) e.fwd.applyAxisAngle(e.dir, Math.sin(e.t * 0.5) * 0.8 * dt);
+            const sp = chasing ? (e.boss ? (e.enraged ? 1.9 : 1.2) : e.swarm ? 2.5 : 1.7) : (e.swarm ? 1.0 : 0.7); e.dir.addScaledVector(e.fwd, sp * dt).normalize();
+            // boss: lock on at mid range, then begin a telegraphed lunge
+            if (e.boss && chasing && e.lungeCd <= 0 && e.pl === cur && mode === 'ground') { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < (e.enraged ? 3.8 : 3.2)) e.lungeWind = e.enraged ? 0.3 : 0.45; }
+          }
+          e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize();
+          if (e.pl.terrain(e.dir) < e.pl.R * 0.02) { e.fwd.applyAxisAngle(e.dir, Math.PI * 0.8); e.dir.addScaledVector(e.fwd, 1.4 * dt).normalize(); e.fwd.addScaledVector(e.dir, -e.fwd.dot(e.dir)).normalize(); }
+        }
+        // fair telegraph: a chasing foe (or a winding-up boss) "puffs + flashes" just before it can land a hit, so the dodge-dash has a readable window
+        let wt = 0;
+        if (e.hitT <= 0 && e.pl === cur && mode === 'ground') { if (windup) wt = 1; else if (chasing) { _ew.copy(cur.center).add(e.g.position); const dp = _ew.distanceTo(player.position); if (dp < 2.6 && dp > 1.35) wt = 1; } }
+        e.warn = (e.warn || 0) + (wt - (e.warn || 0)) * Math.min(1, dt * 8);
+        const bob = e.hitT > 0 ? 0 : Math.abs(Math.sin(e.t * 3)) * 0.18 + e.warn * (0.1 + Math.abs(Math.sin(e.t * 15)) * 0.14);
+        e.g.position.copy(e.dir).multiplyScalar(e.pl.walkR(e.dir) + 0.2 + bob);
+        e.g.scale.setScalar((e.enraged ? 1.15 : 1) + e.warn * 0.22);
+        _up.copy(e.dir); _r.crossVectors(_up, e.fwd).normalize(); _m.makeBasis(_r, _up, e.fwd); e.g.quaternion.setFromRotationMatrix(_m);
+        e.g.children[0].rotation.y += dt * 2; // spin the body
+        if (e.g.userData.ring) { e.g.userData.ring.rotation.z += dt * (e.enraged ? 4.2 : 1.6); if (e.enraged) e.g.userData.ring.material.color.setHex(0xff4d6d); }
+        if (e.g.userData.eye) e.g.userData.eye.material = e.hitT > 0 ? enemyHitMat : (e.warn > 0.5 ? enemyWarnMat : (e.boss ? bossEyeMat : e.swarm ? enemySwarmEyeMat : enemyEyeMat));
+        if (e.pl === cur && mode === 'ground' && hurtT <= 0 && e.hitT <= 0) { _ew.copy(cur.center).add(e.g.position); if (_ew.distanceTo(player.position) < 1.55) hurtPlayer(_ew); }
+      }
+      // memory fragments: bob/spin, and collect on touch
+      for (let i = fragments.length - 1; i >= 0; i--) { const f = fragments[i]; if (!f.pl.group.visible) continue;
+        f.t += dt; f.g.rotation.y += dt * 1.8; f.g.position.copy(f.dir).multiplyScalar(f.pl.walkR(f.dir) + 0.7 + Math.sin(f.t * 2) * 0.15);
+        if (f.pl === cur && mode === 'ground') { _ew.copy(cur.center).add(f.g.position); if (_ew.distanceTo(player.position) < 1.7) { collectFragment(_ew); f.pl.group.remove(f.g); fragments.splice(i, 1); } }
+      }
+      // bombs: tick the fuse (LED blinks faster), then burst into a radial AoE shock that damages every nearby foe
+      for (let bi = bombs.length - 1; bi >= 0; bi--) { const bo = bombs[bi]; if (!bo.pl.group.visible) continue;
+        bo.t -= dt; const led = bo.g.userData.led; if (led) { const blink = Math.sin(bo.t * (bo.t < 0.4 ? 40 : 14)); led.material.opacity = 0.4 + 0.6 * (blink > 0 ? 1 : 0.2); led.scale.setScalar(1 + (bo.t < 0.4 ? 0.5 : 0.2) * Math.max(0, blink)); }
+        if (bo.t <= 0) { const bc = new THREE.Vector3().copy(bo.pl.center).add(bo.g.position); burst(bc, 0xffd166); burst(bc, 0xff8a5a); shock(bc, bo.dir, 0xffd166); shake = Math.max(shake, 0.4); hitStop = Math.max(hitStop, 0.06); boom();
+          for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.pl !== bo.pl) continue; tmp.copy(bo.pl.center).add(e.g.position); if (tmp.distanceTo(bc) < 4.6) { e.dir.addScaledVector(tmp.sub(bc).normalize(), 0.45).normalize(); hitEnemy(e, i, 0.0); } } // knock outward + damage
+          bo.pl.group.remove(bo.g); bombs.splice(bi, 1); } }
+      // bounce pads: squash recovery + ring spin
+      for (const pad of pads) { if (!pad.pl.group.visible) continue; if (pad.t > 0) pad.t -= dt; const sq = pad.t > 0 ? pad.t / 0.3 : 0;
+        const cap = pad.g.userData.cap; cap.scale.set(1 + sq * 0.3, 1 - sq * 0.5, 1 + sq * 0.3); }
+      // biome landmarks: spin gears, pulse glows
+      for (const lm of landmarks) { if (!lm.pl.group.visible) continue; lm.t += dt;
+        if (lm.spinObj) lm.spinObj.rotation.z += dt * lm.spin;
+        if (lm.glow) lm.glow.scale.setScalar(0.9 + 0.15 * Math.sin(lm.t * 2)); }
+      // shrine puzzles: light runes by walking onto them; all lit → open the shrine
+      for (const sh of shrines) { if (!sh.pl.group.visible) continue; sh.t += dt;
+        if (!sh.solved && sh.pl === cur && mode === 'ground') {
+          for (const ru of sh.runes) { if (ru.lit) continue; _ew.copy(cur.center).add(ru.g.position); if (_ew.distanceTo(player.position) < 1.7) { ru.lit = true; ru.g.userData.gem.material = runeLitMat; chime(false); burst(_ew, 0x8ff5e8); } }
+          if (sh.runes.every((r) => r.lit)) { sh.solved = true; toast('🗝️ Schrein geöffnet — eine Erinnerung wird frei!', 2800); fanfare(); popEmoji('🗝️');
+            _ew.copy(cur.center).add(sh.g.position); shock(_ew, sh.dir, 0x8ff5e8); sh.g.userData.seal.material = new THREE.MeshBasicMaterial({ color: 0x8ff5e8, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+            const bf = makeFragment(); bf.scale.setScalar(1.5); const fd = sh.dir.clone(); bf.position.copy(fd).multiplyScalar(cur.walkR(fd) + 1.6); cur.group.add(bf); fragments.push({ g: bf, dir: fd, pl: cur, t: 0 }); }
+        }
+        if (sh.g.userData.seal) sh.g.userData.seal.rotation.y += dt * (sh.solved ? 2 : 0.5);
+        for (const ru of sh.runes) if (ru.lit) ru.g.userData.gem.rotation.y += dt * 2;
+      }
 
       let mv = 0;
       if (charging) {
@@ -1716,12 +2286,31 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       } else { chargeBar.classList.remove('on'); aimLine.visible = false; aimRing.visible = false; }
       if (started && mode === 'ground' && !cinematic) {
         const speed = (keys.sprint || touchSprint ? 6.8 : 3.7), turnSpeed = 2.3;
-        let turn = (Number(keys.l) - Number(keys.r)) * turnSpeed * dt - touchMove.x * turnSpeed * dt - dragTurn;
-        dragTurn = 0;
-        if (turn) forward.applyAxisAngle(up, turn);
+        if (lockTarget && (enemies.indexOf(lockTarget) < 0 || lockTarget.pl !== cur)) lockTarget = null; // drop a dead/left target
+        let strafe = 0;
+        if (lockTarget) {
+          // Z-target: auto-face the locked foe; A/D circle-strafes, W/S approach/retreat
+          _ew.copy(cur.center).add(lockTarget.g.position); _faceDir.copy(_ew).sub(player.position); _faceDir.addScaledVector(up, -_faceDir.dot(up));
+          if (_faceDir.lengthSq() > 1e-5) { _faceDir.normalize(); forward.lerp(_faceDir, Math.min(1, dt * 11)); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() > 1e-5) forward.normalize(); }
+          strafe = (Number(keys.r) - Number(keys.l)) + touchMove.x; turnSmooth = 0; dragTurn = 0;
+        } else {
+          const turnIn = (Number(keys.l) - Number(keys.r)) - touchMove.x; // keyboard/touch turn intent
+          turnSmooth += (turnIn - turnSmooth) * Math.min(1, dt * 12); // ease turning so it doesn't snap
+          const turn = turnSmooth * turnSpeed * dt - dragTurn; dragTurn = 0;
+          if (Math.abs(turn) > 1e-5) forward.applyAxisAngle(up, turn);
+        }
         mv = Math.max(-1, Math.min(1, (Number(keys.f) - Number(keys.b)) + touchMove.y));
-        if (mv !== 0) { pos.addScaledVector(forward, mv * speed * dt); pos.setLength(cur.R); refreshFrame(); }
-        if (height > 0 || vUp > 0) { vUp -= G * dt; height += vUp * dt; if (height <= 0) { height = 0; vUp = 0; canJump = true; } }
+        mvSmooth += (mv - mvSmooth) * Math.min(1, dt * 9); // ease accel/decel
+        if (dashCd > 0) dashCd -= dt;
+        if (dashT > 0) { dashT -= dt; pos.addScaledVector(forward, 17 * dt); pos.setLength(cur.R); refreshFrame(); puff(player.position, up); }
+        else { let moved = false;
+          if (Math.abs(mvSmooth) > 0.01) { pos.addScaledVector(forward, mvSmooth * speed * dt); moved = true; }
+          if (Math.abs(strafe) > 0.01) { _strafe.crossVectors(up, forward).normalize(); pos.addScaledVector(_strafe, strafe * speed * 0.85 * dt); moved = true; }
+          if (moved) { pos.setLength(cur.R); refreshFrame(); }
+        }
+        moveMag = Math.max(Math.abs(mvSmooth), Math.abs(strafe)); // drives the walk cycle (forward or strafe)
+        if (height === 0 && vUp <= 0) { for (const pad of pads) { if (pad.pl !== cur) continue; _ew.copy(cur.center).add(pad.g.position); if (_ew.distanceTo(player.position) < 1.5) { vUp = 13; canJump = false; squash = 0.3; pad.t = 0.3; boing(); break; } } }
+        if (height > 0 || vUp > 0) { const wasFalling = vUp < -2; vUp -= G * dt; height += vUp * dt; if (height <= 0) { height = 0; vUp = 0; canJump = true; if (wasFalling) { puff(player.position, up); puff(player.position, up); squash = -0.22; step(); } } } // landing dust + impact squash
         if (mv !== 0 && height === 0) { stepTimer -= dt; if (stepTimer <= 0) { stepTimer = (keys.sprint || touchSprint) ? 0.22 : 0.34; puff(player.position, up); step(); } } else stepTimer = 0;
       } else if (started && mode === 'air' && !cinematic) {
         // steer slightly while flying
@@ -1732,9 +2321,13 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         // gravity ramps up the longer you fly -> no perpetual orbit (anti soft-lock)
         vel.addScaledVector(tmp, G * (0.9 + Math.max(0, airTime - 3) * 0.5) * dt);
         if (turn) vel.applyAxisAngle(up, turn);
-        if (vel.length() > 40) vel.setLength(40);
+        let inWind = false;
+        // ride wind currents: a strong push along the stream (whichever way you're headed) to glide between islands
+        for (const c of currents) { const ax = tmp2.copy(airPos).sub(c.a); const t = ax.dot(c.dir); if (t < -3 || t > c.len + 3) continue;
+          const perp2 = Math.max(0, ax.lengthSq() - t * t); if (perp2 < 16) { const sgn = vel.dot(c.dir) >= 0 ? 1 : -1; vel.addScaledVector(c.dir, sgn * 24 * dt); inWind = true; windRides++; } }
+        if (vel.length() > 44) vel.setLength(44);
         airPos.addScaledVector(vel, dt);
-        trailTimer -= dt; if (trailTimer <= 0) { trailTimer = 0.045; trailDot(airPos); }
+        trailTimer -= dt; if (trailTimer <= 0) { trailTimer = inWind ? 0.022 : 0.045; trailDot(airPos); } // denser trail while riding a current
         up.copy(airPos).sub(np.center).normalize();
         forward.copy(vel).addScaledVector(up, -vel.dot(up)); if (forward.lengthSq() < 1e-4) forward.set(1, 0, 0).addScaledVector(up, -up.x); forward.normalize();
         if (!airArmed && airPos.distanceTo(launchPlanet.center) > launchPlanet.R + 6) airArmed = true;
@@ -1742,8 +2335,9 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         if (airArmed && airPos.distanceTo(np.center) <= np.R + 2.5) { // entered a world's pull -> land
           cur = np; pos.copy(up).multiplyScalar(cur.R); refreshFrame();
           mode = 'ground'; height = 0; vUp = 0; vel.set(0, 0, 0); canJump = true;
-          burst(player.position, 0xffffff); shock(player.position, up, 0xffffff); shake = 0.32; toast(cur.rich ? 'Zuhause! 🏠' : 'Neuer Planet! 🪐', 1400);
-          showCard(cur.project); landSound(); setSky(cur.project.theme); visitWorld(cur);
+          hp = maxHp; hurtT = 0; renderHearts(); // fresh health on each new world
+          burst(player.position, 0xffffff); shock(player.position, up, 0xffffff); shake = 0.32; toast((cur.rich ? '🏠 ' : '🪐 ') + cur.project.name, 1500); popEmoji(cur.rich ? '🏠' : '👋');
+          landSound(); setSky(cur.project.theme); visitWorld(cur);
           maybeExpand();
         }
       }
@@ -1766,21 +2360,36 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
         const air = mode === 'air';
         let desired;
         if (air) { const behind = tmp.copy(forward).multiplyScalar(-1).applyAxisAngle(_r, -0.5); desired = tmp3.copy(player.position).addScaledVector(behind, 12).addScaledVector(up, 4); }
-        else { // top-down overview; auto-tilt flatter while charging a jump so the trajectory shows
-          const aimPitch = charging ? 0.72 : camPitch; pitchEff += (aimPitch - pitchEff) * 0.1;
-          const RAD = charging ? 16 : 14; desired = tmp3.copy(player.position).addScaledVector(up, Math.sin(pitchEff) * RAD + 1).addScaledVector(forward, -Math.cos(pitchEff) * RAD); }
+        else { // closer behind-the-shoulder third-person; auto-tilt flatter while charging a jump so the trajectory shows
+          const lockedCam = lockTarget && enemies.indexOf(lockTarget) >= 0 && lockTarget.pl === cur;
+          const aimPitch = charging ? 0.72 : lockedCam ? 0.66 : camPitch; pitchEff += (aimPitch - pitchEff) * 0.1; // lock-on: flatter, slightly pulled back to frame you + the foe
+          const RAD = charging ? 15 : lockedCam ? 12 : 10; desired = tmp3.copy(player.position).addScaledVector(up, Math.sin(pitchEff) * RAD + 1).addScaledVector(forward, -Math.cos(pitchEff) * RAD); }
         const np = nearestPlanet(desired); const minR = np.R + 2.4;
         if (desired.distanceTo(np.center) < minR) desired.sub(np.center).setLength(minR).add(np.center);
-        camera.position.lerp(desired, air ? 0.08 : 0.12);
-        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 0.5));
+        camera.position.lerp(desired, air ? 0.08 : 0.14);
+        const lookAhead = (lockTarget && enemies.indexOf(lockTarget) >= 0 && lockTarget.pl === cur) ? 1.6 : 0; // look toward the locked foe
+        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.3).addScaledVector(forward, lookAhead));
+        if (fovKick > 0) fovKick -= dt * fovKick * 6 + dt * 0.5; if (fovKick < 0) fovKick = 0;
         const wantFov = (air || ((keys.sprint || touchSprint) && mv !== 0)) ? 68 : 60;
-        camera.fov += (wantFov - camera.fov) * 0.1; camera.updateProjectionMatrix();
+        camera.fov += (wantFov - fovKick * 7 - camera.fov) * 0.18; camera.updateProjectionMatrix();
       }
+      // lock-on reticle: a pulsing ring on the targeted foe, billboarded to the camera
+      if (lockTarget && enemies.indexOf(lockTarget) >= 0 && lockTarget.pl === cur && mode === 'ground') {
+        _ew.copy(cur.center).add(lockTarget.g.position).addScaledVector(up, 0.9); lockRing.position.copy(_ew); lockRing.lookAt(camera.position);
+        const ps = 1 + 0.12 * Math.sin(oceanUniforms.time.value * 6); lockRing.scale.setScalar(ps); lockRing.visible = true;
+      } else { lockRing.visible = false; if (lockTarget && mode === 'ground') lockTarget = null; }
       if (shake > 0) { shake -= dt; if (!reduceMotion) { const s = Math.max(0, shake) * 0.7; camera.position.x += (Math.random() - 0.5) * s; camera.position.y += (Math.random() - 0.5) * s; camera.position.z += (Math.random() - 0.5) * s; } }
       if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(window.__ovLook || tmp.set(0,0,0)); } // debug/QA overview hook
 
       if (started && !finished) drawRadar();
-      projHint.classList.toggle('on', started && mode === 'ground' && !projOpen && !mapOpen);
+      updateBossBar();
+      // adaptive music: tension swells while foes close in, fades while exploring
+      if (audio && (musicAcc += dt) > 0.2) { musicAcc = 0; let near = 0, boss = 0;
+        if (started && mode === 'ground') { for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (e.boss) { if (d < 16) boss = 1; } else if (d < 11) near++; } }
+        const tgt = Math.min(1, near * 0.38 + boss * 0.6); audio.tension = tgt;
+        if (audio.tensionGain) audio.tensionGain.gain.setTargetAtTime(tgt * 0.14, audio.ctx.currentTime, 0.4); }
+      if (questTimer > 0) { questTimer -= dt; if (questTimer <= 0) questEl.classList.remove('on'); }
+      projHint.classList.remove('on'); // E-hint hidden by default to keep the screen clean (help overlay lists it)
       if (mapOpen) drawMap();
       if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) toastEl.classList.remove('show'); }
       if (cardTimer > 0) { cardTimer -= dt; if (cardTimer <= 0) cardEl.classList.remove('on'); }
@@ -1807,6 +2416,7 @@ C — Foto-Modus   ·   P — Einstellungen   ·   H — diese Hilfe</div>
       composer.render();
     }
     animate();
+    { const ld = document.getElementById('loader'); if (ld) requestAnimationFrame(() => ld.classList.add('hidden')); } // reveal once the scene is up
 
     addEventListener('resize', () => {
       camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
