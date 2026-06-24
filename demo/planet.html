@@ -286,7 +286,7 @@ A / D — drehen   ·   Maus / Wischen — Kamera
 Shift — rennen
 Space (gedrückt halten) — Planet-Sprung
 M — Galaxie-Karte   ·   E — Projekt-Info
-J — Angriff (3er-Combo, jeder 3. Schlag stärker)   ·   K — Windstoß   ·   B — Bombe (Flächenschaden)   ·   Q — Dash (Ausweichen)
+J — Angriff (3er-Combo, jeder 3. Schlag stärker)   ·   L — Anvisieren (Lock-on, dann umkreisen)   ·   K — Windstoß   ·   B — Bombe (Flächenschaden)   ·   Q — Dash (Ausweichen)
 ⚔️ Kämpfe gegen Gegner & Wächter (Bosse werden bei halber HP wild) · 🌬️ flieg durch Wind-Strömungen für einen Gleit-Schub
 C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilfe</div>
     <div class="prow"><button class="cl" id="helpClose">Schließen (Esc / H)</button></div>
@@ -342,6 +342,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         <span class="key"><b>Space halten</b> Planet-Sprung</span>
         <span class="key"><b>J</b> Angriff · <b>Q</b> Ausweichen</span>
         <span class="key"><b>K</b> Windstoß · <b>B</b> Bombe</span>
+        <span class="key"><b>L</b> Anvisieren (Lock-on)</span>
         <span class="key"><b>M</b> Karte · <b>E</b> Projekt</span>
       </div>
       <p id="bestLine"></p>
@@ -371,7 +372,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v136 · Z-target lock-on';
+    const BUILD = 'v137 · lock-on controls';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
