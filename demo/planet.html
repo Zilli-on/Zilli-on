@@ -236,7 +236,7 @@
       background: rgba(255,255,255,0.22); border: 1.5px solid var(--stroke); backdrop-filter: blur(6px); touch-action: none; user-select: none; box-shadow: var(--shadow); }
     #thumb { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #aef7ec, #2dd4bf); box-shadow: 0 8px 22px rgba(15,118,110,0.5); }
-    #jumpBtn, #bombBtn, #emojiBtn, #atkBtn, #dashBtn, #gustBtn { position: fixed; z-index: 6; border-radius: 50%; border: 1.5px solid var(--stroke); color: var(--teal);
+    #jumpBtn, #bombBtn, #emojiBtn, #atkBtn, #dashBtn, #gustBtn, #lockBtn { position: fixed; z-index: 6; border-radius: 50%; border: 1.5px solid var(--stroke); color: var(--teal);
       font-weight: 800; background: rgba(255,255,255,0.30); backdrop-filter: blur(6px); touch-action: none; user-select: none; box-shadow: var(--shadow); }
     #jumpBtn { right: 26px; bottom: 40px; width: 96px; height: 96px; font-size: 14px; }
     #jumpBtn:active { background: rgba(94,234,212,0.55); }
@@ -249,6 +249,8 @@
     #dashBtn { right: 120px; bottom: 210px; width: 56px; height: 56px; font-size: 22px; }
     #dashBtn:active { background: rgba(143,228,255,0.6); }
     #gustBtn { right: 40px; bottom: 232px; width: 56px; height: 56px; font-size: 22px; }
+    #lockBtn { left: 30px; bottom: 172px; width: 56px; height: 56px; font-size: 22px; }
+    #lockBtn.active { background: rgba(255,242,168,0.65); }
     #gustBtn:active { background: rgba(143,228,255,0.6); }
 
     @media (max-width: 760px) {
@@ -325,6 +327,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     <button id="atkBtn">⚔️</button>
     <button id="dashBtn">💨</button>
     <button id="gustBtn">🌀</button>
+    <button id="lockBtn">🎯</button>
     <button id="emojiBtn">😄</button>
   </div>
 
@@ -368,7 +371,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
     // ---------- Build tag + on-screen error reporter (so failures are visible, not silent) ----------
-    const BUILD = 'v135 · no giant labels';
+    const BUILD = 'v136 · Z-target lock-on';
     (function () {
       const tag = document.createElement('div');
       tag.style.cssText = 'position:fixed;right:10px;bottom:8px;z-index:8;font:11px ui-sans-serif;color:#1b3a36;background:rgba(255,255,255,.5);padding:3px 8px;border-radius:8px;pointer-events:none';
@@ -1154,7 +1157,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
 
     let modelReady = true;                          // the procedural avatar is ready instantly
     let gaitPhase = 0, gaitSpeed = 0, squash = 0;   // walk-cycle + squash/stretch state
-    let mvSmooth = 0, turnSmooth = 0;               // eased movement + turn so start/stop isn't jerky
+    let mvSmooth = 0, turnSmooth = 0, moveMag = 0;  // eased movement + turn so start/stop isn't jerky; moveMag drives the walk cycle (incl. strafing)
     // Play is available immediately.
     const playBtn = document.getElementById('playBtn');
     playBtn.disabled = false; playBtn.textContent = '▶ Planet betreten';
@@ -1173,6 +1176,10 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     let hp = 5; const maxHp = 5; let hurtT = 0; // player health + invulnerability window
     let dashT = 0, dashCd = 0; // dodge-dash burst + cooldown
     let gustCd = 0; // wind-gust cooldown
+    let lockTarget = null; // Zelda-style Z-target lock-on
+    const _faceDir = new THREE.Vector3(), _strafe = new THREE.Vector3();
+    const lockRing = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.74, 28), new THREE.MeshBasicMaterial({ color: 0xfff2a8, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+    lockRing.frustumCulled = false; lockRing.visible = false; scene.add(lockRing);
     const up = new THREE.Vector3();
     function refreshFrame() {
       up.copy(pos).normalize();
@@ -1207,7 +1214,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       const t = oceanUniforms.time.value;
       const onGround = mode === 'ground' && height === 0;
       const running = keys.sprint || touchSprint;
-      const moving = onGround && Math.abs(mvSmooth) > 0.06;
+      const moving = onGround && moveMag > 0.06;
       const target = moving ? (running ? 15 : 10) : 0;
       gaitSpeed += (target - gaitSpeed) * Math.min(1, dt * 8);
       gaitPhase += gaitSpeed * dt;
@@ -1296,9 +1303,11 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       attackCd = heavy ? 0.55 : 0.42; attackT = heavy ? 0.36 : 0.28; swing();
       if (height === 0) { pos.addScaledVector(forward, heavy ? 0.5 : 0.32); pos.setLength(cur.R); refreshFrame(); } // a small lunge into the swing gives it weight
       if (heavy) { shake = Math.max(shake, 0.34); hitStop = Math.max(hitStop, 0.05); shock(player.position, up, 0xeaffff); swing(); } // heavy finisher: bigger sweep + a ground shock
-      // aim-assist: snap to face the nearest foe in reach so the swing connects (Zelda-like)
+      // aim-assist: face the locked target (or the nearest foe in reach) so the swing connects (Zelda-like)
       const reach = heavy ? 4.1 : 3.4;
-      { let bx = null, bd = 1e9; for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (d < reach + 0.2 && d < bd) { bd = d; bx = _ew.clone(); } }
+      { let bx = null, bd = 1e9;
+        if (lockTarget && enemies.indexOf(lockTarget) >= 0 && lockTarget.pl === cur) { bx = _ew.copy(cur.center).add(lockTarget.g.position).clone(); }
+        else { for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (d < reach + 0.2 && d < bd) { bd = d; bx = _ew.clone(); } } }
         if (bx) { forward.copy(bx).sub(player.position); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() > 1e-4) forward.normalize(); } }
       for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.pl !== cur) continue;
         _ew.copy(cur.center).add(e.g.position); const to = tmp.copy(_ew).sub(player.position); const d = to.length();
@@ -1319,6 +1328,13 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     function dash() { // quick forward dodge with brief i-frames
       if (mode !== 'ground' || dashCd > 0 || !started) return;
       dashCd = 0.8; dashT = 0.2; hurtT = Math.max(hurtT, 0.34); squash = 0.16; swing(); shock(player.position, up, 0xbfe4ff);
+    }
+    function toggleLock() { // Z-target: lock onto the nearest foe (camera frames it, you circle-strafe & attacks aim at it)
+      if (!started || mode !== 'ground') return;
+      if (lockTarget) { lockTarget = null; return; }
+      let best = null, bd = 1e9;
+      for (const e of enemies) { if (e.pl !== cur) continue; _ew.copy(cur.center).add(e.g.position); const d = _ew.distanceTo(player.position); if (d < 17 && d < bd) { bd = d; best = e; } }
+      lockTarget = best; if (best) { chime(false); lockRing.material.color.setHex(0xfff2a8); }
     }
     let bombCd = 0; // bomb cooldown
     function bomb() { // drop a fused bomb that bursts into a radial AoE shock
@@ -1416,6 +1432,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     window.__dbg.tpRune = () => { const s = shrines.find((x) => x.pl === cur); if (!s) return false; const ru = s.runes.find((r) => !r.lit); if (!ru) return false; pos.copy(ru.dir).multiplyScalar(cur.R); height = 0; vUp = 0; refreshFrame(); placePlayer(); return true; };
     window.__dbg.smite = () => { let best = null, bi = -1, bd = 1e9; for (let i = 0; i < enemies.length; i++) { const e = enemies[i]; if (e.pl !== cur) continue; const d = e.g.position.distanceTo(pos); if (d < bd) { bd = d; best = e; bi = i; } } if (best) { best.hp = 1; hitEnemy(best, bi); return true; } return false; };
     window.__dbg.attack = () => attack();
+    window.__dbg.lock = () => { toggleLock(); return { locked: !!lockTarget, reticle: lockRing.visible }; };
     window.__dbg.forceAttack = () => { attackCd = 0; attack(); return { chainN, heavy: lastHeavy }; };
     window.__dbg.enemyTypes = () => { const e = enemies.filter((x) => x.pl === cur); return { total: e.length, swarm: e.filter((x) => x.swarm).length, grunt: e.filter((x) => !x.swarm && !x.boss).length, boss: e.filter((x) => x.boss).length }; };
     window.__dbg.currents = () => ({ count: currents.length, parts: currents.reduce((s, c) => s + c.parts.length, 0), rides: windRides });
@@ -1439,6 +1456,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       case 'KeyJ': if (started) attack(); break;
       case 'KeyK': if (started) gust(); break;
       case 'KeyB': if (started) bomb(); break;
+      case 'KeyL': case 'Tab': if (started) { e.preventDefault(); toggleLock(); } break;
       case 'KeyQ': if (started) dash(); break; } });
     const EMOJIS = ['👋', '😄', '🎉', '✨', '🚀', '🪐', '🧠']; let emoIdx = 0;
     addEventListener('keyup', (e) => { switch (e.code) {
@@ -1503,6 +1521,7 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
     document.getElementById('atkBtn').addEventListener('touchstart', (e) => { e.preventDefault(); attack(); }, { passive: false });
     document.getElementById('dashBtn').addEventListener('touchstart', (e) => { e.preventDefault(); dash(); }, { passive: false });
     document.getElementById('gustBtn').addEventListener('touchstart', (e) => { e.preventDefault(); gust(); }, { passive: false });
+    document.getElementById('lockBtn').addEventListener('touchstart', (e) => { e.preventDefault(); toggleLock(); document.getElementById('lockBtn').classList.toggle('active', !!lockTarget); }, { passive: false });
     { const jb = document.getElementById('jumpBtn');
       jb.addEventListener('touchstart', (e) => { e.preventDefault(); startCharge(); }, { passive: false });
       jb.addEventListener('touchend', (e) => { e.preventDefault(); releaseCharge(); }, { passive: false }); }
@@ -2266,16 +2285,29 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
       } else { chargeBar.classList.remove('on'); aimLine.visible = false; aimRing.visible = false; }
       if (started && mode === 'ground' && !cinematic) {
         const speed = (keys.sprint || touchSprint ? 6.8 : 3.7), turnSpeed = 2.3;
-        const turnIn = (Number(keys.l) - Number(keys.r)) - touchMove.x; // keyboard/touch turn intent
-        turnSmooth += (turnIn - turnSmooth) * Math.min(1, dt * 12); // ease turning so it doesn't snap
-        let turn = turnSmooth * turnSpeed * dt - dragTurn;
-        dragTurn = 0;
-        if (Math.abs(turn) > 1e-5) forward.applyAxisAngle(up, turn);
+        if (lockTarget && (enemies.indexOf(lockTarget) < 0 || lockTarget.pl !== cur)) lockTarget = null; // drop a dead/left target
+        let strafe = 0;
+        if (lockTarget) {
+          // Z-target: auto-face the locked foe; A/D circle-strafes, W/S approach/retreat
+          _ew.copy(cur.center).add(lockTarget.g.position); _faceDir.copy(_ew).sub(player.position); _faceDir.addScaledVector(up, -_faceDir.dot(up));
+          if (_faceDir.lengthSq() > 1e-5) { _faceDir.normalize(); forward.lerp(_faceDir, Math.min(1, dt * 11)); forward.addScaledVector(up, -forward.dot(up)); if (forward.lengthSq() > 1e-5) forward.normalize(); }
+          strafe = (Number(keys.r) - Number(keys.l)) + touchMove.x; turnSmooth = 0; dragTurn = 0;
+        } else {
+          const turnIn = (Number(keys.l) - Number(keys.r)) - touchMove.x; // keyboard/touch turn intent
+          turnSmooth += (turnIn - turnSmooth) * Math.min(1, dt * 12); // ease turning so it doesn't snap
+          const turn = turnSmooth * turnSpeed * dt - dragTurn; dragTurn = 0;
+          if (Math.abs(turn) > 1e-5) forward.applyAxisAngle(up, turn);
+        }
         mv = Math.max(-1, Math.min(1, (Number(keys.f) - Number(keys.b)) + touchMove.y));
         mvSmooth += (mv - mvSmooth) * Math.min(1, dt * 9); // ease accel/decel
         if (dashCd > 0) dashCd -= dt;
         if (dashT > 0) { dashT -= dt; pos.addScaledVector(forward, 17 * dt); pos.setLength(cur.R); refreshFrame(); puff(player.position, up); }
-        else if (Math.abs(mvSmooth) > 0.01) { pos.addScaledVector(forward, mvSmooth * speed * dt); pos.setLength(cur.R); refreshFrame(); }
+        else { let moved = false;
+          if (Math.abs(mvSmooth) > 0.01) { pos.addScaledVector(forward, mvSmooth * speed * dt); moved = true; }
+          if (Math.abs(strafe) > 0.01) { _strafe.crossVectors(up, forward).normalize(); pos.addScaledVector(_strafe, strafe * speed * 0.85 * dt); moved = true; }
+          if (moved) { pos.setLength(cur.R); refreshFrame(); }
+        }
+        moveMag = Math.max(Math.abs(mvSmooth), Math.abs(strafe)); // drives the walk cycle (forward or strafe)
         if (height === 0 && vUp <= 0) { for (const pad of pads) { if (pad.pl !== cur) continue; _ew.copy(cur.center).add(pad.g.position); if (_ew.distanceTo(player.position) < 1.5) { vUp = 13; canJump = false; squash = 0.3; pad.t = 0.3; boing(); break; } } }
         if (height > 0 || vUp > 0) { const wasFalling = vUp < -2; vUp -= G * dt; height += vUp * dt; if (height <= 0) { height = 0; vUp = 0; canJump = true; if (wasFalling) { puff(player.position, up); puff(player.position, up); squash = -0.22; step(); } } } // landing dust + impact squash
         if (mv !== 0 && height === 0) { stepTimer -= dt; if (stepTimer <= 0) { stepTimer = (keys.sprint || touchSprint) ? 0.22 : 0.34; puff(player.position, up); step(); } } else stepTimer = 0;
@@ -2328,16 +2360,23 @@ C — Foto-Modus   ·   F — Emoji   ·   P — Einstellungen   ·   H — Hilf
         let desired;
         if (air) { const behind = tmp.copy(forward).multiplyScalar(-1).applyAxisAngle(_r, -0.5); desired = tmp3.copy(player.position).addScaledVector(behind, 12).addScaledVector(up, 4); }
         else { // closer behind-the-shoulder third-person; auto-tilt flatter while charging a jump so the trajectory shows
-          const aimPitch = charging ? 0.72 : camPitch; pitchEff += (aimPitch - pitchEff) * 0.1;
-          const RAD = charging ? 15 : 10; desired = tmp3.copy(player.position).addScaledVector(up, Math.sin(pitchEff) * RAD + 1).addScaledVector(forward, -Math.cos(pitchEff) * RAD); }
+          const lockedCam = lockTarget && enemies.indexOf(lockTarget) >= 0 && lockTarget.pl === cur;
+          const aimPitch = charging ? 0.72 : lockedCam ? 0.66 : camPitch; pitchEff += (aimPitch - pitchEff) * 0.1; // lock-on: flatter, slightly pulled back to frame you + the foe
+          const RAD = charging ? 15 : lockedCam ? 12 : 10; desired = tmp3.copy(player.position).addScaledVector(up, Math.sin(pitchEff) * RAD + 1).addScaledVector(forward, -Math.cos(pitchEff) * RAD); }
         const np = nearestPlanet(desired); const minR = np.R + 2.4;
         if (desired.distanceTo(np.center) < minR) desired.sub(np.center).setLength(minR).add(np.center);
         camera.position.lerp(desired, air ? 0.08 : 0.14);
-        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.3));
+        const lookAhead = (lockTarget && enemies.indexOf(lockTarget) >= 0 && lockTarget.pl === cur) ? 1.6 : 0; // look toward the locked foe
+        camera.up.copy(up); camera.lookAt(tmp.copy(player.position).addScaledVector(up, 1.3).addScaledVector(forward, lookAhead));
         if (fovKick > 0) fovKick -= dt * fovKick * 6 + dt * 0.5; if (fovKick < 0) fovKick = 0;
         const wantFov = (air || ((keys.sprint || touchSprint) && mv !== 0)) ? 68 : 60;
         camera.fov += (wantFov - fovKick * 7 - camera.fov) * 0.18; camera.updateProjectionMatrix();
       }
+      // lock-on reticle: a pulsing ring on the targeted foe, billboarded to the camera
+      if (lockTarget && enemies.indexOf(lockTarget) >= 0 && lockTarget.pl === cur && mode === 'ground') {
+        _ew.copy(cur.center).add(lockTarget.g.position).addScaledVector(up, 0.9); lockRing.position.copy(_ew); lockRing.lookAt(camera.position);
+        const ps = 1 + 0.12 * Math.sin(oceanUniforms.time.value * 6); lockRing.scale.setScalar(ps); lockRing.visible = true;
+      } else { lockRing.visible = false; if (lockTarget && mode === 'ground') lockTarget = null; }
       if (shake > 0) { shake -= dt; if (!reduceMotion) { const s = Math.max(0, shake) * 0.7; camera.position.x += (Math.random() - 0.5) * s; camera.position.y += (Math.random() - 0.5) * s; camera.position.z += (Math.random() - 0.5) * s; } }
       if (window.__ov) { camera.position.copy(window.__ovPos); camera.up.set(0,1,0); camera.lookAt(window.__ovLook || tmp.set(0,0,0)); } // debug/QA overview hook
 
